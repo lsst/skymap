@@ -1,0 +1,23 @@
+# -*- python -*-
+Import("env")
+import sys
+
+import lsst.tests
+
+dataDir = env.ProductDir("afwdata")
+args = {
+}
+#
+# Tests
+#
+ignoreList = [
+]
+
+if not dataDir:
+    sys.stderr.write("afwdata is not set up; skipping tests requiring data\n")
+    ignoreList += args.keys()
+
+tests = lsst.tests.Control(env, args=args, ignoreList=ignoreList, verbose=True)
+tests.run("*.cc")
+#for target in tests.run("*.py"):
+#    env.Depends(target, "../python/lsst/coadd/kaiser/_kaiserLib%s" % (env["LDMODULESUFFIX"]))
