@@ -21,10 +21,10 @@
 #
 """
 @todo
-- Tweak pixel scale so the average scale is as specified, rather than the scale at the center
-- Bug fix: overlap=0 results in nonsense
-- The outer boundary of the sky tile should be pentagonal, not rectangular; deal with it
-  and in particular use this knowledge to compute the number of pixels per tile
+- Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
+- The sky tiles could be pentagonal (or some approximation), not rectangular
+  and still preserve the desired minimum overlap. This would cut down a bit on the number
+  of pixels to store per tile, but would make the code more complex.
 """
 import math
 import lsst.afw.coord as afwCoord
@@ -48,14 +48,15 @@ class SkyMap(object):
         projection = "STG",
         withFacesOnPoles = False,
     ):
-        """Inputs:
-        - overlap: minimum overlap between adjacent sky tiles (rad)
-        - pixelScale: nominal pixel scale in degrees/pixel
-        - projection: one of the FITS WCS projection codes, such as:
+        """Construct a SkyMap
+
+        @param[in] overlap: minimum overlap between adjacent sky tiles (rad)
+        @param[in] pixelScale: nominal pixel scale in degrees/pixel
+        @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
           - MOL: Molleweide's projection
           - TAG: tangent-plane projection
-        - withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
+        @param[in] withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
         """
         self._overlap = float(overlap)
         self._pixelScale = float(pixelScale)
@@ -72,18 +73,18 @@ class SkyMap(object):
                     dec = 90.0
                 else:
                     dec = -90.0
-                return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.makePointD(defRA, dec), afwCoord.DEGREES)
-            return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.makePointD(*vec))
+                return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.Point2D(defRA, dec), afwCoord.DEGREES)
+            return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.Point3D(*vec))
         
-        for ind in range(12):
-            faceVec = self._dodecahedron.getFace(ind)
+        for id in range(12):
+            faceVec = self._dodecahedron.getFace(id)
             faceCoord = coordFromVec(faceVec)
             faceRA = faceCoord.getPosition(afwCoord.DEGREES)[0]
-            vertexVecList = self._dodecahedron.getVertices(ind)
+            vertexVecList = self._dodecahedron.getVertices(id)
             
             self._skyTileInfoList.append(skyTileInfo.SkyTileInfo(
-                ind = ind,
-                ctrCoord = faceCoord,
+                id = id,
+                crValCoord = faceCoord,
                 vertexCoordList = [coordFromVec(vec, defRA=faceRA) for vec in vertexVecList],
                 overlap = self._overlap,
                 wcsFactory = self._wcsFactory,
@@ -104,15 +105,19 @@ class SkyMap(object):
         """
         return self._projection
 
-    def getSkyTileInd(self, coord):
-        """Return the index of the sky tile whose optimal area includes the coord.
+    def getSkyTileId(self, coord):
+        """Return the ID of the sky tile whose optimal area includes the coord.
         
-        If coord is on a boundary between two sky tiles then one of the two tiles will be returned
+        @input[in] coord: sky coordinate (afwCoord.Coord)
+        
+        If coord is halfway between two sky tile centers then one of the two tiles will be returned
         without warning; it is explicitly not defined how the choice is made.
         """
         return self._dodecahedron.getFaceInd(coord.getVector())
 
-    def getSkyTileInfo(self, ind):
+    def getSkyTileInfo(self, id):
         """Get information about a sky tile
+        
+        @param[in] id: sky tile ID
         """
-        return self._skyTileInfoList[ind]
+        return self._skyTileInfoList[id]

@@ -21,6 +21,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
+
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -32,16 +33,18 @@ for overlapDeg in (0.0001, 0.33, 1.0, 3.5):
     totNumPix = 0
     for i in range(12):
         skyTileInfo = skyMap.getSkyTileInfo(i)
-        ctrCoord = skyTileInfo.getCtrCoord()
-        ctrPos = ctrCoord.getPosition(afwCoord.DEGREES)
-        dimensions = skyTileInfo.getDimensions()
+        bbox = skyTileInfo.getBBox()
+        dimensions = bbox.getDimensions()
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
         wcs = skyTileInfo.getWcs()
-        leftCoord = wcs.pixelToSky(0.0, dimensions[1]/2.0)
-        rightCoord = wcs.pixelToSky(dimensions[0]-1, dimensions[1]/2.0)
-        topCoord = wcs.pixelToSky(dimensions[0]/2.0, dimensions[1] - 1)
-        bottomCoord = wcs.pixelToSky(dimensions[0]/2.0, 0)
+        posBBox = afwGeom.Box2D(bbox)
+        ctrPos = posBBox.getCenter()
+        ctrCoord = wcs.pixelToSky(ctrPos)
+        leftCoord   = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPos[1]))
+        rightCoord  = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPos[1]))
+        topCoord    = wcs.pixelToSky(afwGeom.Point2D(ctrPos[0], posBBox.getMinY()))
+        bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPos[0], posBBox.getMaxY()))
         xSpan = leftCoord.angularSeparation(rightCoord, afwCoord.DEGREES)
         ySpan = bottomCoord.angularSeparation(topCoord, afwCoord.DEGREES)
         print "sky tile %2d center RA/Dec = %6.1f, %6.1f; dimensions = %.2e x %.2e pixels (%0.1e total); span = %.1f x %.1f deg" % \

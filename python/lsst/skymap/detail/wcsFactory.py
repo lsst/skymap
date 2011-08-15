@@ -29,9 +29,9 @@ class WcsFactory(object):
     def __init__(self, pixelScale, projection):
         """Make a WcsFactory
         
-        @param pixelScale: desired scale in degrees/pixel
-        @param projection: FITS-standard 3-letter name of projection, e.g.:
-            TAN (tangent), STG (stereographic), MOL (Mollweide’s), AIT (Hammer-Aitoff)
+        @param[in] pixelScale: desired scale, in degrees/pixel
+        @param[in] projection: FITS-standard 3-letter name of projection, e.g.:
+            TAN (tangent), STG (stereographic), MOL (Mollweide's), AIT (Hammer-Aitoff)
             see Representations of celestial coordinates in FITS (Calabretta and Greisen, 2002)
         """
         if len(projection) != 3:
@@ -41,22 +41,21 @@ class WcsFactory(object):
         self._ctypes = [("%-5s%3s" % (("RA", "DEC")[i], self._projection)).replace(" ", "-")
             for i in range(2)]
 
-    def makeWcs(self, ctrInd, ctrCoord, **kargs):
+    def makeWcs(self, crPixPos, crValCoord, **kargs):
         """Make a Wcs
         
-        Inputs:
-        - ctrInd: pixel index of center of WCS (LSST standard); used to compute CRPIX
-        - ctrCoord: sky coordinate of center of WCS; used as CRVAL
+        @param[in] crPixPos: crPix for WCS, using the LSST standard; an afwGeom.Point2D or pair of floats
+        @param[in] crValCoord: crVal for WCS (afwCoord.Coord)
         **kargs: FITS keyword arguments for WCS
         """
         ps = dafBase.PropertySet()
-        crPix = [ind + 1.0 for ind in ctrInd]
-        crVal = ctrCoord.getPosition(afwCoord.DEGREES)
+        crPixFits = [ind + 1.0 for ind in crPixPos] # convert pix position to FITS standard
+        crValDeg = crValCoord.getPosition(afwCoord.DEGREES)
         for i in range(2):
             ip1 = i + 1
             ps.add("CTYPE%1d" % (ip1,), self._ctypes[i])
-            ps.add("CRPIX%1d" % (ip1,), crPix[i])
-            ps.add("CRVAL%1d" % (ip1,), crVal[i])
+            ps.add("CRPIX%1d" % (ip1,), crPixFits[i])
+            ps.add("CRVAL%1d" % (ip1,), crValDeg[i])
         ps.add("RADECSYS", "ICRS")
         ps.add("EQUINOX", 2000)
         ps.add("CD1_1", -self._pixelScale)

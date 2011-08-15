@@ -8,8 +8,9 @@ class Dodecahedron(object):
     Contains positions of faces and associated vertices
     """
     def __init__(self, withFacesOnPoles=False):
-        """Inputs:
-        - withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
+        """Construct a Dodecahedron
+        
+        @param[in] withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
         """
         # Basis cartesian vectors describing the faces of a dodecahedron; the full set of vectors is obtained
         # by choosing both signs of each nonzero component of each vector.
