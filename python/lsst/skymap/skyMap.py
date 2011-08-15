@@ -1,6 +1,30 @@
+# 
+# LSST Data Management System
+# Copyright 2008, 2009, 2010 LSST Corporation.
+# 
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the LSST License Statement and 
+# the GNU General Public License along with this program.  If not, 
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
 """
-To do:
+@todo
 - Tweak pixel scale so the average scale is as specified, rather than the scale at the center
+- Bug fix: overlap=0 results in nonsense
+- The outer boundary of the sky tile should be pentagonal, not rectangular; deal with it
+  and in particular use this knowledge to compute the number of pixels per tile
 """
 import math
 import lsst.afw.coord as afwCoord
@@ -25,7 +49,7 @@ class SkyMap(object):
         withFacesOnPoles = False,
     ):
         """Inputs:
-        - overlap: minimum overlap of each tile into the optimal region of the adjacent tiles (rad)
+        - overlap: minimum overlap between adjacent sky tiles (rad)
         - pixelScale: nominal pixel scale in degrees/pixel
         - projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
@@ -64,6 +88,21 @@ class SkyMap(object):
                 overlap = self._overlap,
                 wcsFactory = self._wcsFactory,
             ))
+            
+    def getOverlap(self):
+        """Get the minimum overlap between adjacent sky tiles (rad)
+        """
+        return self._overlap
+    
+    def getPixelScale(self):
+        """Get the pixel scale in degrees/pixel
+        """
+        return self._pixelScale
+    
+    def getProjection(self):
+        """Get the projection as a FITS WCS code
+        """
+        return self._projection
 
     def getSkyTileInd(self, coord):
         """Return the index of the sky tile whose optimal area includes the coord.
