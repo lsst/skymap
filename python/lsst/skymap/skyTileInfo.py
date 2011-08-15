@@ -27,6 +27,11 @@ import lsst.afw.image as afwImage
 _RadPerDeg = math.pi / 180.0
 
 class SkyTileInfo(object):
+    """Information about a sky tile
+    
+    @todo: provide a way returning a geometry.SphericalConvexPolygon;
+    one question is whether the geometry is ready; it certainly doesn't work with afwCoord yet.
+    """
     def __init__(self, id, crValCoord, vertexCoordList, overlap, wcsFactory):
         """Construct a SkyTileInfo
 
