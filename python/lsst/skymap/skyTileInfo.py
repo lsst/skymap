@@ -64,10 +64,13 @@ class SkyTileInfo(object):
             if self._overlap == 0:
                 minBBoxD.include(initialWcs.skyToPixel(vertexCoord))
             else:
-                for i in range(4):
-                    offAngle = 90.0 * i
+                halfOverlap = self._overlap / 2.0
+                numAngles = 24
+                angleIncr = _RadPerDeg * 360.0 / float(numAngles)
+                for i in range(numAngles):
+                    offAngle = angleIncr * i
                     offCoord = vertexCoord.clone()
-                    offCoord.offset(offAngle * _RadPerDeg, self._overlap / 2.0)
+                    offCoord.offset(offAngle, halfOverlap)
                     pixPos = initialWcs.skyToPixel(offCoord)
                     if id < DebugMinId:
                         print "vertexDeg=%s, offDeg=%s, pixPos=%s" % \

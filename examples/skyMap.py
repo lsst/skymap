@@ -27,10 +27,11 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.skymap
 
-for overlapDeg in (0.0001, 0.33, 1.0, 3.5):
-    print "overlap = %.1f degrees" % (overlapDeg)
+for overlapDeg in (0.0, 0.33, 1.0, 3.5):
+    print "overlap = %s degrees" % (overlapDeg)
     skyMap = lsst.skymap.SkyMap(overlap=overlapDeg * math.pi / 180.0)
     totNumPix = 0
+    print "ID  Ctr RA  Ctr Dec    Rows        Cols        NPix   Width  Height"
     for i in range(12):
         skyTileInfo = skyMap.getSkyTileInfo(i)
         bbox = skyTileInfo.getBBox()
@@ -39,18 +40,19 @@ for overlapDeg in (0.0001, 0.33, 1.0, 3.5):
         totNumPix += numPix
         wcs = skyTileInfo.getWcs()
         posBBox = afwGeom.Box2D(bbox)
-        ctrPos = posBBox.getCenter()
-        ctrCoord = wcs.pixelToSky(ctrPos)
-        leftCoord   = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPos[1]))
-        rightCoord  = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPos[1]))
-        topCoord    = wcs.pixelToSky(afwGeom.Point2D(ctrPos[0], posBBox.getMinY()))
-        bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPos[0], posBBox.getMaxY()))
+        ctrPixPos = posBBox.getCenter()
+        ctrCoord = wcs.pixelToSky(ctrPixPos)
+        ctrSkyPosDeg = ctrCoord.getPosition(afwCoord.DEGREES)
+        leftCoord   = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPixPos[1]))
+        rightCoord  = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
+        topCoord    = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
+        bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
         xSpan = leftCoord.angularSeparation(rightCoord, afwCoord.DEGREES)
         ySpan = bottomCoord.angularSeparation(topCoord, afwCoord.DEGREES)
-        print "sky tile %2d center RA/Dec = %6.1f, %6.1f; dimensions = %.2e x %.2e pixels (%0.1e total); span = %.1f x %.1f deg" % \
-            (i, ctrPos[0], ctrPos[1], dimensions[0], dimensions[1], numPix, xSpan, ySpan)
+        print "%2d %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
+            (i, ctrSkyPosDeg[0], ctrSkyPosDeg[1], dimensions[0], dimensions[1], numPix, xSpan, ySpan)
     
     nomPixelArea = skyMap.getPixelScale()**2 # nominal area of a pixel in deg^2
     numPixToTileSphere = 4 * math.pi * (180.0 / math.pi)**2 / nomPixelArea
-    print "total # pixels = %.1e, pixels to tile sphere = %.1e, extra storage (tot pix/pix to tile) = %.1f" % \
+    print "total # pixels = %.1e\npixels to tile sphere = %.1e\nextra storage (tot pix/pix to tile) = %.1f\n" % \
         (totNumPix, numPixToTileSphere, totNumPix / float(numPixToTileSphere))
