@@ -27,20 +27,27 @@
   of pixels to store per tile, but would make the code more complex.
 """
 import math
+import numpy
+
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import detail
 import skyTileInfo
 
+_RadPerDeg = math.pi / 180.0
+_TinyFloat = numpy.finfo(float).tiny
+
 # LSST plate scale is 50 um/arcsec
 # LSST pixel size is 10 um
 # Default sky pixel scale is 1/sqrt(2) of image pixel scale
-_DefaultPlateScale = 10.0 / (50.0 * 3600.0 * math.sqrt(2.0))
-
-_RadPerDeg = math.pi / 180.0
+# Required units are radians/pixel
+_DefaultPlateScale = (10.0 / (50.0 * 3600.0 * math.sqrt(2.0))) * _RadPerDeg
 
 class SkyMap(object):
-    """Information about sky tiles
+    """Metadata about a sky map pixelization.
+        
+    SkyMap divides the sky into 12 overlapping SkyTiles arranged as the faces of a dodecahedron.
+    Each sky tile is a rectangular Exposure using the specified WCS projection and nominal pixel scale.
     """
     def __init__(self,
         overlap = 3.5 * _RadPerDeg,
@@ -51,7 +58,7 @@ class SkyMap(object):
         """Construct a SkyMap
 
         @param[in] overlap: minimum overlap between adjacent sky tiles (rad)
-        @param[in] pixelScale: nominal pixel scale in degrees/pixel
+        @param[in] pixelScale: nominal pixel scale (rad/pixel)
         @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
           - MOL: Molleweide's projection
@@ -66,7 +73,14 @@ class SkyMap(object):
         self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
 
         def coordFromVec(vec, defRA=None):
-            if abs(vec[0]) < 1e-14 and abs(vec[1]) < 1e-14:
+            """Convert a ICRS cartesian vector to an ICRS Coord
+            
+            @param[in] vec: an ICRS catesian vector as a sequence of three floats
+            @param[in] defRA: the RA to use if the vector is too near a pole; ignored if not near a pole
+            
+            @throw RuntimeError if vec too near a pole and defRA is None
+            """
+            if abs(vec[0]) < _TinyFloat and abs(vec[1]) < _TinyFloat:
                 if defRA == None:
                     raise RuntimeError("At pole and defRA==None")
                 if vec[2] > 0:
@@ -84,7 +98,7 @@ class SkyMap(object):
             
             self._skyTileInfoList.append(skyTileInfo.SkyTileInfo(
                 id = id,
-                crValCoord = faceCoord,
+                ctrCoord = faceCoord,
                 vertexCoordList = [coordFromVec(vec, defRA=faceRA) for vec in vertexVecList],
                 overlap = self._overlap,
                 wcsFactory = self._wcsFactory,
@@ -96,7 +110,7 @@ class SkyMap(object):
         return self._overlap
     
     def getPixelScale(self):
-        """Get the pixel scale in degrees/pixel
+        """Get the nominal pixel scale (rad/pixel)
         """
         return self._pixelScale
     
@@ -113,7 +127,7 @@ class SkyMap(object):
         If coord is halfway between two sky tile centers then one of the two tiles will be returned
         without warning; it is explicitly not defined how the choice is made.
         """
-        return self._dodecahedron.getFaceInd(coord.getVector())
+        return self._dodecahedron.getFaceInd(coord.toIcrs().getVector())
 
     def getSkyTileInfo(self, id):
         """Get information about a sky tile

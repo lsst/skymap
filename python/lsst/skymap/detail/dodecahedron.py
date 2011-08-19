@@ -58,7 +58,7 @@ class Dodecahedron(object):
         
         If the vector is on a border, picks one of the two faces in an undocumented way.
         """
-        return numpy.argmax(numpy.sum(self.faceVecList * vec, 1))
+        return numpy.argmax(numpy.dot(self.faceVecList, vec))
 
 def computeRotationMatrix(angle, axis):
     """Return a 3D rotation matrix for rotation by a specified amount around a specified axis
@@ -160,9 +160,9 @@ def _findCloseIndexSet(vecList, ind):
     
     Inputs:
     - vecList: list of cartesian vectors
-    - ind: index of vector to be nears
+    - ind: index of vector to be nearest
     """
-    dotProductList = numpy.round(numpy.sum(vecList * vecList[ind], 1), 2)
+    dotProductList = numpy.round(numpy.dot(vecList, vecList[ind]), 2)
     dotProductList[ind] = -9e99
     minDist = numpy.max(dotProductList)
     indList = numpy.arange(len(dotProductList))[dotProductList==minDist]
@@ -177,7 +177,7 @@ def _findCloseList(vecList, vec):
     - vecList: list of cartesian vectors
     - vec: vector to be near
     """
-    dotProductList = numpy.round(numpy.sum(vecList * vec, 1), 2)
+    dotProductList = numpy.round(numpy.dot(vecList, vec), 2)
     minDist = numpy.max(dotProductList)
     indList = numpy.arange(len(dotProductList))[dotProductList==minDist]
     retList = numpy.take(vecList, indList, 0)
@@ -192,7 +192,7 @@ def _findClosePair(vecList, ind=0):
     """
     vec = vecList[ind]
     otherVecList = vecList[0:ind] + vecList[ind+1:]
-    ind1 = numpy.argmax(numpy.sum(otherVecList * vec, 1))
+    ind1 = numpy.argmax(numpy.dot(otherVecList, vec))
     return vec, otherVecList[ind1]
     
 def _sortedVectorList(vecList):

@@ -19,9 +19,13 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import math
+
 import lsst.daf.base as dafBase
 import lsst.afw.coord as afwCoord
 import lsst.afw.image as afwImage
+
+_RadPerDeg = math.pi / 180.0
 
 class WcsFactory(object):
     """A factory for creating Wcs objects for the sky tiles.
@@ -29,14 +33,14 @@ class WcsFactory(object):
     def __init__(self, pixelScale, projection):
         """Make a WcsFactory
         
-        @param[in] pixelScale: desired scale, in degrees/pixel
+        @param[in] pixelScale: desired scale, in rad/pixel
         @param[in] projection: FITS-standard 3-letter name of projection, e.g.:
             TAN (tangent), STG (stereographic), MOL (Mollweide's), AIT (Hammer-Aitoff)
             see Representations of celestial coordinates in FITS (Calabretta and Greisen, 2002)
         """
         if len(projection) != 3:
             raise RuntimeError("projection=%r; must have length 3" % (projection,))
-        self._pixelScale = float(pixelScale)
+        self._pixelScaleDeg = float(pixelScale) / _RadPerDeg
         self._projection = str(projection)
         self._ctypes = [("%-5s%3s" % (("RA", "DEC")[i], self._projection)).replace(" ", "-")
             for i in range(2)]
@@ -58,8 +62,8 @@ class WcsFactory(object):
             ps.add("CRVAL%1d" % (ip1,), crValDeg[i])
         ps.add("RADECSYS", "ICRS")
         ps.add("EQUINOX", 2000)
-        ps.add("CD1_1", -self._pixelScale)
+        ps.add("CD1_1", -self._pixelScaleDeg)
         ps.add("CD2_1", 0.0)
         ps.add("CD1_2", 0.0)
-        ps.add("CD2_2", self._pixelScale)
+        ps.add("CD2_2", self._pixelScaleDeg)
         return afwImage.makeWcs(ps)

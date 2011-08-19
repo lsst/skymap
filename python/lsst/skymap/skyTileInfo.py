@@ -27,23 +27,25 @@ import lsst.afw.image as afwImage
 _RadPerDeg = math.pi / 180.0
 
 class SkyTileInfo(object):
-    """Information about a sky tile
+    """Information about a sky tile in a SkyMap sky pixelization
     
     @todo: provide a way returning a geometry.SphericalConvexPolygon;
     one question is whether the geometry is ready; it certainly doesn't work with afwCoord yet.
     """
-    def __init__(self, id, crValCoord, vertexCoordList, overlap, wcsFactory):
+    def __init__(self, id, ctrCoord, vertexCoordList, overlap, wcsFactory):
         """Construct a SkyTileInfo
 
         @param[in] id: sky tile ID
-        @param[in] crValCoord: sky coordinate of center of WCS (CRVal), an afwCoord.Coord
+        @param[in] ctrCoord: sky position of center of optimal area of tile, as an afwCoord.Coord;
+            also used as the CRVAL for the WCS.
         @param[in] vertexCoordList: list of sky coordinates of vertices that define edge of optimal area
         @param[in] overlap: minimum overlap between adjacent sky tiles (rad)
         @param[in] wcsFactory: a skymap.detail.WcsFactory object
         """
-#         print "SkyTileInfo(id=%s, crValCoord=%s, overlap=%0.1f)" % \
-#             (id, crValCoord.getPosition(afwCoord.DEGREES), overlap)
+#         print "SkyTileInfo(id=%s, ctrCoord=%s, overlap=%0.1f)" % \
+#             (id, ctrCoord.getPosition(afwCoord.DEGREES), overlap)
         self._id = id
+        self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
         self._overlap = float(overlap)
         
@@ -53,12 +55,12 @@ class SkyTileInfo(object):
         # as if the tile center was at pixel position 0, 0; then shift all pixel positions
         # so that the tile's bbox starts from 0,0
         initialCRPixPos = afwGeom.Point2D(0.0, 0.0)
-        initialWcs = wcsFactory.makeWcs(crPixPos=initialCRPixPos, crValCoord=crValCoord)
+        initialWcs = wcsFactory.makeWcs(crPixPos=initialCRPixPos, crValCoord=self._ctrCoord)
 
         # compute minimum bounding box that will hold all corners and overlap
         minBBoxD = afwGeom.Box2D()
         if id < DebugMinId:
-            print "center position =", crValCoord.getPosition(afwCoord.DEGREES)
+            print "center position =", self._ctrCoord.getPosition(afwCoord.DEGREES)
         for vertexCoord in self._vertexCoordList:
             vertexDeg = vertexCoord.getPosition(afwCoord.DEGREES)
             if self._overlap == 0:
@@ -81,15 +83,23 @@ class SkyTileInfo(object):
         # compute final bbox the same size but with LL corner = 0,0; use that to compute final WCS
         self._bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), initialBBox.getDimensions())
         # crpix for final Wcs is shifted by the same amount as bbox
-        crPixPos = initialCRPixPos + afwGeom.Extent2D(self._bbox.getMin() - initialBBox.getMin())
+        pixPosOffset = afwGeom.Extent2D(self._bbox.getMinX() - initialBBox.getMinX(),
+                                        self._bbox.getMinY() - initialBBox.getMinY())
+        crPixPos = initialCRPixPos + pixPosOffset
         if id < DebugMinId:
-            print "initialBBox=%s; bbox=%s; crPixPos=%s" % (initialBBox, self._bbox, crPixPos)
-        self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=crValCoord)
+            print "initialBBox=%s; bbox=%s; pixPosOffset=%s; crPixPos=%s" % \
+                (initialBBox, self._bbox, pixPosOffset, crPixPos)
+        self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=self._ctrCoord)
     
     def getBBox(self):
         """Get bounding box of sky tile (as an afwGeom.Box2I)
         """
         return afwGeom.Box2I(self._bbox)
+    
+    def getCtrCoord(self):
+        """Get sky position of optimal region of sky tile (as an afwCoord.Coord)
+        """
+        return self._ctrCoord.clone()
 
     def getId(self):
         """Get ID of sky tile
