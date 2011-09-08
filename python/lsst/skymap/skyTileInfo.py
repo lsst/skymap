@@ -29,18 +29,24 @@ _RadPerDeg = math.pi / 180.0
 class SkyTileInfo(object):
     """Information about a sky tile in a SkyMap sky pixelization
     
-    @todo: provide a way returning a geometry.SphericalConvexPolygon;
+    @todo Provide a way returning a geometry.SphericalConvexPolygon;
     one question is whether the geometry is ready; it certainly doesn't work with afwCoord yet.
     """
     def __init__(self, id, ctrCoord, vertexCoordList, overlap, wcsFactory):
         """Construct a SkyTileInfo
 
         @param[in] id: sky tile ID
-        @param[in] ctrCoord: sky position of center of optimal area of tile, as an afwCoord.Coord;
+        @param[in] ctrCoord: sky coordinate of center of inner region of tile, as an afwCoord.Coord;
             also used as the CRVAL for the WCS.
-        @param[in] vertexCoordList: list of sky coordinates of vertices that define edge of optimal area
-        @param[in] overlap: minimum overlap between adjacent sky tiles (rad)
+        @param[in] vertexCoordList: list of sky coordinates (afwCoord.Coord)
+            of vertices that define the boundaries of the inner region
+        @param[in] overlap: minimum overlap between adjacent sky tiles (rad);
+            this defines the minimum distance the sky tile extends beyond the inner region in all directions
         @param[in] wcsFactory: a skymap.detail.WcsFactory object
+        
+        @warning
+        - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
+        - vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
 #         print "SkyTileInfo(id=%s, ctrCoord=%s, overlap=%0.1f)" % \
 #             (id, ctrCoord.getPosition(afwCoord.DEGREES), overlap)
@@ -97,7 +103,7 @@ class SkyTileInfo(object):
         return afwGeom.Box2I(self._bbox)
     
     def getCtrCoord(self):
-        """Get sky position of optimal region of sky tile (as an afwCoord.Coord)
+        """Get sky coordinate of center of sky tile (as an afwCoord.Coord)
         """
         return self._ctrCoord.clone()
 
@@ -119,8 +125,15 @@ class SkyTileInfo(object):
         return self._wcs
 
     def getVertexList(self):
-        """Get list of sky coordinates of vertices that define edge of optimal area
+        """Get list of sky coordinates of vertices that define the boundary of the inner region
         
         @warning: this is not a deep copy
+        @warning vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         return self._vertexCoordList
+
+    def __str__(self):
+        return "SkyTileInfo(id=%s)" % (self._id,)
+    
+    def __repr__(self):
+        return "SkyTileInfo(id=%s, ctrCoord=%s)" % (self._id, self._ctrCoord.getVector())

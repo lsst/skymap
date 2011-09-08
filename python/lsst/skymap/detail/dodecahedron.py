@@ -154,7 +154,7 @@ def _computeFullVecList(basisSet):
     return fullSet
 
 def _findCloseIndexSet(vecList, ind):
-    """Given a list of cartesian vectors, return a set of indices of those closes to one of them
+    """Given a list of cartesian vectors, return a set of indices of those closest to one of them
     
     This is intended for regular grids where distances are quantized
     
