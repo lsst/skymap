@@ -87,7 +87,7 @@ class SkyMapTestCase(unittest.TestCase):
             distList = []
             for tileInfo1 in tileInfoList:
                 otherCtrCoord = tileInfo1.getCtrCoord()
-                distList.append(ctrCoord.angularSeparation(otherCtrCoord, afwCoord.DEGREES))
+                distList.append(ctrCoord.angularSeparation(otherCtrCoord).asDegrees())
             distList.sort()
             self.assertAlmostEquals(distList[0], 0.0)
             for dist in distList[1:6]:
@@ -113,7 +113,7 @@ class SkyMapTestCase(unittest.TestCase):
             nbrTileList = []
             for otherTileInfo in tileInfoList:
                 otherCtrCoord = otherTileInfo.getCtrCoord()
-                dist = ctrCoord0.angularSeparation(otherCtrCoord, afwCoord.DEGREES)
+                dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
                     nbrTileList.append(otherTileInfo)
             self.assertEquals(len(nbrTileList), 5)
@@ -123,7 +123,7 @@ class SkyMapTestCase(unittest.TestCase):
                 ctrCoord1 = tileInfo1.getCtrCoord()
                 vector1 = numpy.array(ctrCoord1.getVector())
                 for tileInfo2 in nbrTileList[tileInfo1.getId():]:
-                    dist = ctrCoord1.angularSeparation(tileInfo2.getCtrCoord(), afwCoord.DEGREES)
+                    dist = ctrCoord1.angularSeparation(tileInfo2.getCtrCoord()).asDegrees()
                     if abs(dist - _NeighborAngularSeparation) > 0.1:
                         continue
                     tileId2 = tileInfo2.getId()
@@ -183,10 +183,10 @@ class SkyMapTestCase(unittest.TestCase):
                                     print "testVector=", testVector
     
                                     print "dist0=%s; dist1=%s; dist2=%s; nearDist=%s" % (
-                                        testCoord.angularSeparation(ctrCoord0, afwCoord.DEGREES),
-                                        testCoord.angularSeparation(ctrCoord1, afwCoord.DEGREES),
-                                        testCoord.angularSeparation(ctrCoord2, afwCoord.DEGREES),
-                                        testCoord.angularSeparation(nearestCtrCoord, afwCoord.DEGREES),
+                                        testCoord.angularSeparation(ctrCoord0).asDegrees(),
+                                        testCoord.angularSeparation(ctrCoord1).asDegrees(),
+                                        testCoord.angularSeparation(ctrCoord2).asDegrees(),
+                                        testCoord.angularSeparation(nearestCtrCoord).asDegrees(),
                                     )
                                     self.fail("Expected nearest tileId=%s; got tileId=%s" % \
                                         (expectedTileId, nearestTileId))

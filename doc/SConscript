@@ -1,4 +1,4 @@
 # -*- python -*-
-Import('env')
+from lsst.sconsUtils import scripts
 
-env.Doxygen("doxygen.conf")
+scripts.BasicSConscript.doc()

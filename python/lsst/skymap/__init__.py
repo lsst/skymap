@@ -1,2 +1,2 @@
-from skyTileInfo import *
-from skyMap import *
+from .skyTileInfo import *
+from .skyMap import *

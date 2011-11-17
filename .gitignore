@@ -4,4 +4,13 @@
 /config.log
 
 # /doc/
-/doc/htmlDir
+/doc/*.tag
+/doc/doxygen.conf
+/doc/html/
+
+# /ups/
+ups/*.cfgc
+
+# /tests/
+/tests/.tests
+

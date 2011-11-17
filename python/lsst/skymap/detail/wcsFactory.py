@@ -23,6 +23,7 @@ import math
 
 import lsst.daf.base as dafBase
 import lsst.afw.coord as afwCoord
+import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 
 _RadPerDeg = math.pi / 180.0
@@ -54,7 +55,7 @@ class WcsFactory(object):
         """
         ps = dafBase.PropertySet()
         crPixFits = [ind + 1.0 for ind in crPixPos] # convert pix position to FITS standard
-        crValDeg = crValCoord.getPosition(afwCoord.DEGREES)
+        crValDeg = crValCoord.getPosition(afwGeom.degrees)
         for i in range(2):
             ip1 = i + 1
             ps.add("CTYPE%1d" % (ip1,), self._ctypes[i])

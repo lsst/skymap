@@ -49,7 +49,7 @@ class SkyTileInfo(object):
         - vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
 #         print "SkyTileInfo(id=%s, ctrCoord=%s, overlap=%0.1f)" % \
-#             (id, ctrCoord.getPosition(afwCoord.DEGREES), overlap)
+#             (id, ctrCoord.getPosition(afwGeom.degrees), overlap)
         self._id = id
         self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
@@ -66,23 +66,23 @@ class SkyTileInfo(object):
         # compute minimum bounding box that will hold all corners and overlap
         minBBoxD = afwGeom.Box2D()
         if id < DebugMinId:
-            print "center position =", self._ctrCoord.getPosition(afwCoord.DEGREES)
+            print "center position =", self._ctrCoord.getPosition(afwGeom.degrees)
         for vertexCoord in self._vertexCoordList:
-            vertexDeg = vertexCoord.getPosition(afwCoord.DEGREES)
+            vertexDeg = vertexCoord.getPosition(afwGeom.degrees)
             if self._overlap == 0:
                 minBBoxD.include(initialWcs.skyToPixel(vertexCoord))
             else:
-                halfOverlap = self._overlap / 2.0
+                halfOverlap = afwGeom.Angle(self._overlap / 2.0, afwGeom.radians)
                 numAngles = 24
                 angleIncr = _RadPerDeg * 360.0 / float(numAngles)
                 for i in range(numAngles):
-                    offAngle = angleIncr * i
+                    offAngle = afwGeom.Angle(angleIncr * i, afwGeom.radians)
                     offCoord = vertexCoord.clone()
                     offCoord.offset(offAngle, halfOverlap)
                     pixPos = initialWcs.skyToPixel(offCoord)
                     if id < DebugMinId:
                         print "vertexDeg=%s, offDeg=%s, pixPos=%s" % \
-                            (vertexDeg, offCoord.getPosition(afwCoord.DEGREES), pixPos)
+                            (vertexDeg, offCoord.getPosition(afwGeom.degrees), pixPos)
                     minBBoxD.include(pixPos)
         initialBBox = afwGeom.Box2I(minBBoxD)
 

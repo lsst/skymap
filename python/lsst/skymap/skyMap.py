@@ -102,7 +102,7 @@ class SkyMap(object):
         for id in range(12):
             faceVec = self._dodecahedron.getFace(id)
             faceCoord = _coordFromVec(faceVec)
-            faceRA = faceCoord.getPosition(afwCoord.DEGREES)[0]
+            faceRA = faceCoord.getPosition(afwGeom.degrees)[0]
             vertexVecList = self._dodecahedron.getVertices(id)
             
             self._skyTileInfoList.append(skyTileInfo.SkyTileInfo(
