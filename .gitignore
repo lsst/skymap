@@ -1,16 +1,17 @@
-
-# /
-/.scon*
-/config.log
-
-# /doc/
-/doc/*.tag
-/doc/doxygen.conf
-/doc/html/
-
-# /ups/
-ups/*.cfgc
-
-# /tests/
-/tests/.tests
-
+.sconsign.dblite
+config.log
+.sconf_temp
+*.dylib
+*.o
+*.os
+*.so
+*.cfgc
+*.pyc
+*_wrap.cc
+*Lib.py
+doc/html
+doc/*.tag
+doc/*.inc
+doc/doxygen.conf
+tests/.tests
+version.py
