@@ -1,4 +1,4 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
 
-scripts.BasicSConscript.doc()
+scripts.BasicSConscript.doc(inputs=["#python", "#doc"])
