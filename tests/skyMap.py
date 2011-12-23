@@ -52,24 +52,24 @@ class SkyMapTestCase(unittest.TestCase):
         """Confirm that constructor attributes are available
         """
         sm = skymap.SkyMap()
-        self.assertEquals(sm.getNumSkyTiles(), _NumFaces)
-        self.assertEquals(sm.getOverlap(), 3.5 * _RadPerDeg)
-        self.assertEquals(sm.getProjection(), "STG")
+        self.assertEqual(sm.getNumSkyTiles(), _NumFaces)
+        self.assertEqual(sm.getOverlap(), 3.5 * _RadPerDeg)
+        self.assertEqual(sm.getProjection(), "STG")
         
         for overlap in (0.0, 0.01, 0.1): # degrees
             sm = skymap.SkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
-            self.assertEquals(sm.getOverlap(), overlap)
+            self.assertEqual(sm.getOverlap().asDegrees(), overlap)
             for tileId in range(sm.getNumSkyTiles()):
                 tileInfo = sm.getSkyTileInfo(tileId)
-                self.assertEquals(tileInfo.getOverlap(), overlap)
+                self.assertAlmostEqual(tileInfo.getOverlap().asDegrees(), overlap)
         
         for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
             sm = skymap.SkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
-            self.assertEquals(sm.getPixelScale(), pixelScale)
+            self.assertAlmostEqual(sm.getPixelScale().asArcseconds(), pixelScale)
         
         for projection in ("STG", "TAN", "MOL"):
             sm = skymap.SkyMap(projection = projection)
-            self.assertEquals(sm.getProjection(), projection)
+            self.assertEqual(sm.getProjection(), projection)
     
     def testTileSeparation(self):
         """Confirm that each sky tile has the proper distance to other tiles
@@ -79,7 +79,7 @@ class SkyMapTestCase(unittest.TestCase):
         tileInfoList = []
         for tileId in range(numSkyTiles):
             tileInfo = sm.getSkyTileInfo(tileId)
-            self.assertEquals(tileInfo.getId(), tileId)
+            self.assertEqual(tileInfo.getId(), tileId)
             tileInfoList.append(tileInfo)
         
         for tileInfo in tileInfoList:
@@ -116,7 +116,7 @@ class SkyMapTestCase(unittest.TestCase):
                 dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
                     nbrTileList.append(otherTileInfo)
-            self.assertEquals(len(nbrTileList), 5)
+            self.assertEqual(len(nbrTileList), 5)
             
             for tileInfo1 in nbrTileList:
                 tileId1 = tileInfo1.getId()
