@@ -56,15 +56,15 @@ class SkyMapTestCase(unittest.TestCase):
         self.assertEquals(sm.getOverlap(), 3.5 * _RadPerDeg)
         self.assertEquals(sm.getProjection(), "STG")
         
-        for overlap in (0.0, 0.01, 0.1):
-            sm = skymap.SkyMap(overlap = overlap)
+        for overlap in (0.0, 0.01, 0.1): # degrees
+            sm = skymap.SkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
             self.assertEquals(sm.getOverlap(), overlap)
             for tileId in range(sm.getNumSkyTiles()):
                 tileInfo = sm.getSkyTileInfo(tileId)
                 self.assertEquals(tileInfo.getOverlap(), overlap)
         
-        for pixelScale in (1e-9, 1e-8, 1e-7):
-            sm = skymap.SkyMap(pixelScale = pixelScale)
+        for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
+            sm = skymap.SkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
             self.assertEquals(sm.getPixelScale(), pixelScale)
         
         for projection in ("STG", "TAN", "MOL"):

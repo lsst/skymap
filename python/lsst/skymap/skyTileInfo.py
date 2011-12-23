@@ -40,7 +40,7 @@ class SkyTileInfo(object):
             also used as the CRVAL for the WCS.
         @param[in] vertexCoordList: list of sky coordinates (afwCoord.Coord)
             of vertices that define the boundaries of the inner region
-        @param[in] overlap: minimum overlap between adjacent sky tiles (rad);
+        @param[in] overlap: minimum overlap between adjacent sky tiles; an afwGeom.Angle;
             this defines the minimum distance the sky tile extends beyond the inner region in all directions
         @param[in] wcsFactory: a skymap.detail.WcsFactory object
         
@@ -53,7 +53,7 @@ class SkyTileInfo(object):
         self._id = id
         self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
-        self._overlap = float(overlap)
+        self._overlap = overlap
         
         DebugMinId = 0 # print extra information if id < DebugMinId
 
@@ -67,12 +67,12 @@ class SkyTileInfo(object):
         minBBoxD = afwGeom.Box2D()
         if id < DebugMinId:
             print "center position =", self._ctrCoord.getPosition(afwGeom.degrees)
+        halfOverlap = self._overlap / 2.0
         for vertexCoord in self._vertexCoordList:
             vertexDeg = vertexCoord.getPosition(afwGeom.degrees)
             if self._overlap == 0:
                 minBBoxD.include(initialWcs.skyToPixel(vertexCoord))
             else:
-                halfOverlap = afwGeom.Angle(self._overlap / 2.0, afwGeom.radians)
                 numAngles = 24
                 angleIncr = _RadPerDeg * 360.0 / float(numAngles)
                 for i in range(numAngles):

@@ -31,7 +31,7 @@ _RadPerDeg = math.pi / 180.0
 
 for overlapDeg in (0.0, 0.33, 1.0, 3.5):
     print "overlap = %s degrees" % (overlapDeg)
-    skyMap = lsst.skymap.SkyMap(overlap=overlapDeg * _RadPerDeg)
+    skyMap = lsst.skymap.SkyMap(overlap=afwGeom.Angle(overlapDeg, afwGeom.degrees))
     totNumPix = 0
     print "ID  Ctr RA  Ctr Dec    Rows        Cols        NPix   Width  Height"
     for i in range(12):
@@ -54,7 +54,7 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
         print "%2d %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
             (i, ctrSkyPosDeg[0], ctrSkyPosDeg[1], dimensions[0], dimensions[1], numPix, xSpan, ySpan)
     
-    nomPixelArea = skyMap.getPixelScale()**2 # nominal area of a pixel in rad^2
+    nomPixelArea = skyMap.getPixelScale().asRadians()**2 # nominal area of a pixel in rad^2
     numPixToTileSphere = 4 * math.pi / nomPixelArea
     print "total # pixels = %.1e\npixels to tile sphere = %.1e\nextra storage (tot pix/pix to tile) = %.1f\n" % \
         (totNumPix, numPixToTileSphere, totNumPix / float(numPixToTileSphere))

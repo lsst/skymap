@@ -38,17 +38,17 @@ class Dodecahedron(object):
         self.faceVecList = _sortedVectorList(unsortedFaceList)
 
     def getFaceVectorList(self):
-        """Return a list of unit vectors of the center of each face
+        """Return a list of unit vectors (numpy arrays) of the center of each face
         """
         return self.faceVecList[:]
     
     def getFace(self, ind):
-        """Return the position vector of the center of the specified face
+        """Return the position vector (as a numpy array) of the center of the specified face
         """
         return self.faceVecList[ind][:]
 
     def getVertices(self, ind):
-        """Return the vertices for a given face, as a list of unit vectors
+        """Return the vertices for a given face, as a list of unit vectors (numpy arrays)
         """
         faceVec = self.getFace(ind)
         return _findCloseList(self.vertexVecList, faceVec)

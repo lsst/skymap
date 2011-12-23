@@ -34,17 +34,15 @@ import lsst.afw.geom as afwGeom
 import detail
 import skyTileInfo
 
-_RadPerDeg = math.pi / 180.0
 _TinyFloat = numpy.finfo(float).tiny
 
 # Default overlap is 3.5 degrees
-_DefaultOverlap = 3.5 * _RadPerDeg
+_DefaultOverlap = afwGeom.Angle(3.5, afwGeom.degrees)
 
 # LSST plate scale is 50 um/arcsec
 # LSST pixel size is 10 um
 # Default sky pixel scale is 1/sqrt(2) of image pixel scale
-# Required units are radians/pixel
-_DefaultPlateScale = (10.0 / (50.0 * 3600.0 * math.sqrt(2.0))) * _RadPerDeg
+_DefaultPlateScale = afwGeom.Angle(10.0 / (50.0 * math.sqrt(2.0)), afwGeom.arcseconds)
 
 def _coordFromVec(vec, defRA=None):
     """Convert an ICRS cartesian vector to an ICRS Coord
@@ -84,16 +82,16 @@ class SkyMap(object):
     ):
         """Construct a SkyMap
 
-        @param[in] overlap: minimum overlap between adjacent sky tiles (rad)
-        @param[in] pixelScale: nominal pixel scale (rad/pixel)
+        @param[in] overlap: minimum overlap between adjacent sky tiles; an afwGeom.Angle
+        @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
           - MOL: Molleweide's projection
           - TAN: tangent-plane projection
         @param[in] withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
         """
-        self._overlap = float(overlap)
-        self._pixelScale = float(pixelScale)
+        self._overlap = overlap
+        self._pixelScale = pixelScale
         self._projection = str(projection)
         self._dodecahedron = detail.Dodecahedron(withFacesOnPoles)
         self._skyTileInfoList = []
@@ -114,12 +112,12 @@ class SkyMap(object):
             ))
             
     def getOverlap(self):
-        """Get the minimum overlap between adjacent sky tiles (rad)
+        """Get the minimum overlap between adjacent sky tiles; an afwGeom.Angle
         """
         return self._overlap
     
     def getPixelScale(self):
-        """Get the nominal pixel scale (rad/pixel)
+        """Get the nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         """
         return self._pixelScale
     

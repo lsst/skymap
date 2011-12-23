@@ -26,22 +26,20 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 
-_RadPerDeg = math.pi / 180.0
-
 class WcsFactory(object):
     """A factory for creating Wcs objects for the sky tiles.
     """
     def __init__(self, pixelScale, projection):
         """Make a WcsFactory
         
-        @param[in] pixelScale: desired scale, in rad/pixel
+        @param[in] pixelScale: desired scale, in angle/pixel
         @param[in] projection: FITS-standard 3-letter name of projection, e.g.:
             TAN (tangent), STG (stereographic), MOL (Mollweide's), AIT (Hammer-Aitoff)
             see Representations of celestial coordinates in FITS (Calabretta and Greisen, 2002)
         """
         if len(projection) != 3:
             raise RuntimeError("projection=%r; must have length 3" % (projection,))
-        self._pixelScaleDeg = float(pixelScale) / _RadPerDeg
+        self._pixelScaleDeg = pixelScale.asDegrees()
         self._projection = str(projection)
         self._ctypes = [("%-5s%3s" % (("RA", "DEC")[i], self._projection)).replace(" ", "-")
             for i in range(2)]
