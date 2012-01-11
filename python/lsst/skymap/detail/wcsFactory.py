@@ -65,4 +65,6 @@ class WcsFactory(object):
         ps.add("CD2_1", 0.0)
         ps.add("CD1_2", 0.0)
         ps.add("CD2_2", self._pixelScaleDeg)
+        for key, value in kargs.iteritems():
+            ps.add(key, value)
         return afwImage.makeWcs(ps)
