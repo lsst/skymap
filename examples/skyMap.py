@@ -35,12 +35,12 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
     totNumPix = 0
     print "ID  Ctr RA  Ctr Dec    Rows        Cols        NPix   Width  Height"
     for i in range(12):
-        skyTileInfo = skyMap.getSkyTileInfo(i)
-        bbox = skyTileInfo.getBBox()
+        skyFaceInfo = skyMap.getSkyFaceInfo(i)
+        bbox = skyFaceInfo.getBBox()
         dimensions = bbox.getDimensions()
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
-        wcs = skyTileInfo.getWcs()
+        wcs = skyFaceInfo.getWcs()
         posBBox = afwGeom.Box2D(bbox)
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)

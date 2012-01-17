@@ -22,17 +22,17 @@
 """
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
-- The sky tiles could be pentagonal (or some approximation), not rectangular
+- The sky faces could be pentagonal (or some approximation), not rectangular
   and still preserve the desired minimum overlap. This would cut down a bit on the number
-  of pixels to store per tile, but would make the code more complex.
+  of pixels to store per face, but would make the code more complex.
 """
 import math
 import numpy
 
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-import detail
-import skyTileInfo
+from . import detail
+from .skyFaceInfo import SkyFaceInfo
 
 _TinyFloat = numpy.finfo(float).tiny
 
@@ -66,12 +66,12 @@ def _coordFromVec(vec, defRA=None):
 class SkyMap(object):
     """Metadata about a sky map pixelization.
         
-    SkyMap divides the sky into 12 overlapping SkyTiles arranged as the faces of a dodecahedron.
-    Each sky tile is a rectangular Exposure using the specified WCS projection and nominal pixel scale.
+    SkyMap divides the sky into 12 overlapping SkyFaces arranged as the faces of a dodecahedron.
+    Each sky face is a rectangular Exposure using the specified WCS projection and nominal pixel scale.
     
     @note
-    - The inner region of each sky tile is defined to be the region closer to the center of that tile
-      than to the center of any other tile.
+    - The inner region of each sky face is defined to be the region closer to the center of that face
+      than to the center of any other face.
     - The native coordinate system is ICRS
     """
     def __init__(self,
@@ -82,7 +82,7 @@ class SkyMap(object):
     ):
         """Construct a SkyMap
 
-        @param[in] overlap: minimum overlap between adjacent sky tiles; an afwGeom.Angle
+        @param[in] overlap: minimum overlap between adjacent sky faces; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
@@ -94,7 +94,7 @@ class SkyMap(object):
         self._pixelScale = pixelScale
         self._projection = str(projection)
         self._dodecahedron = detail.Dodecahedron(withFacesOnPoles)
-        self._skyTileInfoList = []
+        self._skyFaceInfoList = []
         self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
 
         for id in range(12):
@@ -103,7 +103,7 @@ class SkyMap(object):
             faceRA = faceCoord.getPosition(afwGeom.degrees)[0]
             vertexVecList = self._dodecahedron.getVertices(id)
             
-            self._skyTileInfoList.append(skyTileInfo.SkyTileInfo(
+            self._skyFaceInfoList.append(SkyFaceInfo(
                 id = id,
                 ctrCoord = faceCoord,
                 vertexCoordList = [_coordFromVec(vec, defRA=faceRA) for vec in vertexVecList],
@@ -112,7 +112,7 @@ class SkyMap(object):
             ))
             
     def getOverlap(self):
-        """Get the minimum overlap between adjacent sky tiles; an afwGeom.Angle
+        """Get the minimum overlap between adjacent sky faces; an afwGeom.Angle
         """
         return self._overlap
     
@@ -126,26 +126,26 @@ class SkyMap(object):
         """
         return self._projection
 
-    def getSkyTileId(self, coord):
-        """Return the ID of the sky tile whose inner region includes the coord.
+    def getSkyFaceId(self, coord):
+        """Return the ID of the sky face whose inner region includes the coord.
         
         @param[in] coord: sky coordinate (afwCoord.Coord)
         
         @note
         - This routine will be more efficient if coord is ICRS.
-        - If coord is equidistant between two sky tile centers then one of the two tiles
+        - If coord is equidistant between two sky face centers then one of the two faces
           is arbitrarily chosen (in an explicitly undefined manner).
         """
         return self._dodecahedron.getFaceInd(coord.toIcrs().getVector())
     
-    def getNumSkyTiles(self):
-        """Get the number of sky tiles
+    def getNumSkyFaces(self):
+        """Get the number of sky faces
         """
-        return len(self._skyTileInfoList)
+        return len(self._skyFaceInfoList)
 
-    def getSkyTileInfo(self, id):
-        """Get information about a sky tile
+    def getSkyFaceInfo(self, id):
+        """Get information about a sky face
         
-        @param[in] id: sky tile ID
+        @param[in] id: sky face ID
         """
-        return self._skyTileInfoList[id]
+        return self._skyFaceInfoList[id]
