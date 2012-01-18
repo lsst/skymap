@@ -33,15 +33,15 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
     print "overlap = %s degrees" % (overlapDeg)
     skyMap = lsst.skymap.SkyMap(overlap=afwGeom.Angle(overlapDeg, afwGeom.degrees))
     totNumPix = 0
-    print "Face  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
-    print " ID    (deg)   (deg)     (pix)       (pix)              (deg)  (deg)"
+    print "Patch  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
+    print " ID     (deg)   (deg)     (pix)       (pix)              (deg)  (deg)"
     for i in range(12):
-        skyFaceInfo = skyMap.getSkyFaceInfo(i)
-        bbox = skyFaceInfo.getBBox()
+        skyPatchInfo = skyMap.getSkyPatchInfo(i)
+        bbox = skyPatchInfo.getBBox()
         dimensions = bbox.getDimensions()
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
-        wcs = skyFaceInfo.getWcs()
+        wcs = skyPatchInfo.getWcs()
         posBBox = afwGeom.Box2D(bbox)
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)
@@ -52,7 +52,7 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
         bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
         xSpan = leftCoord.angularSeparation(rightCoord).asDegrees()
         ySpan = bottomCoord.angularSeparation(topCoord).asDegrees()
-        print "%3d  %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
+        print "%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
             (i, ctrSkyPosDeg[0], ctrSkyPosDeg[1], dimensions[0], dimensions[1], numPix, xSpan, ySpan)
     
     nomPixelArea = skyMap.getPixelScale().asRadians()**2 # nominal area of a pixel in rad^2
