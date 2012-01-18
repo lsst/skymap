@@ -1,3 +1,3 @@
-from .skyTileInfo import *
+from .skyPatchInfo import *
 from .skyMap import *
 from .version import *

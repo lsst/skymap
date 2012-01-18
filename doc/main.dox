@@ -5,14 +5,14 @@
 
 Skymap supports storing and retrieving image data that covers most or all of the sky.
 
-The data is arranged as a set of huge sky tile exposures (approximately 2e6 x 2e6 pixels) arranged
-as the faces of a dodecahedron. The sky tiles overlap by a significant amount such that any
-image processing code should be able to obtain all its data from a portion of one sky tile.
+The data is arranged as a set of huge sky patch exposures (approximately 2e6 x 2e6 pixels) arranged
+as the patches of a dodecahedron. The sky patches overlap by a significant amount such that any
+image processing code should be able to obtain all its data from a portion of one sky patch.
 
 Classes available from Python include:
 
-@li lsst::skymap::SkyTile: a sky tile exposure (since a full sky tile has billions of pixels, this is only ever a subregion of a full sky tile).
-@li lsst::skymap::SkyTileInfo: information about a full sky tile, including the sky tile dimensions and WCS.
-@li lsst::skymap::SkyMap: construct and manage a collection of SkyTiles.
+@li lsst::skymap::SkyPatch: a sky patch exposure. Since a full sky patch has billions of pixels, this is only ever a subregion of a full sky patch.
+@li lsst::skymap::SkyPatchInfo: information about a full sky patch, including the sky patch dimensions and WCS.
+@li lsst::skymap::SkyMap: construct and manage a collection of SkyPatches.
 */
 }}}

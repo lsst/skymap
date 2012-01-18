@@ -33,25 +33,26 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
     print "overlap = %s degrees" % (overlapDeg)
     skyMap = lsst.skymap.SkyMap(overlap=afwGeom.Angle(overlapDeg, afwGeom.degrees))
     totNumPix = 0
-    print "ID  Ctr RA  Ctr Dec    Rows        Cols        NPix   Width  Height"
+    print "Patch  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
+    print " ID     (deg)   (deg)     (pix)       (pix)              (deg)  (deg)"
     for i in range(12):
-        skyTileInfo = skyMap.getSkyTileInfo(i)
-        bbox = skyTileInfo.getBBox()
+        skyPatchInfo = skyMap.getSkyPatchInfo(i)
+        bbox = skyPatchInfo.getBBox()
         dimensions = bbox.getDimensions()
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
-        wcs = skyTileInfo.getWcs()
+        wcs = skyPatchInfo.getWcs()
         posBBox = afwGeom.Box2D(bbox)
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)
-        ctrSkyPosDeg = ctrCoord.getPosition(afwCoord.DEGREES)
+        ctrSkyPosDeg = ctrCoord.getPosition(afwGeom.degrees)
         leftCoord   = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPixPos[1]))
         rightCoord  = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
         topCoord    = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
         bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
-        xSpan = leftCoord.angularSeparation(rightCoord, afwCoord.DEGREES)
-        ySpan = bottomCoord.angularSeparation(topCoord, afwCoord.DEGREES)
-        print "%2d %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
+        xSpan = leftCoord.angularSeparation(rightCoord).asDegrees()
+        ySpan = bottomCoord.angularSeparation(topCoord).asDegrees()
+        print "%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
             (i, ctrSkyPosDeg[0], ctrSkyPosDeg[1], dimensions[0], dimensions[1], numPix, xSpan, ySpan)
     
     nomPixelArea = skyMap.getPixelScale().asRadians()**2 # nominal area of a pixel in rad^2

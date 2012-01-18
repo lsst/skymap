@@ -26,29 +26,29 @@ import lsst.afw.image as afwImage
 
 _RadPerDeg = math.pi / 180.0
 
-class SkyTileInfo(object):
-    """Information about a sky tile in a SkyMap sky pixelization
+class SkyPatchInfo(object):
+    """Information about a sky patch in a SkyMap sky pixelization
     
     @todo Provide a way returning a geometry.SphericalConvexPolygon;
     one question is whether the geometry is ready; it certainly doesn't work with afwCoord yet.
     """
     def __init__(self, id, ctrCoord, vertexCoordList, overlap, wcsFactory):
-        """Construct a SkyTileInfo
+        """Construct a SkyPatchInfo
 
-        @param[in] id: sky tile ID
-        @param[in] ctrCoord: sky coordinate of center of inner region of tile, as an afwCoord.Coord;
+        @param[in] id: sky patch ID
+        @param[in] ctrCoord: sky coordinate of center of inner region of patch, as an afwCoord.Coord;
             also used as the CRVAL for the WCS.
         @param[in] vertexCoordList: list of sky coordinates (afwCoord.Coord)
             of vertices that define the boundaries of the inner region
-        @param[in] overlap: minimum overlap between adjacent sky tiles; an afwGeom.Angle;
-            this defines the minimum distance the sky tile extends beyond the inner region in all directions
+        @param[in] overlap: minimum overlap between adjacent sky patches; an afwGeom.Angle;
+            this defines the minimum distance the sky patch extends beyond the inner region in all directions
         @param[in] wcsFactory: a skymap.detail.WcsFactory object
         
         @warning
         - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
         - vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
-#         print "SkyTileInfo(id=%s, ctrCoord=%s, overlap=%0.1f)" % \
+#         print "SkyPatchInfo(id=%s, ctrCoord=%s, overlap=%0.1f)" % \
 #             (id, ctrCoord.getPosition(afwGeom.degrees), overlap)
         self._id = id
         self._ctrCoord = ctrCoord
@@ -57,9 +57,9 @@ class SkyTileInfo(object):
         
         DebugMinId = 0 # print extra information if id < DebugMinId
 
-        # We don't know how big the tile will be, yet, so start by computing everything
-        # as if the tile center was at pixel position 0, 0; then shift all pixel positions
-        # so that the tile's bbox starts from 0,0
+        # We don't know how big the patch will be, yet, so start by computing everything
+        # as if the patch center was at pixel position 0, 0; then shift all pixel positions
+        # so that the patch's bbox starts from 0,0
         initialCRPixPos = afwGeom.Point2D(0.0, 0.0)
         initialWcs = wcsFactory.makeWcs(crPixPos=initialCRPixPos, crValCoord=self._ctrCoord)
 
@@ -98,27 +98,27 @@ class SkyTileInfo(object):
         self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=self._ctrCoord)
     
     def getBBox(self):
-        """Get bounding box of sky tile (as an afwGeom.Box2I)
+        """Get bounding box of sky patch (as an afwGeom.Box2I)
         """
         return afwGeom.Box2I(self._bbox)
     
     def getCtrCoord(self):
-        """Get sky coordinate of center of sky tile (as an afwCoord.Coord)
+        """Get sky coordinate of center of sky patch (as an afwCoord.Coord)
         """
         return self._ctrCoord.clone()
 
     def getId(self):
-        """Get ID of sky tile
+        """Get ID of sky patch
         """
         return self._id
     
     def getOverlap(self):
-        """Get overlap with adjacent sky tiles (rad)
+        """Get overlap with adjacent sky patches (rad)
         """
         return self._overlap
     
     def getWcs(self):
-        """Get WCS of sky tile
+        """Get WCS of sky patch
         
         @warning: this is not a deep copy
         """
@@ -133,7 +133,7 @@ class SkyTileInfo(object):
         return self._vertexCoordList
 
     def __str__(self):
-        return "SkyTileInfo(id=%s)" % (self._id,)
+        return "SkyPatchInfo(id=%s)" % (self._id,)
     
     def __repr__(self):
-        return "SkyTileInfo(id=%s, ctrCoord=%s)" % (self._id, self._ctrCoord.getVector())
+        return "SkyPatchInfo(id=%s, ctrCoord=%s)" % (self._id, self._ctrCoord.getVector())
