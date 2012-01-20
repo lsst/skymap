@@ -33,15 +33,15 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
     print "overlap = %s degrees" % (overlapDeg)
     skyMap = lsst.skymap.SkyMap(overlap=afwGeom.Angle(overlapDeg, afwGeom.degrees))
     totNumPix = 0
-    print "Patch  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
+    print "Tract  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
     print " ID     (deg)   (deg)     (pix)       (pix)              (deg)  (deg)"
     for i in range(12):
-        skyPatchInfo = skyMap.getSkyPatchInfo(i)
-        bbox = skyPatchInfo.getBBox()
+        skyTractInfo = skyMap.getSkyTractInfo(i)
+        bbox = skyTractInfo.getBBox()
         dimensions = bbox.getDimensions()
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
-        wcs = skyPatchInfo.getWcs()
+        wcs = skyTractInfo.getWcs()
         posBBox = afwGeom.Box2D(bbox)
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)

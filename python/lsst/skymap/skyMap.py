@@ -22,9 +22,9 @@
 """
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
-- The sky patches could be pentagonal (or some approximation), not rectangular
+- The sky tracts could be pentagonal (or some approximation), not rectangular
   and still preserve the desired minimum overlap. This would cut down a bit on the number
-  of pixels to store per patch, but would make the code more complex.
+  of pixels to store per tract, but would make the code more complex.
 """
 import math
 import numpy
@@ -32,7 +32,7 @@ import numpy
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from . import detail
-from .skyPatchInfo import SkyPatchInfo
+from .skyTractInfo import SkyTractInfo
 
 _TinyFloat = numpy.finfo(float).tiny
 
@@ -66,53 +66,53 @@ def _coordFromVec(vec, defRA=None):
 class SkyMap(object):
     """Metadata about a sky map pixelization.
         
-    SkyMap divides the sky into 12 overlapping SkyPatches arranged as the patches of a dodecahedron.
-    Each sky patch is a rectangular Exposure using the specified WCS projection and nominal pixel scale.
+    SkyMap divides the sky into 12 overlapping SkyTracts arranged as the tracts of a dodecahedron.
+    Each sky tract is a rectangular Exposure using the specified WCS projection and nominal pixel scale.
     
     @note
-    - The inner region of each sky patch is defined to be the region closer to the center of that patch
-      than to the center of any other patch.
+    - The inner region of each sky tract is defined to be the region closer to the center of that tract
+      than to the center of any other tract.
     - The native coordinate system is ICRS
     """
     def __init__(self,
         overlap = _DefaultOverlap,
         pixelScale = _DefaultPlateScale,
         projection = "STG",
-        withPatchesOnPoles = False,
+        withTractsOnPoles = False,
     ):
         """Construct a SkyMap
 
-        @param[in] overlap: minimum overlap between adjacent sky patches; an afwGeom.Angle
+        @param[in] overlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
           - MOL: Molleweide's projection
           - TAN: tangent-plane projection
-        @param[in] withPatchesOnPoles: if True center a patch on each pole, else put a vertex on each pole
+        @param[in] withTractsOnPoles: if True center a tract on each pole, else put a vertex on each pole
         """
         self._overlap = overlap
         self._pixelScale = pixelScale
         self._projection = str(projection)
-        self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = withPatchesOnPoles)
-        self._skyPatchInfoList = []
+        self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = withTractsOnPoles)
+        self._skyTractInfoList = []
         self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
 
         for id in range(12):
-            patchVec = self._dodecahedron.getFace(id)
-            patchCoord = _coordFromVec(patchVec)
-            patchRA = patchCoord.getPosition(afwGeom.degrees)[0]
+            tractVec = self._dodecahedron.getFace(id)
+            tractCoord = _coordFromVec(tractVec)
+            tractRA = tractCoord.getPosition(afwGeom.degrees)[0]
             vertexVecList = self._dodecahedron.getVertices(id)
             
-            self._skyPatchInfoList.append(SkyPatchInfo(
+            self._skyTractInfoList.append(SkyTractInfo(
                 id = id,
-                ctrCoord = patchCoord,
-                vertexCoordList = [_coordFromVec(vec, defRA=patchRA) for vec in vertexVecList],
+                ctrCoord = tractCoord,
+                vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
                 overlap = self._overlap,
                 wcsFactory = self._wcsFactory,
             ))
             
     def getOverlap(self):
-        """Get the minimum overlap between adjacent sky patches; an afwGeom.Angle
+        """Get the minimum overlap between adjacent sky tracts; an afwGeom.Angle
         """
         return self._overlap
     
@@ -126,26 +126,26 @@ class SkyMap(object):
         """
         return self._projection
 
-    def getSkyPatchId(self, coord):
-        """Return the ID of the sky patch whose inner region includes the coord.
+    def getSkyTractId(self, coord):
+        """Return the ID of the sky tract whose inner region includes the coord.
         
         @param[in] coord: sky coordinate (afwCoord.Coord)
         
         @note
         - This routine will be more efficient if coord is ICRS.
-        - If coord is equidistant between two sky patch centers then one of the two patches
+        - If coord is equidistant between two sky tract centers then one of the two tracts
           is arbitrarily chosen (in an explicitly undefined manner).
         """
         return self._dodecahedron.getFaceInd(coord.toIcrs().getVector())
     
-    def getNumSkyPatches(self):
-        """Get the number of sky patches
+    def getNumSkyTracts(self):
+        """Get the number of sky tracts
         """
-        return len(self._skyPatchInfoList)
+        return len(self._skyTractInfoList)
 
-    def getSkyPatchInfo(self, id):
-        """Get information about a sky patch
+    def getSkyTractInfo(self, id):
+        """Get information about a sky tract
         
-        @param[in] id: sky patch ID
+        @param[in] id: sky tract ID
         """
-        return self._skyPatchInfoList[id]
+        return self._skyTractInfoList[id]

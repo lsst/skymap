@@ -41,7 +41,7 @@ import lsst.skymap as skymap
 _RadPerDeg = math.pi / 180.0
 
 # dodecahedron properties
-_NumPatches = 12
+_NumTracts = 12
 _Phi = (1.0 + math.sqrt(5.0)) / 2.0
 _DihedralAngle = 2.0 * math.atan(_Phi) / _RadPerDeg
 _NeighborAngularSeparation = 180.0 - _DihedralAngle
@@ -51,16 +51,16 @@ class SkyMapTestCase(unittest.TestCase):
         """Confirm that constructor attributes are available
         """
         sm = skymap.SkyMap()
-        self.assertEqual(sm.getNumSkyPatches(), _NumPatches)
+        self.assertEqual(sm.getNumSkyTracts(), _NumTracts)
         self.assertEqual(sm.getOverlap(), 3.5 * _RadPerDeg)
         self.assertEqual(sm.getProjection(), "STG")
         
         for overlap in (0.0, 0.01, 0.1): # degrees
             sm = skymap.SkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
             self.assertEqual(sm.getOverlap().asDegrees(), overlap)
-            for patchId in range(sm.getNumSkyPatches()):
-                patchInfo = sm.getSkyPatchInfo(patchId)
-                self.assertAlmostEqual(patchInfo.getOverlap().asDegrees(), overlap)
+            for tractId in range(sm.getNumSkyTracts()):
+                tractInfo = sm.getSkyTractInfo(tractId)
+                self.assertAlmostEqual(tractInfo.getOverlap().asDegrees(), overlap)
         
         for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
             sm = skymap.SkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
@@ -70,22 +70,22 @@ class SkyMapTestCase(unittest.TestCase):
             sm = skymap.SkyMap(projection = projection)
             self.assertEqual(sm.getProjection(), projection)
     
-    def testPatchSeparation(self):
-        """Confirm that each sky patch has the proper distance to other patches
+    def testTractSeparation(self):
+        """Confirm that each sky tract has the proper distance to other tracts
         """
         sm = skymap.SkyMap()
-        numSkyPatches = sm.getNumSkyPatches()
-        patchInfoList = []
-        for patchId in range(numSkyPatches):
-            patchInfo = sm.getSkyPatchInfo(patchId)
-            self.assertEqual(patchInfo.getId(), patchId)
-            patchInfoList.append(patchInfo)
+        numSkyTracts = sm.getNumSkyTracts()
+        tractInfoList = []
+        for tractId in range(numSkyTracts):
+            tractInfo = sm.getSkyTractInfo(tractId)
+            self.assertEqual(tractInfo.getId(), tractId)
+            tractInfoList.append(tractInfo)
         
-        for patchInfo in patchInfoList:
-            ctrCoord = patchInfo.getCtrCoord()
+        for tractInfo in tractInfoList:
+            ctrCoord = tractInfo.getCtrCoord()
             distList = []
-            for patchInfo1 in patchInfoList:
-                otherCtrCoord = patchInfo1.getCtrCoord()
+            for tractInfo1 in tractInfoList:
+                otherCtrCoord = tractInfo1.getCtrCoord()
                 distList.append(ctrCoord.angularSeparation(otherCtrCoord).asDegrees())
             distList.sort()
             self.assertAlmostEquals(distList[0], 0.0)
@@ -93,64 +93,64 @@ class SkyMapTestCase(unittest.TestCase):
                 self.assertAlmostEquals(dist, _NeighborAngularSeparation)
             self.assertAlmostEquals(distList[11], 180.0)
     
-    def testGetSkyPatchId(self):
-        """Test the getSkyPatchId method
+    def testGetSkyTractId(self):
+        """Test the getSkyTractId method
         """
         sm = skymap.SkyMap()
-        numSkyPatches = sm.getNumSkyPatches()
-        patchInfoList = []
-        for patchId in range(numSkyPatches):
-            patchInfo = sm.getSkyPatchInfo(patchId)
-            patchInfoList.append(patchInfo)
+        numSkyTracts = sm.getNumSkyTracts()
+        tractInfoList = []
+        for tractId in range(numSkyTracts):
+            tractInfo = sm.getSkyTractInfo(tractId)
+            tractInfoList.append(tractInfo)
         
-        for patchInfo0 in patchInfoList:
-            patchId0 = patchInfo0.getId()
-            ctrCoord0 = patchInfo0.getCtrCoord()
+        for tractInfo0 in tractInfoList:
+            tractId0 = tractInfo0.getId()
+            ctrCoord0 = tractInfo0.getCtrCoord()
             vector0 = numpy.array(ctrCoord0.getVector())
             
             # make a list of all 5 nearest neighbors
-            nbrPatchList = []
-            for otherPatchInfo in patchInfoList:
-                otherCtrCoord = otherPatchInfo.getCtrCoord()
+            nbrTractList = []
+            for otherTractInfo in tractInfoList:
+                otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
-                    nbrPatchList.append(otherPatchInfo)
-            self.assertEqual(len(nbrPatchList), 5)
+                    nbrTractList.append(otherTractInfo)
+            self.assertEqual(len(nbrTractList), 5)
             
-            for patchInfo1 in nbrPatchList:
-                patchId1 = patchInfo1.getId()
-                ctrCoord1 = patchInfo1.getCtrCoord()
+            for tractInfo1 in nbrTractList:
+                tractId1 = tractInfo1.getId()
+                ctrCoord1 = tractInfo1.getCtrCoord()
                 vector1 = numpy.array(ctrCoord1.getVector())
-                for patchInfo2 in nbrPatchList[patchInfo1.getId():]:
-                    dist = ctrCoord1.angularSeparation(patchInfo2.getCtrCoord()).asDegrees()
+                for tractInfo2 in nbrTractList[tractInfo1.getId():]:
+                    dist = ctrCoord1.angularSeparation(tractInfo2.getCtrCoord()).asDegrees()
                     if abs(dist - _NeighborAngularSeparation) > 0.1:
                         continue
-                    patchId2 = patchInfo2.getId()
-                    ctrCoord2 = patchInfo2.getCtrCoord()
+                    tractId2 = tractInfo2.getId()
+                    ctrCoord2 = tractInfo2.getCtrCoord()
                     vector2 = numpy.array(ctrCoord2.getVector())
                 
-                    # sky patches 0, 1 and 2 form a triangle of nearest neighbors
-                    # explore the boundary between patch 0 and patch 1
-                    # and also the boundary between patch 0 and patch 2
+                    # sky tracts 0, 1 and 2 form a triangle of nearest neighbors
+                    # explore the boundary between tract 0 and tract 1
+                    # and also the boundary between tract 0 and tract 2
                     for deltaFrac in (-0.001, 0.001):
                         isNearest0 = deltaFrac > 0.0
                         
                         for exploreBoundary1 in (True, False):
-                            # if exploreBoundary1, explore boundary between patch 0 and patch 1,
-                            # else explore the boundary between patch 0 and patch 2
+                            # if exploreBoundary1, explore boundary between tract 0 and tract 1,
+                            # else explore the boundary between tract 0 and tract 2
                         
                             if isNearest0:
-                                expectedPatchId = patchId0
+                                expectedTractId = tractId0
                             elif exploreBoundary1:
-                                expectedPatchId = patchId1
+                                expectedTractId = tractId1
                             else:
-                                expectedPatchId = patchId2
+                                expectedTractId = tractId2
                             
                             for farFrac in (0.0, 0.05, 0.3, (1.0/3.0) - 0.01):
-                                # farFrac is the fraction of the patch center vector point whose boundary
+                                # farFrac is the fraction of the tract center vector point whose boundary
                                 # is not being explored; it must be less than 1/3;
-                                # remFrac is the remaining fraction, which is divided between patch 0
-                                # and the patch whose boundary is being explored
+                                # remFrac is the remaining fraction, which is divided between tract 0
+                                # and the tract whose boundary is being explored
                                 remFrac = 1.0 - farFrac
                                 frac0 = (remFrac / 2.0) + deltaFrac
                                 boundaryFrac = (remFrac / 2.0) - deltaFrac
@@ -167,15 +167,15 @@ class SkyMapTestCase(unittest.TestCase):
                                 testVector /= vecLen
                                 lsstVec = afwGeom.Point3D(testVector)
                                 testCoord = afwCoord.IcrsCoord(lsstVec)
-                                nearestPatchId = sm.getSkyPatchId(testCoord)
+                                nearestTractId = sm.getSkyTractId(testCoord)
     
-                                if expectedPatchId != nearestPatchId:
-                                    nearestPatchInfo = sm.getSkyPatchInfo(nearestPatchId)
-                                    nearestCtrCoord = nearestPatchInfo.getCtrCoord()
+                                if expectedTractId != nearestTractId:
+                                    nearestTractInfo = sm.getSkyTractInfo(nearestTractId)
+                                    nearestCtrCoord = nearestTractInfo.getCtrCoord()
                                     nearestVector = nearestCtrCoord.getVector()
     
-                                    print "patchId0=%s; patchId1=%s; patchId2=%s; nearestPatchId=%s" % \
-                                        (patchId0, patchId1, patchId2, nearestPatchId)
+                                    print "tractId0=%s; tractId1=%s; tractId2=%s; nearestTractId=%s" % \
+                                        (tractId0, tractId1, tractId2, nearestTractId)
                                     print "vector0=%s; vector1=%s; vector2=%s; nearestVector=%s" % \
                                          (vector0, vector1, vector2, nearestVector)
                                     print "frac0=%s; frac1=%s; frac2=%s" % (frac0, frac1, frac2)
@@ -187,8 +187,8 @@ class SkyMapTestCase(unittest.TestCase):
                                         testCoord.angularSeparation(ctrCoord2).asDegrees(),
                                         testCoord.angularSeparation(nearestCtrCoord).asDegrees(),
                                     )
-                                    self.fail("Expected nearest patchId=%s; got patchId=%s" % \
-                                        (expectedPatchId, nearestPatchId))
+                                    self.fail("Expected nearest tractId=%s; got tractId=%s" % \
+                                        (expectedTractId, nearestTractId))
                     
 
 
