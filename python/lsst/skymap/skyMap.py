@@ -48,18 +48,19 @@ def _coordFromVec(vec, defRA=None):
     """Convert an ICRS cartesian vector to an ICRS Coord
     
     @param[in] vec: an ICRS catesian vector as a sequence of three floats
-    @param[in] defRA: the RA to use if the vector is too near a pole; ignored if not near a pole
+    @param[in] defRA: the RA to use if the vector is too near a pole (an afwGeom Angle);
+                ignored if not near a pole
     
     @throw RuntimeError if vec too near a pole and defRA is None
     """
     if abs(vec[0]) < _TinyFloat and abs(vec[1]) < _TinyFloat:
-        if defRA == None:
+        if defRA is None:
             raise RuntimeError("At pole and defRA==None")
         if vec[2] > 0:
             dec = 90.0
         else:
             dec = -90.0
-        return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.Point2D(defRA, dec), afwCoord.DEGREES)
+        return afwCoord.makeCoord(afwCoord.ICRS, defRA, afwGeom.Angle(dec, afwGeom.degrees))
     return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.Point3D(*vec))
         
 
@@ -99,8 +100,8 @@ class SkyMap(object):
 
         for id in range(12):
             tractVec = self._dodecahedron.getFace(id)
-            tractCoord = _coordFromVec(tractVec)
-            tractRA = tractCoord.getPosition(afwGeom.degrees)[0]
+            tractCoord = _coordFromVec(tractVec, defRA=afwGeom.Angle(0))
+            tractRA = tractCoord.getLongitude()
             vertexVecList = self._dodecahedron.getVertices(id)
             
             self._skyTractInfoList.append(SkyTractInfo(

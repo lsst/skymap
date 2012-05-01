@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import math
+import itertools
 import numpy
 
 class Dodecahedron(object):
@@ -51,7 +52,16 @@ class Dodecahedron(object):
         """Return the vertices for a given face, as a list of unit vectors (numpy arrays)
         """
         faceVec = self.getFace(ind)
-        return _findCloseList(self.vertexVecList, faceVec)
+        vertexList, indList = _findCloseList(self.vertexVecList, faceVec)
+        
+        # sort vertex list about face vector (direction is random)
+        sortedVertexList = [vertexList[0]]
+        vertexList = list(vertexList[1:])
+        while len(vertexList) != 0:
+            nearVertexList, nearInd = _findCloseList(vertexList, sortedVertexList[-1])
+            sortedVertexList.append(nearVertexList[0])
+            vertexList.pop(nearInd[0])
+        return sortedVertexList
 
     def getFaceInd(self, vec):
         """Return the index of the face containing the cartesian vector
@@ -176,12 +186,16 @@ def _findCloseList(vecList, vec):
     Inputs:
     - vecList: list of cartesian vectors
     - vec: vector to be near
+    
+    @return two items:
+    - list of closest vectors
+    - list if indices of those vectors
     """
     dotProductList = numpy.round(numpy.dot(vecList, vec), 2)
     minDist = numpy.max(dotProductList)
     indList = numpy.arange(len(dotProductList))[dotProductList==minDist]
     retList = numpy.take(vecList, indList, 0)
-    return retList
+    return retList, indList
 
 def _findClosePair(vecList, ind=0):
     """Given a list of cartesian vectors and an index, return the vector and one of its closest neighbors
