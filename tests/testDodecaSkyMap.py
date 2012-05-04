@@ -46,45 +46,39 @@ _Phi = (1.0 + math.sqrt(5.0)) / 2.0
 _DihedralAngle = 2.0 * math.atan(_Phi) / _RadPerDeg
 _NeighborAngularSeparation = 180.0 - _DihedralAngle
 
-class SkyMapTestCase(unittest.TestCase):
+class DodecaSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
-        sm = skymap.SkyMap()
-        self.assertEqual(sm.getNumSkyTracts(), _NumTracts)
+        sm = skymap.DodecaSkyMap()
+        self.assertEqual(len(sm), _NumTracts)
         self.assertEqual(sm.getOverlap(), 3.5 * _RadPerDeg)
         self.assertEqual(sm.getProjection(), "STG")
         
         for overlap in (0.0, 0.01, 0.1): # degrees
-            sm = skymap.SkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
+            sm = skymap.DodecaSkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
             self.assertEqual(sm.getOverlap().asDegrees(), overlap)
-            for tractId in range(sm.getNumSkyTracts()):
-                tractInfo = sm.getSkyTractInfo(tractId)
+            for tractInfo in sm:
                 self.assertAlmostEqual(tractInfo.getOverlap().asDegrees(), overlap)
         
         for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
-            sm = skymap.SkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
+            sm = skymap.DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
             self.assertAlmostEqual(sm.getPixelScale().asArcseconds(), pixelScale)
         
         for projection in ("STG", "TAN", "MOL"):
-            sm = skymap.SkyMap(projection = projection)
+            sm = skymap.DodecaSkyMap(projection = projection)
             self.assertEqual(sm.getProjection(), projection)
     
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        sm = skymap.SkyMap()
-        numSkyTracts = sm.getNumSkyTracts()
-        tractInfoList = []
-        for tractId in range(numSkyTracts):
-            tractInfo = sm.getSkyTractInfo(tractId)
+        sm = skymap.DodecaSkyMap()
+        for tractId, tractInfo in enumerate(sm):
             self.assertEqual(tractInfo.getId(), tractId)
-            tractInfoList.append(tractInfo)
         
-        for tractInfo in tractInfoList:
             ctrCoord = tractInfo.getCtrCoord()
             distList = []
-            for tractInfo1 in tractInfoList:
+            for tractInfo1 in sm:
                 otherCtrCoord = tractInfo1.getCtrCoord()
                 distList.append(ctrCoord.angularSeparation(otherCtrCoord).asDegrees())
             distList.sort()
@@ -93,24 +87,18 @@ class SkyMapTestCase(unittest.TestCase):
                 self.assertAlmostEquals(dist, _NeighborAngularSeparation)
             self.assertAlmostEquals(distList[11], 180.0)
     
-    def testGetSkyTractId(self):
-        """Test the getSkyTractId method
+    def testFindTract(self):
+        """Test the findTract method
         """
-        sm = skymap.SkyMap()
-        numSkyTracts = sm.getNumSkyTracts()
-        tractInfoList = []
-        for tractId in range(numSkyTracts):
-            tractInfo = sm.getSkyTractInfo(tractId)
-            tractInfoList.append(tractInfo)
-        
-        for tractInfo0 in tractInfoList:
+        sm = skymap.DodecaSkyMap()
+        for tractInfo0 in sm:
             tractId0 = tractInfo0.getId()
             ctrCoord0 = tractInfo0.getCtrCoord()
             vector0 = numpy.array(ctrCoord0.getVector())
             
             # make a list of all 5 nearest neighbors
             nbrTractList = []
-            for otherTractInfo in tractInfoList:
+            for otherTractInfo in sm:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
@@ -167,10 +155,10 @@ class SkyMapTestCase(unittest.TestCase):
                                 testVector /= vecLen
                                 lsstVec = afwGeom.Point3D(testVector)
                                 testCoord = afwCoord.IcrsCoord(lsstVec)
-                                nearestTractId = sm.getSkyTractId(testCoord)
+                                nearestTractInfo = sm.findTract(testCoord)
+                                nearestTractId = nearestTractInfo.getId()
     
                                 if expectedTractId != nearestTractId:
-                                    nearestTractInfo = sm.getSkyTractInfo(nearestTractId)
                                     nearestCtrCoord = nearestTractInfo.getCtrCoord()
                                     nearestVector = nearestCtrCoord.getVector()
     
@@ -198,7 +186,7 @@ def suite():
     utilsTests.init()
 
     suites = [
-        unittest.makeSuite(SkyMapTestCase),
+        unittest.makeSuite(DodecaSkyMapTestCase),
         unittest.makeSuite(utilsTests.MemoryTestCase),
     ]
 

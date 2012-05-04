@@ -32,10 +32,11 @@ class SkyTractInfo(object):
     @todo Provide a way returning a geometry.SphericalConvexPolygon;
     one question is whether the geometry is ready; it certainly doesn't work with afwCoord yet.
     """
-    def __init__(self, id, ctrCoord, vertexCoordList, overlap, wcsFactory):
+    def __init__(self, id, numPatches, ctrCoord, vertexCoordList, overlap, wcsFactory):
         """Construct a SkyTractInfo
 
         @param[in] id: sky tract ID
+        @param[in] numPatches: number of patches in a tract along the (x, y) direction
         @param[in] ctrCoord: sky coordinate of center of inner region of tract, as an afwCoord.Coord;
             also used as the CRVAL for the WCS.
         @param[in] vertexCoordList: list of sky coordinates (afwCoord.Coord)
@@ -54,6 +55,7 @@ class SkyTractInfo(object):
         self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
         self._overlap = overlap
+        self._numPatches = numPatches
         
         DebugMinId = 0 # print extra information if id < DebugMinId
 
@@ -86,6 +88,16 @@ class SkyTractInfo(object):
                     minBBoxD.include(pixPos)
         initialBBox = afwGeom.Box2I(minBBoxD)
 
+        # grow initialBBox to hold exactly a multiple of numPatches, while keeping the center roughly the same
+        newMin = initialBBox.getMin()
+        newDim = initialBBox.getDimensions()
+        for i, numPatches in enumerate(self._numPatches):
+            rem = newDim[i] % numPatches
+            if rem > 0:
+                newDim[i] += numPatches - rem
+                newMin[i] -= (numPatches - rem) / 2
+        initialBBox = afwGeom.Box2I(newMin, newDim)
+
         # compute final bbox the same size but with LL corner = 0,0; use that to compute final WCS
         self._bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), initialBBox.getDimensions())
         # crpix for final Wcs is shifted by the same amount as bbox
@@ -96,6 +108,21 @@ class SkyTractInfo(object):
             print "initialBBox=%s; bbox=%s; pixPosOffset=%s; crPixPos=%s" % \
                 (initialBBox, self._bbox, pixPosOffset, crPixPos)
         self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=self._ctrCoord)
+
+    def getPatchIndex(self, coord):
+        """Given a coord, determine the patch index
+
+        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @return SkyTractInfo of tract whose center is nearest the specified coord
+        
+        @raise RuntimeError if coord is not in tract
+        
+        @note This routine will be more efficient if coord is ICRS.
+        """
+        pixelInd = afwGeom.Box2I(self.getWcs().skyToPixel(coord.toIcrs()))
+        if not self.getBBox().contains(pixelInd):
+            raise RuntimeError("coord %s is not in tract %s" % (coord, self.getId()))
+        return tuple(int(pixelInd[i]/self._numPatches[i]) for i in range(2))
     
     def getBBox(self):
         """Get bounding box of sky tract (as an afwGeom.Box2I)
