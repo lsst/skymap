@@ -63,8 +63,14 @@ class Stripe82SkyMap(BaseSkyMap):
         @param[in] numTracts: number of tracts along RA (there is only one along Dec)
         @param[in] decRange: range of declination (a pair of afwGeom.Angle)
         """
+        self._version = (1, 0) # for pickle
         self._numTracts = numTracts
-        self._decRange = decRange
+        try:
+            assert(len(decRange) == 2)
+            junkRad = [ang.asRadians() for ang in decRange] # test elements are Angles
+            self._decRange = tuple(decRange)
+        except Exception:
+            raise RuntimeError("decRange = %s; must be a pair of afwGeom Angles" % (decRange,))
 
         BaseSkyMap.__init__(self,
             numPatches = numPatches,
@@ -73,7 +79,35 @@ class Stripe82SkyMap(BaseSkyMap):
             projection = projection,
         )
     
+    def __getstate__(self):
+        """Support pickle
+        
+        @note: angle arguments are persisted in radians
+        """
+        return dict(
+            version = self._version,
+            numPatches = self.getNumPatches(),
+            overlap = self.getOverlap().asRadians(),
+            pixelScale = self.getPixelScale().asRadians(),
+            projection = self.getProjection(),
+            decRange = [ang.asRadians() for ang in self.getDecRange()],
+            numTracts = len(self),
+        )
+    
+    def __setstate__(self, argDict):
+        """Support unpickle
+        """
+        version = argDict.pop("version")
+        if version >= (2, 0):
+            raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
+        for angleArg in ("overlap", "pixelScale"):
+            argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
+        argDict["decRange"] = tuple(afwGeom.Angle(ang, afwGeom.radians) for ang in argDict["decRange"])
+        self.__init__(**argDict)
+    
     def _makeTracts(self):
+        """Construct _skyTractInfoList
+        """
         midDec = (self._decRange[1] - self._decRange[0]) / 2.0
         tractWidth = afwGeom.Angle(360.0 / self._numTracts, afwGeom.degrees)
         for id in range(4):
@@ -97,3 +131,6 @@ class Stripe82SkyMap(BaseSkyMap):
                 overlap = self._overlap,
                 wcsFactory = self._wcsFactory,
             ))
+
+    def getDecRange(self):
+        return self._decRange

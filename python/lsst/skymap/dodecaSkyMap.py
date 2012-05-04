@@ -89,6 +89,7 @@ class DodecaSkyMap(BaseSkyMap):
           - TAN: tangent-plane projection
         @param[in] withTractsOnPoles: if True center a tract on each pole, else put a vertex on each pole
         """
+        self._version = (1, 0) # for pickle
         self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = withTractsOnPoles)
         BaseSkyMap.__init__(self,
             numPatches = numPatches,
@@ -97,9 +98,35 @@ class DodecaSkyMap(BaseSkyMap):
             projection = projection,
         )
     
+    def __getstate__(self):
+        """Support pickle
+        
+        @note: angle arguments are persisted in radians
+        """
+        return dict(
+            version = self._version,
+            numPatches = self.getNumPatches(),
+            overlap = self.getOverlap().asRadians(),
+            pixelScale = self.getPixelScale().asRadians(),
+            projection = self.getProjection(),
+            withTractsOnPoles = self.getWithTractsOnPoles(),
+        )
+    
+    def __setstate__(self, argDict):
+        """Support unpickle
+        """
+        version = argDict.pop("version")
+        if version >= (2, 0):
+            raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
+        for angleArg in ("overlap", "pixelScale"):
+            argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
+        self.__init__(**argDict)
+    
     def _makeTracts(self):
+        """Construct _skyTractInfoList
+        """
         for id in range(12):
-            tractVec = self._dodecahedron.getFace(id)
+            tractVec = self._dodecahedron.getFaceCtr(id)
             tractCoord = _coordFromVec(tractVec, defRA=afwGeom.Angle(0))
             tractRA = tractCoord.getLongitude()
             vertexVecList = self._dodecahedron.getVertices(id)
@@ -117,7 +144,22 @@ class DodecaSkyMap(BaseSkyMap):
         """Find the tract whose inner region includes the coord.
         
         @param[in] coord: sky coordinate (afwCoord.Coord)
+        @return TractInfo for tract whose inner region includes the coord.
         
         @note This routine will be more efficient if coord is ICRS.
         """
         return self[self._dodecahedron.getFaceInd(coord.toIcrs().getVector())]
+    
+    def getVersion(self):
+        """Return version (e.g. for pickle)
+        
+        @return version as a pair of integers
+        """
+        return self._version
+    
+    def getWithTractsOnPoles(self):
+        """Return withTractsOnPoles parameter
+        
+        @return withTractsOnPoles as a bool
+        """
+        return self._dodecahedron.getWithFacesOnPoles()

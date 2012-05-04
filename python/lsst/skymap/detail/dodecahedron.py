@@ -13,6 +13,8 @@ class Dodecahedron(object):
         
         @param[in] withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
         """
+        self._withFacesOnPoles = bool(withFacesOnPoles)
+        
         # Basis cartesian vectors describing the faces of a dodecahedron; the full set of vectors is obtained
         # by choosing both signs of each nonzero component of each vector.
         # The orientation of the resulting dodecahedron, while very convenient
@@ -26,7 +28,7 @@ class Dodecahedron(object):
         unrotFaceVecList = _computeFullVecList(faceBases)
         unrotVertexVecList = _computeDodecahedronVertices(unrotFaceVecList)
         
-        if withFacesOnPoles:
+        if self._withFacesOnPoles:
             # one face is centered on each pole
             vec0, vec1 = _findClosePair(unrotFaceVecList, 0)
             rotMat = _computeCoordTransform(vec0, vec1)
@@ -38,20 +40,28 @@ class Dodecahedron(object):
         unsortedFaceList = [numpy.dot(rotMat, unrotFaceVec) for unrotFaceVec in unrotFaceVecList]
         self.faceVecList = _sortedVectorList(unsortedFaceList)
 
-    def getFaceVectorList(self):
-        """Return a list of unit vectors (numpy arrays) of the center of each face
+    def getFaceCtrList(self):
+        """Return a list of face centers
+        
+        @return a list of face centers (in index order); each a unit vector (numpy array)
         """
         return self.faceVecList[:]
     
-    def getFace(self, ind):
-        """Return the position vector (as a numpy array) of the center of the specified face
+    def getFaceCtr(self, ind):
+        """Return the center of the specified face
+        
+        @param[in] ind: face index
+        @return face center as a unit vector (numpy array)
         """
         return self.faceVecList[ind][:]
 
     def getVertices(self, ind):
-        """Return the vertices for a given face, as a list of unit vectors (numpy arrays)
+        """Return the vertices for a given face
+        
+        @param[in] ind: face index
+        @return a list of vertices, each a unit vector (numpy array)
         """
-        faceVec = self.getFace(ind)
+        faceVec = self.getFaceCtr(ind)
         vertexList, indList = _findCloseList(self.vertexVecList, faceVec)
         
         # sort vertex list about face vector (direction is random)
@@ -66,9 +76,15 @@ class Dodecahedron(object):
     def getFaceInd(self, vec):
         """Return the index of the face containing the cartesian vector
         
-        If the vector is on a border, picks one of the two faces in an undocumented way.
+        @param[in] vec: cartesian vector (length is ignored)
+        @return index of face containing vec
         """
         return numpy.argmax(numpy.dot(self.faceVecList, vec))
+    
+    def getWithFacesOnPoles(self):
+        """Get withFacesOnPoles parameter
+        """
+        return self._withFacesOnPoles
 
 def computeRotationMatrix(angle, axis):
     """Return a 3D rotation matrix for rotation by a specified amount around a specified axis
@@ -230,5 +246,5 @@ if __name__ == "__main__":
     print "Dodecahedron with vertices on poles"
     vertexDodec = Dodecahedron(withFacesOnPoles=False)
     for i in range(12):
-        faceVec = vertexDodec.getFace(i)
+        faceVec = vertexDodec.getFaceCtr(i)
         print "Face %2d: %s" % (i, faceVec)
