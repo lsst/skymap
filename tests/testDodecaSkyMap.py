@@ -52,14 +52,14 @@ class DodecaSkyMapTestCase(unittest.TestCase):
         """
         sm = skymap.DodecaSkyMap()
         self.assertEqual(len(sm), _NumTracts)
-        self.assertEqual(sm.getOverlap(), 3.5 * _RadPerDeg)
+        self.assertEqual(sm.getTractOverlap(), 3.5 * _RadPerDeg)
         self.assertEqual(sm.getProjection(), "STG")
         
-        for overlap in (0.0, 0.01, 0.1): # degrees
-            sm = skymap.DodecaSkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
-            self.assertEqual(sm.getOverlap().asDegrees(), overlap)
+        for tractOverlap in (0.0, 0.01, 0.1): # degrees
+            sm = skymap.DodecaSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
+            self.assertEqual(sm.getTractOverlap().asDegrees(), tractOverlap)
             for tractInfo in sm:
-                self.assertAlmostEqual(tractInfo.getOverlap().asDegrees(), overlap)
+                self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
         
         for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
             sm = skymap.DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))

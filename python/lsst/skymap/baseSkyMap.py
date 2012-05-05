@@ -39,14 +39,16 @@ class BaseSkyMap(object):
     """
     def __init__(self,
         numPatches,
-        overlap,
+        patchBorder,
+        tractOverlap,
         pixelScale,
         projection,
     ):
         """Construct a BaseSkyMap
 
         @param[in] numPatches: number of patches in a tract along the (x, y) direction
-        @param[in] overlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
+        @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
+        @param[in] tractOverlap: minimum overlap between adjacent sky tracts, on the sky; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
@@ -58,7 +60,8 @@ class BaseSkyMap(object):
             self._numPatches = tuple(int(val) for val in numPatches)
         except Exception:
             raise RuntimeError("numPatches = %r must contain 2 ints" % (numPatches,))
-        self._overlap = overlap
+        self._patchBorder = int(patchBorder)
+        self._tractOverlap = tractOverlap
         self._pixelScale = pixelScale
         self._projection = str(projection)
         self._skyTractInfoList = []
@@ -76,10 +79,10 @@ class BaseSkyMap(object):
         """
         return self._numPatches
 
-    def getOverlap(self):
-        """Get the minimum overlap between adjacent sky tracts; an afwGeom.Angle
+    def getPatchBorder(self):
+        """Get the border between the inner and outer bbox of patches (pixels)
         """
-        return self._overlap
+        return self._patchBorder
     
     def getPixelScale(self):
         """Get the nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
@@ -90,12 +93,17 @@ class BaseSkyMap(object):
         """Get the projection as a FITS WCS code
         """
         return self._projection
+
+    def getTractOverlap(self):
+        """Get the minimum overlap between adjacent sky tracts, on the sky; an afwGeom.Angle
+        """
+        return self._tractOverlap
     
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
         
         @param[in] coord: sky coordinate (afwCoord.Coord)
-        @return SkyTractInfo of tract whose center is nearest the specified coord
+        @return TractInfo of tract whose center is nearest the specified coord
         
         @warning:
         - if tracts do not cover the whole sky then the returned tract may not include the coord
@@ -113,16 +121,20 @@ class BaseSkyMap(object):
         distTractInfoList.sort()
         return distTractInfoList[1]
     
-    def findTractAndPatchIndex(self, coord):
-        """Find tract whose center is nearest the specified coord and the index within that tract
+    def findTractAndPatch(self, coord):
+        """Find tract whose center is nearest the specified coord, and the patch containing the coord
         
         @param[in] coord: sky coordinate (afwCoord.Coord)
+        @return two items:
+        - tractInfo: TractInfo for tract whose center is nearest the specified coord
+        - patchInfo: PatchInfo for patch whose inner bbox contains the specified coord
+        
         @raise RuntimeError if coord is not on any tract. This is only possible if the tracts
         do not cover the entire sky.
         """
         icrsCoord = coord.toIcrs()
         tractInfo = self.findNearestTract(icrsCoord)
-        return (tractInfo, tractInfo.getPatchIndex(icrsCoord))
+        return (tractInfo, tractInfo.findPatch(icrsCoord))
     
     def __getitem__(self, ind):
         return self._skyTractInfoList[ind]

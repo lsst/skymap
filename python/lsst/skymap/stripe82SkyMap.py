@@ -21,11 +21,11 @@
 #
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-from .skyMap import BaseSkyMap
-from .skyTractInfo import SkyTractInfo
+from .baseSkyMap import BaseSkyMap
+from .tractInfo import TractInfo
 
 # Default overlap is 50", which is approximately the overlap SDSS uses between images
-_DefaultOverlap = afwGeom.Angle(50, afwGeom.arcseconds)
+_DefaultTractOverlap = afwGeom.Angle(50, afwGeom.arcseconds)
 
 # SDSS plate scale is 0.396"/pixel
 _DefaultPlateScale = afwGeom.Angle(0.396, afwGeom.arcseconds)
@@ -38,6 +38,9 @@ _DefaultProjection = "CEA"
 # yields patches similar in size to the existing FPC files
 _DefaultNumPatches = (200, 10)
 
+# match SDSS normal images; roughly 50"
+_DefaultPatchBorder = 128
+
 _DefaultNumTracts = 4
 
 
@@ -48,7 +51,8 @@ class Stripe82SkyMap(BaseSkyMap):
     """
     def __init__(self,
         numPatches = _DefaultNumPatches,
-        overlap = _DefaultOverlap,
+        patchBorder = _DefaultPatchBorder,
+        tractOverlap = _DefaultTractOverlap,
         pixelScale = _DefaultPlateScale,
         projection = _DefaultProjection,
         decRange = _DefaultDecRange,
@@ -57,7 +61,8 @@ class Stripe82SkyMap(BaseSkyMap):
         """Construct a Stripe82SkyMap
 
         @param[in] numPatches: number of patches in a tract along the (x=RA, y=Dec) direction
-        @param[in] overlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
+        @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
+        @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes
         @param[in] numTracts: number of tracts along RA (there is only one along Dec)
@@ -74,7 +79,8 @@ class Stripe82SkyMap(BaseSkyMap):
 
         BaseSkyMap.__init__(self,
             numPatches = numPatches,
-            overlap = overlap,
+            patchBorder = patchBorder,
+            tractOverlap = tractOverlap,
             pixelScale = pixelScale,
             projection = projection,
         )
@@ -87,7 +93,8 @@ class Stripe82SkyMap(BaseSkyMap):
         return dict(
             version = self._version,
             numPatches = self.getNumPatches(),
-            overlap = self.getOverlap().asRadians(),
+            patchBorder = self.getPatchBorder(),
+            tractOverlap = self.getTractOverlap().asRadians(),
             pixelScale = self.getPixelScale().asRadians(),
             projection = self.getProjection(),
             decRange = [ang.asRadians() for ang in self.getDecRange()],
@@ -100,7 +107,7 @@ class Stripe82SkyMap(BaseSkyMap):
         version = argDict.pop("version")
         if version >= (2, 0):
             raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
-        for angleArg in ("overlap", "pixelScale"):
+        for angleArg in ("tractOverlap", "pixelScale"):
             argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
         argDict["decRange"] = tuple(afwGeom.Angle(ang, afwGeom.radians) for ang in argDict["decRange"])
         self.__init__(**argDict)
@@ -123,12 +130,13 @@ class Stripe82SkyMap(BaseSkyMap):
             midRA = begRA + tractWidth / 2.0
             ctrCoord = afwCoord.IcrsCoord(midRA, midDec)
                 
-            self._skyTractInfoList.append(SkyTractInfo(
+            self._skyTractInfoList.append(TractInfo(
                 id = id,
-                numPatches = self._numPatches,
+                numPatches = self.getNumPatches(),
+                patchBorder = self.getPatchBorder(),
                 ctrCoord = ctrCoord,
                 vertexCoordList = vertexCoordList,
-                overlap = self._overlap,
+                tractOverlap = self.getTractOverlap(),
                 wcsFactory = self._wcsFactory,
             ))
 

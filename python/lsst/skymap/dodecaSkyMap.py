@@ -29,18 +29,21 @@ import numpy
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from . import detail
-from .skyMap import BaseSkyMap
-from .skyTractInfo import SkyTractInfo
+from .baseSkyMap import BaseSkyMap
+from .tractInfo import TractInfo
 
 _TinyFloat = numpy.finfo(float).tiny
 
-# Default overlap is 3.5 degrees
-_DefaultOverlap = afwGeom.Angle(3.5, afwGeom.degrees)
+# Default tract overlap is approximately one field diameter
+_DefaultTractOverlap = afwGeom.Angle(3.5, afwGeom.degrees)
+
+# Default patch border -- approx. 50" worth of pixels
+_DefaultPatchBorder = 250
 
 # LSST plate scale is 50 um/arcsec
 # LSST pixel size is 10 um
-# Default sky pixel scale is 1/sqrt(2) of image pixel scale
-_DefaultPlateScale = afwGeom.Angle(10.0 / (50.0 * math.sqrt(2.0)), afwGeom.arcseconds)
+# Default sky pixel scale is the same as the image pixel scale
+_DefaultPlateScale = afwGeom.Angle(10.0 / 50.0, afwGeom.arcseconds)
 
 # Default numPatches gives approximately 4k x 4k patches
 _DefaultNumPatches = (500, 475)
@@ -73,7 +76,8 @@ class DodecaSkyMap(BaseSkyMap):
     """
     def __init__(self,
         numPatches = _DefaultNumPatches,
-        overlap = _DefaultOverlap,
+        patchBorder = _DefaultPatchBorder,
+        tractOverlap = _DefaultTractOverlap,
         pixelScale = _DefaultPlateScale,
         projection = "STG",
         withTractsOnPoles = False,
@@ -81,7 +85,7 @@ class DodecaSkyMap(BaseSkyMap):
         """Construct a DodecaSkyMap
 
         @param[in] numPatches: number of patches in a tract along the (x, y) direction
-        @param[in] overlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
+        @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes, such as:
           - STG: stereographic projection
@@ -93,7 +97,8 @@ class DodecaSkyMap(BaseSkyMap):
         self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = withTractsOnPoles)
         BaseSkyMap.__init__(self,
             numPatches = numPatches,
-            overlap = overlap,
+            patchBorder = patchBorder,
+            tractOverlap = tractOverlap,
             pixelScale = pixelScale,
             projection = projection,
         )
@@ -106,7 +111,8 @@ class DodecaSkyMap(BaseSkyMap):
         return dict(
             version = self._version,
             numPatches = self.getNumPatches(),
-            overlap = self.getOverlap().asRadians(),
+            patchBorder = self.getPatchBorder(),
+            tractOverlap = self.getTractOverlap().asRadians(),
             pixelScale = self.getPixelScale().asRadians(),
             projection = self.getProjection(),
             withTractsOnPoles = self.getWithTractsOnPoles(),
@@ -118,7 +124,7 @@ class DodecaSkyMap(BaseSkyMap):
         version = argDict.pop("version")
         if version >= (2, 0):
             raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
-        for angleArg in ("overlap", "pixelScale"):
+        for angleArg in ("tractOverlap", "pixelScale"):
             argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
         self.__init__(**argDict)
     
@@ -131,14 +137,17 @@ class DodecaSkyMap(BaseSkyMap):
             tractRA = tractCoord.getLongitude()
             vertexVecList = self._dodecahedron.getVertices(id)
             
-            self._skyTractInfoList.append(SkyTractInfo(
-                id = id,
-                numPatches = self._numPatches,
-                ctrCoord = tractCoord,
-                vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
-                overlap = self._overlap,
-                wcsFactory = self._wcsFactory,
-            ))
+            self._skyTractInfoList.append(
+                TractInfo(
+                    id = id,
+                    numPatches = self._numPatches,
+                    patchBorder = self._patchBorder,
+                    ctrCoord = tractCoord,
+                    vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
+                    tractOverlap = self.getTractOverlap(),
+                    wcsFactory = self._wcsFactory,
+                )
+            )
             
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord.
