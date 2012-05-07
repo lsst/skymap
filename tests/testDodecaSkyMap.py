@@ -21,58 +21,100 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""Test SkyMap class
+"""Test DodecaSkyMap class
 """
+import itertools
 import os
 import sys
 import math
+import pickle
 import unittest
 
 import numpy
 
 import lsst.utils.tests as utilsTests
-import lsst.pex.policy as pexPolicy
-import lsst.pex.policy as pexPolicy
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-import lsst.skymap as skymap
-
-_RadPerDeg = math.pi / 180.0
+from lsst.skymap import DodecaSkyMap
 
 # dodecahedron properties
 _NumTracts = 12
 _Phi = (1.0 + math.sqrt(5.0)) / 2.0
-_DihedralAngle = 2.0 * math.atan(_Phi) / _RadPerDeg
-_NeighborAngularSeparation = 180.0 - _DihedralAngle
+_DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
+_NeighborAngularSeparation = 180.0 - _DihedralAngle.asDegrees()
 
 class DodecaSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
-        sm = skymap.DodecaSkyMap()
-        self.assertEqual(len(sm), _NumTracts)
-        self.assertEqual(sm.getTractOverlap(), 3.5 * _RadPerDeg)
-        self.assertEqual(sm.getProjection(), "STG")
-        
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
-            sm = skymap.DodecaSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
+            sm = DodecaSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
             self.assertEqual(sm.getTractOverlap().asDegrees(), tractOverlap)
             for tractInfo in sm:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
+            self.assertEqual(len(sm), _NumTracts)
         
         for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
-            sm = skymap.DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
+            sm = DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
             self.assertAlmostEqual(sm.getPixelScale().asArcseconds(), pixelScale)
         
         for projection in ("STG", "TAN", "MOL"):
-            sm = skymap.DodecaSkyMap(projection = projection)
+            sm = DodecaSkyMap(projection = projection)
             self.assertEqual(sm.getProjection(), projection)
+        
+    def testPickle(self):
+        """Test that pickling and unpickling restores the original exactly
+        """
+        skyMap = DodecaSkyMap()
+        pickleStr = pickle.dumps(skyMap)
+        unpickledSkyMap = pickle.loads(pickleStr)
+        self.assertEqual(len(skyMap), len(unpickledSkyMap))
+        for getterName in (
+            "getNumPatches",
+            "getPatchBorder",
+            "getProjection",
+            "getPixelScale",
+            "getTractOverlap",
+            "getVersion",
+            "getWithTractsOnPoles",
+        ):
+            self.assertEqual(getattr(skyMap, getterName)(), getattr(unpickledSkyMap, getterName)())
+        for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
+            for getterName in (
+                "getBBox",
+                "getCtrCoord",
+                "getId",
+                "getNumPatches",
+                "getPatchBorder",
+                "getPatchInnerDim",
+                "getTractOverlap",
+                "getVertexList",
+                "getWcs",
+            ):
+                self.assertEqual(getattr(tractInfo, getterName)(), getattr(unpickledTractInfo, getterName)())
+            
+            # test WCS at a few locations
+            wcs = tractInfo.getWcs()
+            unpickledWcs = unpickledTractInfo.getWcs()
+            for x in (-1000.0, 0.0, 1000.0):
+                for y in (-532.5, 0.5, 532.5):
+                    pixelPos = afwGeom.Point2D(x, y)
+                    skyPos = wcs.pixelToSky(pixelPos)
+                    unpickledSkyPos = unpickledWcs.pixelToSky(pixelPos)
+                    self.assertEqual(skyPos, unpickledSkyPos)
+            
+            # compare a few patches
+            numPatches = tractInfo.getNumPatches()
+            for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
+                for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
+                    patchInfo = tractInfo.getPatchInfo((xInd, yInd))
+                    unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
+                    self.assertEqual(patchInfo, unpickledPatchInfo)
     
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        sm = skymap.DodecaSkyMap()
+        sm = DodecaSkyMap()
         for tractId, tractInfo in enumerate(sm):
             self.assertEqual(tractInfo.getId(), tractId)
         
@@ -90,7 +132,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testFindTract(self):
         """Test the findTract method
         """
-        sm = skymap.DodecaSkyMap()
+        sm = DodecaSkyMap()
         for tractInfo0 in sm:
             tractId0 = tractInfo0.getId()
             ctrCoord0 = tractInfo0.getCtrCoord()
@@ -177,7 +219,11 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                                     )
                                     self.fail("Expected nearest tractId=%s; got tractId=%s" % \
                                         (expectedTractId, nearestTractId))
-                    
+                                
+                                patchInfo = nearestTractInfo.findPatch(testCoord)
+                                pixelInd = afwGeom.Point2I(
+                                    nearestTractInfo.getWcs().skyToPixel(testCoord.toIcrs()))
+                                self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
 
 def suite():

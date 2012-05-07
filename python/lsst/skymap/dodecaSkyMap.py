@@ -102,6 +102,24 @@ class DodecaSkyMap(BaseSkyMap):
             pixelScale = pixelScale,
             projection = projection,
         )
+
+        for id in range(12):
+            tractVec = self._dodecahedron.getFaceCtr(id)
+            tractCoord = _coordFromVec(tractVec, defRA=afwGeom.Angle(0))
+            tractRA = tractCoord.getLongitude()
+            vertexVecList = self._dodecahedron.getVertices(id)
+            
+            self._tractInfoList.append(
+                TractInfo(
+                    id = id,
+                    numPatches = self._numPatches,
+                    patchBorder = self._patchBorder,
+                    ctrCoord = tractCoord,
+                    vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
+                    tractOverlap = self.getTractOverlap(),
+                    wcsFactory = self._wcsFactory,
+                )
+            )
     
     def __getstate__(self):
         """Support pickle
@@ -128,27 +146,6 @@ class DodecaSkyMap(BaseSkyMap):
             argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
         self.__init__(**argDict)
     
-    def _makeTracts(self):
-        """Construct _skyTractInfoList
-        """
-        for id in range(12):
-            tractVec = self._dodecahedron.getFaceCtr(id)
-            tractCoord = _coordFromVec(tractVec, defRA=afwGeom.Angle(0))
-            tractRA = tractCoord.getLongitude()
-            vertexVecList = self._dodecahedron.getVertices(id)
-            
-            self._skyTractInfoList.append(
-                TractInfo(
-                    id = id,
-                    numPatches = self._numPatches,
-                    patchBorder = self._patchBorder,
-                    ctrCoord = tractCoord,
-                    vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
-                    tractOverlap = self.getTractOverlap(),
-                    wcsFactory = self._wcsFactory,
-                )
-            )
-            
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord.
         

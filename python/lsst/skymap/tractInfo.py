@@ -23,30 +23,23 @@ import math
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
+from .patchInfo import PatchInfo
 
-__all__ = ["TractInfo", "PatchInfo"]
-
-class PatchInfo(object):
-    def __init__(self, index, innerBBox, outerBBox):
-        self._index = index
-        self._innerBBox = innerBBox
-        self._outerBBox = outerBBox
-    
-    def getIndex(self):
-        return self._index
-    
-    def getInnerBBox(self):
-        return self._innerBBox
-    
-    def getOuterBBox(self):
-        return self._outerBBox
-
+__all__ = ["TractInfo"]
 
 class TractInfo(object):
     """Information about a tract in a SkyMap sky pixelization
     
-    @todo Provide a way returning a geometry.SphericalConvexPolygon;
-    one question is whether the geometry is ready; it certainly doesn't work with afwCoord yet.
+    The tract is subdivided into rectangular patches. Each patch has the following properties:
+    - An inner region defined by an inner bounding. The inner regions of the patches exactly tile the tract,
+      and all inner regions have the same dimensions (the tract is made larger as required to make this true).
+    - An outer region defined by an outer bounding box. The outer region extends beyond the inner region
+      by patchBorder pixels in all directions the border is 0 at the edges of the tract. Thus patches
+      overlap each other but never extend off the tract. Note that patchBorder may be 0.
+    - An index that consists of a pair of integers:
+        0 <= x index < numPatches[0]
+        0 <= y index < numPatches[1]
+      Patch 0,0 is at the minimum corner of the tract bounding box.
     """
     def __init__(self, id, numPatches, patchBorder, ctrCoord, vertexCoordList, tractOverlap, wcsFactory):
         """Construct a TractInfo
@@ -75,8 +68,6 @@ class TractInfo(object):
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
         self._tractOverlap = tractOverlap
         
-        DebugMinId = 0 # print extra information if id < DebugMinId
-
         # We don't know how big the tract will be, yet, so start by computing everything
         # as if the tract center was at pixel position 0, 0; then shift all pixel positions
         # so that the tract's bbox starts from 0,0
@@ -85,8 +76,6 @@ class TractInfo(object):
 
         # compute minimum bounding box that will hold all corners and tractOverlap
         minBBoxD = afwGeom.Box2D()
-        if id < DebugMinId:
-            print "center position =", self._ctrCoord.getPosition(afwGeom.degrees)
         halfOverlap = self._tractOverlap / 2.0
         for vertexCoord in self._vertexCoordList:
             vertexDeg = vertexCoord.getPosition(afwGeom.degrees)
@@ -100,9 +89,6 @@ class TractInfo(object):
                     offCoord = vertexCoord.clone()
                     offCoord.offset(offAngle, halfOverlap)
                     pixPos = initialWcs.skyToPixel(offCoord)
-                    if id < DebugMinId:
-                        print "vertexDeg=%s, offDeg=%s, pixPos=%s" % \
-                            (vertexDeg, offCoord.getPosition(afwGeom.degrees), pixPos)
                     minBBoxD.include(pixPos)
         initialBBox = afwGeom.Box2I(minBBoxD)
 
@@ -121,10 +107,36 @@ class TractInfo(object):
         pixPosOffset = afwGeom.Extent2D(self._bbox.getMinX() - initialBBox.getMinX(),
                                         self._bbox.getMinY() - initialBBox.getMinY())
         crPixPos = initialCRPixPos + pixPosOffset
-        if id < DebugMinId:
-            print "initialBBox=%s; bbox=%s; pixPosOffset=%s; crPixPos=%s" % \
-                (initialBBox, self._bbox, pixPosOffset, crPixPos)
         self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=self._ctrCoord)
+    
+    def getBBox(self):
+        """Get bounding box of tract (as an afwGeom.Box2I)
+        """
+        return afwGeom.Box2I(self._bbox)
+    
+    def getCtrCoord(self):
+        """Get sky coordinate of center of tract (as an afwCoord.Coord)
+        """
+        return self._ctrCoord
+
+    def getId(self):
+        """Get ID of tract
+        """
+        return self._id
+    
+    def getNumPatches(self):
+        """Get the number of patches in x, y
+        
+        @return the number of patches in x, y
+        """
+        return self._numPatches
+
+    def getPatchBorder(self):
+        """Get batch border
+        
+        @return patch border (pixels)
+        """
+        return self._patchBorder
     
     def getPatchInnerDim(self):
         """Get dimensions of inner region of the patches (all are the same)
@@ -135,14 +147,27 @@ class TractInfo(object):
     
     def getPatchInfo(self, index):
         """Return information for the specified patch
+        
+        @param[in] index: index of patch, as a pair of ints
+        @return patch info, an instance of PatchInfo
+
+        @raise IndexError if index is out of range
         """
-        innerMin = afwGeom.Point2I(**[index[i] * self._patchInnerDim[i] for i in range(2)])
+        if (not 0 <= index[0] < self._numPatches[0]) \
+            or (not 0 <= index[1] < self._numPatches[1]):
+            raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" % \
+                (index, self._numPatches[0]-1, self._numPatches[1]-1))
+        innerMin = afwGeom.Point2I(*[index[i] * self._patchInnerDim[i] for i in range(2)])
         innerBBox = afwGeom.Box2I(innerMin, self._patchInnerDim)
+        if not self._bbox.contains(innerBBox):
+            raise RuntimeError(
+                "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" % \
+                (index, innerBBox, self._bbox))
         outerBBox = afwGeom.Box2I(innerBBox)
         outerBBox.grow(self._patchBorder)
         outerBBox.clip(self._bbox)
         return PatchInfo(
-            index=index,
+            index = index,
             innerBBox = innerBBox,
             outerBBox = outerBBox,
         )
@@ -157,26 +182,11 @@ class TractInfo(object):
         
         @note This routine will be more efficient if coord is ICRS.
         """
-        pixelInd = afwGeom.Box2I(self.getWcs().skyToPixel(coord.toIcrs()))
+        pixelInd = afwGeom.Point2I(self.getWcs().skyToPixel(coord.toIcrs()))
         if not self.getBBox().contains(pixelInd):
             raise RuntimeError("coord %s is not in tract %s" % (coord, self.getId()))
-        index = tuple(int(pixelInd[i]/self._numPatches[i]) for i in range(2))
-        return getPatchInfo(index)
-    
-    def getBBox(self):
-        """Get bounding box of tract (as an afwGeom.Box2I)
-        """
-        return afwGeom.Box2I(self._bbox)
-    
-    def getCtrCoord(self):
-        """Get sky coordinate of center of tract (as an afwCoord.Coord)
-        """
-        return self._ctrCoord.clone()
-
-    def getId(self):
-        """Get ID of tract
-        """
-        return self._id
+        patchInd = tuple(int(pixelInd[i]/self._patchInnerDim[i]) for i in range(2))
+        return self.getPatchInfo(patchInd)
     
     def getTractOverlap(self):
         """Get minimum overlap of adjacent sky tracts

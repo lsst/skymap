@@ -45,6 +45,8 @@ class BaseSkyMap(object):
         projection,
     ):
         """Construct a BaseSkyMap
+        
+        @warning: inheriting classes must set self._tractInfoList
 
         @param[in] numPatches: number of patches in a tract along the (x, y) direction
         @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
@@ -64,15 +66,8 @@ class BaseSkyMap(object):
         self._tractOverlap = tractOverlap
         self._pixelScale = pixelScale
         self._projection = str(projection)
-        self._skyTractInfoList = []
+        self._tractInfoList = []
         self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
-        
-        self._makeTracts()
-    
-    def _makeTracts(self):
-        """Construct the list of tracts
-        """
-        raise NotImplementedError()
     
     def getNumPatches(self):
         """Return the number of patches within a tract along x, y
@@ -115,11 +110,11 @@ class BaseSkyMap(object):
         """
         icrsCoord = coord.toIcrs()
         distTractInfoList = []
-        for tractInfo in self._skyTractInfoList:
+        for tractInfo in self._tractInfoList:
             angSep = icrsCoord.angularSeparation(tractInfo.getCtrCoord()).asDegrees()
-            distTractInfoList.append((angSep, tract))
+            distTractInfoList.append((angSep, tractInfo))
         distTractInfoList.sort()
-        return distTractInfoList[1]
+        return distTractInfoList[0][1]
     
     def findTractAndPatch(self, coord):
         """Find tract whose center is nearest the specified coord, and the patch containing the coord
@@ -137,10 +132,10 @@ class BaseSkyMap(object):
         return (tractInfo, tractInfo.findPatch(icrsCoord))
     
     def __getitem__(self, ind):
-        return self._skyTractInfoList[ind]
+        return self._tractInfoList[ind]
     
     def __iter__(self):
-        return iter(self._skyTractInfoList)
+        return iter(self._tractInfoList)
     
     def __len__(self):
-        return len(self._skyTractInfoList)
+        return len(self._tractInfoList)

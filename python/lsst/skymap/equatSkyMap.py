@@ -35,19 +35,20 @@ _DefaultDecRange = (afwGeom.Angle(-1.25, afwGeom.degrees), afwGeom.Angle(1.25, a
 
 _DefaultProjection = "CEA"
 
+_DefaultNumTracts = 2
+
 # yields patches similar in size to the existing FPC files
 _DefaultNumPatches = (200, 10)
 
 # match SDSS normal images; roughly 50"
 _DefaultPatchBorder = 128
 
-_DefaultNumTracts = 4
 
-
-class Stripe82SkyMap(BaseSkyMap):
-    """Cylindrical sky map pixelization for SDSS stripe 82 data.
+class EquatSkyMap(BaseSkyMap):
+    """Equatorial sky map pixelization, e.g. for SDSS stripe 82 image data.
         
-    Stripe82SkyMap divides the sky into 4 overlapping equatorial tracts
+    EquatSkyMap divides an equatorial band into one or more overlapping tracts.
+    The tracts are only divided along declination (i.e. all tracts have the same center declination).
     """
     def __init__(self,
         numPatches = _DefaultNumPatches,
@@ -58,7 +59,7 @@ class Stripe82SkyMap(BaseSkyMap):
         decRange = _DefaultDecRange,
         numTracts = _DefaultNumTracts,
     ):
-        """Construct a Stripe82SkyMap
+        """Construct a EquatSkyMap
 
         @param[in] numPatches: number of patches in a tract along the (x=RA, y=Dec) direction
         @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
@@ -69,7 +70,10 @@ class Stripe82SkyMap(BaseSkyMap):
         @param[in] decRange: range of declination (a pair of afwGeom.Angle)
         """
         self._version = (1, 0) # for pickle
-        self._numTracts = numTracts
+        
+        if numTracts < 2:
+            raise RuntimeError("numTracts = %s; must be at least 2 to keep wcslib happy" % (numTracts,))
+
         try:
             assert(len(decRange) == 2)
             junkRad = [ang.asRadians() for ang in decRange] # test elements are Angles
@@ -84,6 +88,32 @@ class Stripe82SkyMap(BaseSkyMap):
             pixelScale = pixelScale,
             projection = projection,
         )
+    
+        midDec = (self._decRange[0] + self._decRange[1]) / 2.0
+        tractWidthRA = afwGeom.Angle(360.0 / numTracts, afwGeom.degrees)
+        for id in range(numTracts):
+            begRA = tractWidthRA * id
+            endRA = begRA + tractWidthRA
+            vertexCoordList = (
+                afwCoord.IcrsCoord(begRA, self._decRange[0]),
+                afwCoord.IcrsCoord(endRA, self._decRange[0]),
+                afwCoord.IcrsCoord(endRA, self._decRange[1]),
+                afwCoord.IcrsCoord(begRA, self._decRange[1]),
+            )
+
+            midRA = begRA + tractWidthRA / 2.0
+            ctrCoord = afwCoord.IcrsCoord(midRA, midDec)
+                
+            self._tractInfoList.append(TractInfo(
+                id = id,
+                numPatches = self.getNumPatches(),
+                patchBorder = self.getPatchBorder(),
+                ctrCoord = ctrCoord,
+                vertexCoordList = vertexCoordList,
+                tractOverlap = self.getTractOverlap(),
+                wcsFactory = self._wcsFactory,
+            ))
+
     
     def __getstate__(self):
         """Support pickle
@@ -111,34 +141,17 @@ class Stripe82SkyMap(BaseSkyMap):
             argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
         argDict["decRange"] = tuple(afwGeom.Angle(ang, afwGeom.radians) for ang in argDict["decRange"])
         self.__init__(**argDict)
-    
-    def _makeTracts(self):
-        """Construct _skyTractInfoList
-        """
-        midDec = (self._decRange[1] - self._decRange[0]) / 2.0
-        tractWidth = afwGeom.Angle(360.0 / self._numTracts, afwGeom.degrees)
-        for id in range(4):
-            begRA = tractWidth * id
-            endRA = begRA + tractWidth
-            vertexCoordList = (
-                afwCoord.IcrsCoord(begRA, self._decRange[0]),
-                afwCoord.IcrsCoord(endRA, self._decRange[0]),
-                afwCoord.IcrsCoord(endRA, self._decRange[1]),
-                afwCoord.IcrsCoord(begRA, self._decRange[1]),
-            )
-
-            midRA = begRA + tractWidth / 2.0
-            ctrCoord = afwCoord.IcrsCoord(midRA, midDec)
-                
-            self._skyTractInfoList.append(TractInfo(
-                id = id,
-                numPatches = self.getNumPatches(),
-                patchBorder = self.getPatchBorder(),
-                ctrCoord = ctrCoord,
-                vertexCoordList = vertexCoordList,
-                tractOverlap = self.getTractOverlap(),
-                wcsFactory = self._wcsFactory,
-            ))
 
     def getDecRange(self):
+        """Return the declination range
+        
+        @return declination range as a pair of afwGeom.Angles
+        """
         return self._decRange
+
+    def getVersion(self):
+        """Return version (e.g. for pickle)
+        
+        @return version as a pair of integers
+        """
+        return self._version

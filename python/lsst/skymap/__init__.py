@@ -1,5 +1,6 @@
+from .patchInfo import *
 from .tractInfo import *
 from .baseSkyMap import *
 from .dodecaSkyMap import *
-from .stripe82SkyMap import *
+from .equatSkyMap import *
 from .version import *
