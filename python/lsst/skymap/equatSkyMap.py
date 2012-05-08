@@ -117,7 +117,9 @@ class EquatSkyMap(BaseSkyMap):
     def __getstate__(self):
         """Support pickle
         
-        @note: angle arguments are persisted in radians
+        @return a dict that can be used to call __init__ that specifies all parameters.
+        
+        @note: angle arguments cannot be pickled, so they are converted to radians
         """
         return dict(
             version = self._version,
@@ -132,6 +134,11 @@ class EquatSkyMap(BaseSkyMap):
     
     def __setstate__(self, argDict):
         """Support unpickle
+        
+        @param[in] argDict: a dict that can be used to call __init__ that specifies all parameters
+        
+        @note: angle arguments cannot be pickled, so they have been converted to radians
+            and must be converted back.
         """
         version = argDict.pop("version")
         if version >= (2, 0):

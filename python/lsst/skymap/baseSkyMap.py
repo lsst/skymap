@@ -29,14 +29,14 @@ from . import detail
 __all__ = ["BaseSkyMap"]
 
 class BaseSkyMap(object):
-    """A collection of overlapping Sky Tracts that map part or all of the sky.
+    """A collection of overlapping Tracts that map part or all of the sky.
     
-    Each Sky Tract may be further divided into subregions.
-        
-    @note
-    - The native coordinate system is ICRS.
-    - The inner region of each sky tract is defined to be the region closer to the center of that tract
-      than to the center of any other tract.
+    See TractInfo for more information.
+    
+    BaseSkyMap is an abstract base class. Subclasses must do the following:
+    @li define __init__ and have it construct the TractInfo objects and put them in _tractInfoList
+    @li define __getstate__ and __setstate__ to allow pickling (the butler saves sky maps using pickle);
+        see DodecaSkyMap for an example of how to do this.
     """
     def __init__(self,
         patchInnerDimensions,
@@ -69,6 +69,11 @@ class BaseSkyMap(object):
         self._projection = str(projection)
         self._tractInfoList = []
         self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
+
+    def getPatchBorder(self):
+        """Get the border between the inner and outer bbox of patches (pixels)
+        """
+        return self._patchBorder
     
     def getPatchInnerDimensions(self):
         """Get dimensions of inner region of the patches (all are the same)
@@ -76,11 +81,6 @@ class BaseSkyMap(object):
         @return dimensions of inner region of the patches (as an afwGeom Extent2I)
         """
         return self._patchInnerDimensions
-
-    def getPatchBorder(self):
-        """Get the border between the inner and outer bbox of patches (pixels)
-        """
-        return self._patchBorder
     
     def getPixelScale(self):
         """Get the nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
@@ -118,21 +118,6 @@ class BaseSkyMap(object):
             distTractInfoList.append((angSep, tractInfo))
         distTractInfoList.sort()
         return distTractInfoList[0][1]
-    
-    def findTractAndPatch(self, coord):
-        """Find tract whose center is nearest the specified coord, and the patch containing the coord
-        
-        @param[in] coord: sky coordinate (afwCoord.Coord)
-        @return two items:
-        - tractInfo: TractInfo for tract whose center is nearest the specified coord
-        - patchInfo: PatchInfo for patch whose inner bbox contains the specified coord
-        
-        @raise RuntimeError if coord is not on any tract. This is only possible if the tracts
-        do not cover the entire sky.
-        """
-        icrsCoord = coord.toIcrs()
-        tractInfo = self.findNearestTract(icrsCoord)
-        return (tractInfo, tractInfo.findPatch(icrsCoord))
     
     def __getitem__(self, ind):
         return self._tractInfoList[ind]

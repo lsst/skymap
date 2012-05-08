@@ -23,16 +23,10 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
-import math
-import numpy
-
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from . import detail
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
-
-_TinyFloat = numpy.finfo(float).tiny
 
 # Default tract overlap is approximately one field diameter
 _DefaultTractOverlap = afwGeom.Angle(3.5, afwGeom.degrees)
@@ -47,26 +41,6 @@ _DefaultPlateScale = afwGeom.Angle(10.0 / 50.0, afwGeom.arcseconds)
 
 # Default patchInnerDimensions
 _DefaultPatchInnerDimensions = (4000, 4000)
-
-def _coordFromVec(vec, defRA=None):
-    """Convert an ICRS cartesian vector to an ICRS Coord
-    
-    @param[in] vec: an ICRS catesian vector as a sequence of three floats
-    @param[in] defRA: the RA to use if the vector is too near a pole (an afwGeom Angle);
-                ignored if not near a pole
-    
-    @throw RuntimeError if vec too near a pole and defRA is None
-    """
-    if abs(vec[0]) < _TinyFloat and abs(vec[1]) < _TinyFloat:
-        if defRA is None:
-            raise RuntimeError("At pole and defRA==None")
-        if vec[2] > 0:
-            dec = 90.0
-        else:
-            dec = -90.0
-        return afwCoord.makeCoord(afwCoord.ICRS, defRA, afwGeom.Angle(dec, afwGeom.degrees))
-    return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.Point3D(*vec))
-        
 
 class DodecaSkyMap(BaseSkyMap):
     """Dodecahedron-based sky map pixelization.
@@ -105,7 +79,7 @@ class DodecaSkyMap(BaseSkyMap):
 
         for id in range(12):
             tractVec = self._dodecahedron.getFaceCtr(id)
-            tractCoord = _coordFromVec(tractVec, defRA=afwGeom.Angle(0))
+            tractCoord = detail.coordFromVec(tractVec, defRA=afwGeom.Angle(0))
             tractRA = tractCoord.getLongitude()
             vertexVecList = self._dodecahedron.getVertices(id)
             
@@ -115,7 +89,7 @@ class DodecaSkyMap(BaseSkyMap):
                     patchInnerDimensions = self._patchInnerDimensions,
                     patchBorder = self._patchBorder,
                     ctrCoord = tractCoord,
-                    vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
+                    vertexCoordList = [detail.coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
                     tractOverlap = self.getTractOverlap(),
                     wcsFactory = self._wcsFactory,
                 )
@@ -124,7 +98,9 @@ class DodecaSkyMap(BaseSkyMap):
     def __getstate__(self):
         """Support pickle
         
-        @note: angle arguments are persisted in radians
+        @return a dict that can be used to call __init__ that specifies all parameters.
+        
+        @note: angle arguments cannot be pickled, so they are converted to radians
         """
         return dict(
             version = self._version,
@@ -138,6 +114,11 @@ class DodecaSkyMap(BaseSkyMap):
     
     def __setstate__(self, argDict):
         """Support unpickle
+        
+        @param[in] argDict: a dict that can be used to call __init__ that specifies all parameters
+        
+        @note: angle arguments cannot be pickled, so they have been converted to radians
+            and must be converted back.
         """
         version = argDict.pop("version")
         if version >= (2, 0):

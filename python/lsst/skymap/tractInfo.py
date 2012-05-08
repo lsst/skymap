@@ -31,10 +31,11 @@ class TractInfo(object):
     
     The tract is subdivided into rectangular patches. Each patch has the following properties:
     - An inner region defined by an inner bounding. The inner regions of the patches exactly tile the tract,
-      and all inner regions have the same dimensions (the tract is made larger as required to make this true).
+      and all inner regions have the same dimensions. The tract is made larger as required to make this work.
     - An outer region defined by an outer bounding box. The outer region extends beyond the inner region
-      by patchBorder pixels in all directions the border is 0 at the edges of the tract. Thus patches
-      overlap each other but never extend off the tract. Note that patchBorder may be 0.
+      by patchBorder pixels in all directions, except there is no border at the edges of the tract.
+      Thus patches overlap each other but never extend off the tract. If you do not want any overlap
+      between adjacent patches then set patchBorder to 0.
     - An index that consists of a pair of integers:
         0 <= x index < numPatches[0]
         0 <= y index < numPatches[1]
