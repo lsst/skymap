@@ -1,18 +1,36 @@
 /**
-\mainpage lsst::skymap;  storage of image data that covers most or all of the sky
+\mainpage lsst::skymap;  sky pixelization
 
 \section secIntro Introduction
 
-Skymap supports storing and retrieving image data that covers most or all of the sky.
+Skymap describes image data that covers most or all of the sky.
 
-The data is arranged as a set of huge sky tract exposures (approximately 2e6 x 2e6 pixels) arranged
-as the tracts of a dodecahedron. The sky tracts overlap by a significant amount such that any
-image processing code should be able to obtain all its data from a portion of one sky tract.
+The imaging data is arranged as a sequence of large, rectangular, overlapping "tracts".
+Each tract is, in essence, a single large exposure. However, tracts are typically too large
+to fit into memory, so tracts are subdivided into possibly overlapping patches. The patch size
+is chosen to easily fit into memory.
+
+Tracts contain an inner region described by a collection of vertices. The inner regions exactly tile
+the portion of sky covered by the sky map. All pixels beyond the inner region provide overlap
+with neighboring tracts and a rectangular outer border.
+
+Patches contain rectangular inner and outer regions. The inner regions exactly tile the tract,
+and all patches in a tract have the same inner dimensions.
+Each patch has a border around the inner region to provide some overlap with adjacent patches;
+there is no border on patch edges that lie against tract boundaries.
+
+Imaging data is saved as one FITS file per patch. To access a patch the butler requires the tract ID
+and patch index. SkyMap.findTract(coord) finds a tract and returns its TractInfo,
+given a coord. TractInfo.findPatch(coord) finds a patch and returns its PatchInfo.
 
 Classes available from Python include:
 
-@li lsst::skymap::SkyTract: a sky tract exposure. Since a full sky tract has billions of pixels, this is only ever a subregion of a full sky tract.
-@li lsst::skymap::SkyTractInfo: information about a full sky tract, including the sky tract dimensions and WCS.
-@li lsst::skymap::SkyMap: construct and manage a collection of SkyTracts.
+@li lsst.skymap.BaseSkyMap: abstract base class for sky maps. Each subclass acts as an iterable
+collection of Tracts.
+@li lsst.skymap.DodecaSkyMap: tracts are arranged as the faces of a dodecahedron covering the whole sky.
+@li lsst.skymap.EquatSkyMap: tracts are arranged in a band described by a declination range.
+@li lsst.skymap.TractInfo: information about a tract, including a bounding box, WCS,
+vertices describing the inner region, and a collection of PatchInfo.
+@li lsst.skymap.PatchInfo: information about a patch, including index, inner and outer bounding boxes.
 */
 }}}

@@ -29,10 +29,10 @@ from mpl_toolkits.mplot3d import Axes3D # used by fig.gca
 import matplotlib.pyplot as plt
 
 import lsst.afw.geom as afwGeom
-from lsst.skymap import SkyMap
+from lsst.skymap import DodecaSkyMap
 
-smap = SkyMap(
-    overlap = afwGeom.Angle(0, afwGeom.degrees),
+smap = DodecaSkyMap(
+    tractOverlap = afwGeom.Angle(0, afwGeom.degrees),
     pixelScale = afwGeom.Angle(3.5 / (50.0 * math.sqrt(2.0)), afwGeom.arcseconds),
     projection = "STG",
     withTractsOnPoles = False,
@@ -41,15 +41,13 @@ smap = SkyMap(
 fig = plt.figure()
 ax = fig.gca(projection='3d')
 
-for tractId in range(smap.getNumSkyTracts()):
-    tract = smap.getSkyTractInfo(tractId)
-
+for tractInfo in smap:
     # display inner region
-    vertexList = list(tract.getVertexList())
+    vertexList = list(tractInfo.getVertexList())
     vertexList.append(vertexList[0]) # to close region
     innerPoints = [tuple(coord.getVector()) for coord in vertexList]
     inX, inY, inZ = zip(*innerPoints)
-    lineList = ax.plot(inX, inY, inZ, label="Inner tract %s" % (tractId,))
+    lineList = ax.plot(inX, inY, inZ, label="Inner tractInfo %s" % (tractInfo.getId(),))
     color = lineList[0].get_color()
     
     # display center
@@ -57,8 +55,8 @@ for tractId in range(smap.getNumSkyTracts()):
     ax.plot([centerPoint[0]], [centerPoint[1]], [centerPoint[2]], ".", color=color)
     
     # display outer edge; scale to be approximately in the same plane as the inner region
-    wcs = tract.getWcs()
-    bbox = tract.getBBox()
+    wcs = tractInfo.getWcs()
+    bbox = tractInfo.getBBox()
     outerPixPos = [
         bbox.getMin(),
         afwGeom.Point2I(bbox.getMaxX(), bbox.getMinY()),

@@ -21,70 +21,131 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
-"""Test SkyMap class
+"""Test DodecaSkyMap class
 """
+import itertools
 import os
 import sys
 import math
+import pickle
 import unittest
 
 import numpy
 
 import lsst.utils.tests as utilsTests
-import lsst.pex.policy as pexPolicy
-import lsst.pex.policy as pexPolicy
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-import lsst.skymap as skymap
-
-_RadPerDeg = math.pi / 180.0
+from lsst.skymap import DodecaSkyMap
 
 # dodecahedron properties
 _NumTracts = 12
 _Phi = (1.0 + math.sqrt(5.0)) / 2.0
-_DihedralAngle = 2.0 * math.atan(_Phi) / _RadPerDeg
-_NeighborAngularSeparation = 180.0 - _DihedralAngle
+_DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
+_NeighborAngularSeparation = 180.0 - _DihedralAngle.asDegrees()
 
-class SkyMapTestCase(unittest.TestCase):
+class DodecaSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
-        sm = skymap.SkyMap()
-        self.assertEqual(sm.getNumSkyTracts(), _NumTracts)
-        self.assertEqual(sm.getOverlap(), 3.5 * _RadPerDeg)
-        self.assertEqual(sm.getProjection(), "STG")
-        
-        for overlap in (0.0, 0.01, 0.1): # degrees
-            sm = skymap.SkyMap(overlap = afwGeom.Angle(overlap, afwGeom.degrees))
-            self.assertEqual(sm.getOverlap().asDegrees(), overlap)
-            for tractId in range(sm.getNumSkyTracts()):
-                tractInfo = sm.getSkyTractInfo(tractId)
-                self.assertAlmostEqual(tractInfo.getOverlap().asDegrees(), overlap)
+        for tractOverlap in (0.0, 0.01, 0.1): # degrees
+            sm = DodecaSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
+            self.assertEqual(sm.getTractOverlap().asDegrees(), tractOverlap)
+            for tractInfo in sm:
+                self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
+            self.assertEqual(len(sm), _NumTracts)
         
         for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
-            sm = skymap.SkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
+            sm = DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
             self.assertAlmostEqual(sm.getPixelScale().asArcseconds(), pixelScale)
         
         for projection in ("STG", "TAN", "MOL"):
-            sm = skymap.SkyMap(projection = projection)
+            sm = DodecaSkyMap(projection = projection)
             self.assertEqual(sm.getProjection(), projection)
+        
+    def testPickle(self):
+        """Test that pickling and unpickling restores the original exactly
+        """
+        skyMap = DodecaSkyMap()
+        pickleStr = pickle.dumps(skyMap)
+        unpickledSkyMap = pickle.loads(pickleStr)
+        self.assertEqual(len(skyMap), len(unpickledSkyMap))
+        for getterName in (
+            "getPatchInnerDimensions",
+            "getPatchBorder",
+            "getProjection",
+            "getPixelScale",
+            "getTractOverlap",
+            "getVersion",
+            "getWithTractsOnPoles",
+        ):
+            self.assertEqual(getattr(skyMap, getterName)(), getattr(unpickledSkyMap, getterName)())
+        for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
+            for getterName in (
+                "getBBox",
+                "getCtrCoord",
+                "getId",
+                "getNumPatches",
+                "getPatchBorder",
+                "getPatchInnerDimensions",
+                "getTractOverlap",
+                "getVertexList",
+                "getWcs",
+            ):
+                self.assertEqual(getattr(tractInfo, getterName)(), getattr(unpickledTractInfo, getterName)())
+            
+            # test WCS at a few locations
+            wcs = tractInfo.getWcs()
+            unpickledWcs = unpickledTractInfo.getWcs()
+            for x in (-1000.0, 0.0, 1000.0):
+                for y in (-532.5, 0.5, 532.5):
+                    pixelPos = afwGeom.Point2D(x, y)
+                    skyPos = wcs.pixelToSky(pixelPos)
+                    unpickledSkyPos = unpickledWcs.pixelToSky(pixelPos)
+                    self.assertEqual(skyPos, unpickledSkyPos)
+            
+            # compare a few patches
+            numPatches = tractInfo.getNumPatches()
+            patchBorder = tractInfo.getPatchBorder()
+            for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
+                for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
+                    patchInfo = tractInfo.getPatchInfo((xInd, yInd))
+                    unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
+                    self.assertEqual(patchInfo, unpickledPatchInfo)
+                    
+                    # check inner and outer bbox (nothing to do with pickle,
+                    # but a convenient place for the test)
+                    innerBBox = patchInfo.getInnerBBox()
+                    outerBBox = patchInfo.getOuterBBox()
+                    
+                    if xInd == 0:
+                        self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
+                    else:
+                        self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
+                    if yInd == 0:
+                        self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
+                    else:
+                        self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
+                        
+                    if xInd == numPatches[0] - 1:
+                        self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
+                    else:
+                        self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
+                    if yInd == numPatches[1] - 1:
+                        self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
+                    else:
+                        self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
+                    
     
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        sm = skymap.SkyMap()
-        numSkyTracts = sm.getNumSkyTracts()
-        tractInfoList = []
-        for tractId in range(numSkyTracts):
-            tractInfo = sm.getSkyTractInfo(tractId)
+        sm = DodecaSkyMap()
+        for tractId, tractInfo in enumerate(sm):
             self.assertEqual(tractInfo.getId(), tractId)
-            tractInfoList.append(tractInfo)
         
-        for tractInfo in tractInfoList:
             ctrCoord = tractInfo.getCtrCoord()
             distList = []
-            for tractInfo1 in tractInfoList:
+            for tractInfo1 in sm:
                 otherCtrCoord = tractInfo1.getCtrCoord()
                 distList.append(ctrCoord.angularSeparation(otherCtrCoord).asDegrees())
             distList.sort()
@@ -93,24 +154,18 @@ class SkyMapTestCase(unittest.TestCase):
                 self.assertAlmostEquals(dist, _NeighborAngularSeparation)
             self.assertAlmostEquals(distList[11], 180.0)
     
-    def testGetSkyTractId(self):
-        """Test the getSkyTractId method
+    def testFindTract(self):
+        """Test the findTract method
         """
-        sm = skymap.SkyMap()
-        numSkyTracts = sm.getNumSkyTracts()
-        tractInfoList = []
-        for tractId in range(numSkyTracts):
-            tractInfo = sm.getSkyTractInfo(tractId)
-            tractInfoList.append(tractInfo)
-        
-        for tractInfo0 in tractInfoList:
+        sm = DodecaSkyMap()
+        for tractInfo0 in sm:
             tractId0 = tractInfo0.getId()
             ctrCoord0 = tractInfo0.getCtrCoord()
             vector0 = numpy.array(ctrCoord0.getVector())
             
             # make a list of all 5 nearest neighbors
             nbrTractList = []
-            for otherTractInfo in tractInfoList:
+            for otherTractInfo in sm:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
@@ -167,10 +222,10 @@ class SkyMapTestCase(unittest.TestCase):
                                 testVector /= vecLen
                                 lsstVec = afwGeom.Point3D(testVector)
                                 testCoord = afwCoord.IcrsCoord(lsstVec)
-                                nearestTractId = sm.getSkyTractId(testCoord)
+                                nearestTractInfo = sm.findTract(testCoord)
+                                nearestTractId = nearestTractInfo.getId()
     
                                 if expectedTractId != nearestTractId:
-                                    nearestTractInfo = sm.getSkyTractInfo(nearestTractId)
                                     nearestCtrCoord = nearestTractInfo.getCtrCoord()
                                     nearestVector = nearestCtrCoord.getVector()
     
@@ -189,7 +244,11 @@ class SkyMapTestCase(unittest.TestCase):
                                     )
                                     self.fail("Expected nearest tractId=%s; got tractId=%s" % \
                                         (expectedTractId, nearestTractId))
-                    
+                                
+                                patchInfo = nearestTractInfo.findPatch(testCoord)
+                                pixelInd = afwGeom.Point2I(
+                                    nearestTractInfo.getWcs().skyToPixel(testCoord.toIcrs()))
+                                self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
 
 def suite():
@@ -198,7 +257,7 @@ def suite():
     utilsTests.init()
 
     suites = [
-        unittest.makeSuite(SkyMapTestCase),
+        unittest.makeSuite(DodecaSkyMapTestCase),
         unittest.makeSuite(utilsTests.MemoryTestCase),
     ]
 

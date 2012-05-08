@@ -22,26 +22,23 @@
 #
 import math
 
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-import lsst.afw.image as afwImage
-import lsst.skymap
+from lsst.skymap import DodecaSkyMap
 
-_RadPerDeg = math.pi / 180.0
+print "Warning: this does not take into account the extra space required by patch borders"
 
-for overlapDeg in (0.0, 0.33, 1.0, 3.5):
-    print "overlap = %s degrees" % (overlapDeg)
-    skyMap = lsst.skymap.SkyMap(overlap=afwGeom.Angle(overlapDeg, afwGeom.degrees))
+for tractOverlapDeg in (0.0, 0.33, 1.0, 3.5):
+    print "tractOverlap = %s degrees" % (tractOverlapDeg)
+    skyMap = DodecaSkyMap(tractOverlap=afwGeom.Angle(tractOverlapDeg, afwGeom.degrees))
     totNumPix = 0
     print "Tract  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
     print " ID     (deg)   (deg)     (pix)       (pix)              (deg)  (deg)"
-    for i in range(12):
-        skyTractInfo = skyMap.getSkyTractInfo(i)
-        bbox = skyTractInfo.getBBox()
+    for tractInfo in skyMap:
+        bbox = tractInfo.getBBox()
         dimensions = bbox.getDimensions()
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
-        wcs = skyTractInfo.getWcs()
+        wcs = tractInfo.getWcs()
         posBBox = afwGeom.Box2D(bbox)
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)
@@ -53,7 +50,8 @@ for overlapDeg in (0.0, 0.33, 1.0, 3.5):
         xSpan = leftCoord.angularSeparation(rightCoord).asDegrees()
         ySpan = bottomCoord.angularSeparation(topCoord).asDegrees()
         print "%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
-            (i, ctrSkyPosDeg[0], ctrSkyPosDeg[1], dimensions[0], dimensions[1], numPix, xSpan, ySpan)
+            (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1], \
+            dimensions[0], dimensions[1], numPix, xSpan, ySpan)
     
     nomPixelArea = skyMap.getPixelScale().asRadians()**2 # nominal area of a pixel in rad^2
     numPixToTileSphere = 4 * math.pi / nomPixelArea
