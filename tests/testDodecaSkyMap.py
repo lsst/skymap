@@ -70,7 +70,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
         unpickledSkyMap = pickle.loads(pickleStr)
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
         for getterName in (
-            "getNumPatches",
+            "getPatchInnerDimensions",
             "getPatchBorder",
             "getProjection",
             "getPixelScale",
@@ -86,7 +86,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                 "getId",
                 "getNumPatches",
                 "getPatchBorder",
-                "getPatchInnerDim",
+                "getPatchInnerDimensions",
                 "getTractOverlap",
                 "getVertexList",
                 "getWcs",
@@ -105,11 +105,36 @@ class DodecaSkyMapTestCase(unittest.TestCase):
             
             # compare a few patches
             numPatches = tractInfo.getNumPatches()
+            patchBorder = tractInfo.getPatchBorder()
             for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
                 for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
                     patchInfo = tractInfo.getPatchInfo((xInd, yInd))
                     unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
                     self.assertEqual(patchInfo, unpickledPatchInfo)
+                    
+                    # check inner and outer bbox (nothing to do with pickle,
+                    # but a convenient place for the test)
+                    innerBBox = patchInfo.getInnerBBox()
+                    outerBBox = patchInfo.getOuterBBox()
+                    
+                    if xInd == 0:
+                        self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
+                    else:
+                        self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
+                    if yInd == 0:
+                        self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
+                    else:
+                        self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
+                        
+                    if xInd == numPatches[0] - 1:
+                        self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
+                    else:
+                        self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
+                    if yInd == numPatches[1] - 1:
+                        self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
+                    else:
+                        self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
+                    
     
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts

@@ -23,6 +23,7 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
+import lsst.afw.geom as afwGeom
 from . import detail
 
 __all__ = ["BaseSkyMap"]
@@ -38,7 +39,7 @@ class BaseSkyMap(object):
       than to the center of any other tract.
     """
     def __init__(self,
-        numPatches,
+        patchInnerDimensions,
         patchBorder,
         tractOverlap,
         pixelScale,
@@ -48,7 +49,7 @@ class BaseSkyMap(object):
         
         @warning: inheriting classes must set self._tractInfoList
 
-        @param[in] numPatches: number of patches in a tract along the (x, y) direction
+        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
         @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
         @param[in] tractOverlap: minimum overlap between adjacent sky tracts, on the sky; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
@@ -58,10 +59,10 @@ class BaseSkyMap(object):
           - TAN: tangent-plane projection
         """
         try:
-            assert len(numPatches) == 2
-            self._numPatches = tuple(int(val) for val in numPatches)
+            assert len(patchInnerDimensions) == 2
+            self._patchInnerDimensions = afwGeom.Extent2I(*(int(val) for val in patchInnerDimensions))
         except Exception:
-            raise RuntimeError("numPatches = %r must contain 2 ints" % (numPatches,))
+            raise RuntimeError("patchInnerDimensions = %r must contain 2 ints" % (patchInnerDimensions,))
         self._patchBorder = int(patchBorder)
         self._tractOverlap = tractOverlap
         self._pixelScale = pixelScale
@@ -69,10 +70,12 @@ class BaseSkyMap(object):
         self._tractInfoList = []
         self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
     
-    def getNumPatches(self):
-        """Return the number of patches within a tract along x, y
+    def getPatchInnerDimensions(self):
+        """Get dimensions of inner region of the patches (all are the same)
+        
+        @return dimensions of inner region of the patches (as an afwGeom Extent2I)
         """
-        return self._numPatches
+        return self._patchInnerDimensions
 
     def getPatchBorder(self):
         """Get the border between the inner and outer bbox of patches (pixels)

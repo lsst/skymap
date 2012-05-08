@@ -45,8 +45,8 @@ _DefaultPatchBorder = 250
 # Default sky pixel scale is the same as the image pixel scale
 _DefaultPlateScale = afwGeom.Angle(10.0 / 50.0, afwGeom.arcseconds)
 
-# Default numPatches gives approximately 4k x 4k patches
-_DefaultNumPatches = (500, 475)
+# Default patchInnerDimensions
+_DefaultPatchInnerDimensions = (4000, 4000)
 
 def _coordFromVec(vec, defRA=None):
     """Convert an ICRS cartesian vector to an ICRS Coord
@@ -71,11 +71,10 @@ def _coordFromVec(vec, defRA=None):
 class DodecaSkyMap(BaseSkyMap):
     """Dodecahedron-based sky map pixelization.
         
-    DodecaSkyMap divides the sky into 12 overlapping SkyTracts arranged as the faces of a dodecahedron.
-    Each sky tract is a rectangular Exposure using the specified WCS projection and nominal pixel scale.
+    DodecaSkyMap divides the sky into 12 overlapping Tracts arranged as the faces of a dodecahedron.
     """
     def __init__(self,
-        numPatches = _DefaultNumPatches,
+        patchInnerDimensions = _DefaultPatchInnerDimensions,
         patchBorder = _DefaultPatchBorder,
         tractOverlap = _DefaultTractOverlap,
         pixelScale = _DefaultPlateScale,
@@ -84,7 +83,8 @@ class DodecaSkyMap(BaseSkyMap):
     ):
         """Construct a DodecaSkyMap
 
-        @param[in] numPatches: number of patches in a tract along the (x, y) direction
+        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
+        @param[in] patchBorder: overlap between adjacent patches (in pixels, one int)
         @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes, such as:
@@ -96,7 +96,7 @@ class DodecaSkyMap(BaseSkyMap):
         self._version = (1, 0) # for pickle
         self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = withTractsOnPoles)
         BaseSkyMap.__init__(self,
-            numPatches = numPatches,
+            patchInnerDimensions = patchInnerDimensions,
             patchBorder = patchBorder,
             tractOverlap = tractOverlap,
             pixelScale = pixelScale,
@@ -112,7 +112,7 @@ class DodecaSkyMap(BaseSkyMap):
             self._tractInfoList.append(
                 TractInfo(
                     id = id,
-                    numPatches = self._numPatches,
+                    patchInnerDimensions = self._patchInnerDimensions,
                     patchBorder = self._patchBorder,
                     ctrCoord = tractCoord,
                     vertexCoordList = [_coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
@@ -128,7 +128,7 @@ class DodecaSkyMap(BaseSkyMap):
         """
         return dict(
             version = self._version,
-            numPatches = self.getNumPatches(),
+            patchInnerDimensions = tuple(self.getPatchInnerDimensions()),
             patchBorder = self.getPatchBorder(),
             tractOverlap = self.getTractOverlap().asRadians(),
             pixelScale = self.getPixelScale().asRadians(),

@@ -19,7 +19,6 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-import math
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -41,12 +40,13 @@ class TractInfo(object):
         0 <= y index < numPatches[1]
       Patch 0,0 is at the minimum corner of the tract bounding box.
     """
-    def __init__(self, id, numPatches, patchBorder, ctrCoord, vertexCoordList, tractOverlap, wcsFactory):
+    def __init__(self, id, patchInnerDimensions, patchBorder, ctrCoord, vertexCoordList, tractOverlap,
+        wcsFactory):
         """Construct a TractInfo
 
         @param[in] id: tract ID
-        @param[in] numPatches: number of patches in a tract along the (x, y) direction
-        @param[in] patchBorder: overlap between adjacent patches, in pixels; an int
+        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
+        @param[in] patchBorder: overlap between adjacent patches (in pixels, one int)
         @param[in] ctrCoord: sky coordinate of center of inner region of tract, as an afwCoord.Coord;
             also used as the CRVAL for the WCS.
         @param[in] vertexCoordList: list of sky coordinates (afwCoord.Coord)
@@ -59,11 +59,13 @@ class TractInfo(object):
         - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
         - vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
-#         print "TractInfo(id=%s, ctrCoord=%s, tractOverlap=%0.1f)" % \
-#             (id, ctrCoord.getPosition(afwGeom.degrees), tractOverlap)
         self._id = id
-        self._numPatches = numPatches
-        self._patchBorder = patchBorder
+        try:
+            assert len(patchInnerDimensions) == 2
+            self._patchInnerDimensions = afwGeom.Extent2I(*(int(val) for val in patchInnerDimensions))
+        except:
+            raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
+        self._patchBorder = int(patchBorder)
         self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
         self._tractOverlap = tractOverlap
@@ -92,13 +94,18 @@ class TractInfo(object):
                     minBBoxD.include(pixPos)
         initialBBox = afwGeom.Box2I(minBBoxD)
 
-        # grow initialBBox to hold exactly a multiple of numPatches, while keeping the center roughly the same
+        # grow initialBBox to hold exactly a multiple of patchInnerDimensions in x,y,
+        # while keeping the center roughly the same
         initialBBoxMin = initialBBox.getMin()
         bboxDim = initialBBox.getDimensions()
-        self._patchInnerDim = afwGeom.Extent2I(0, 0)
-        for i, numPatches in enumerate(self._numPatches):
-            self._patchInnerDim[i] = bboxDim[i] // numPatches
-            bboxDim[i] = self._patchInnerDim[i] * numPatches
+        self._numPatches = afwGeom.Extent2I(0, 0)
+        for i, innerDim in enumerate(self._patchInnerDimensions):
+            numPatches =  (bboxDim[i] + innerDim - 1) // innerDim # round up
+            deltaDim = (innerDim * numPatches) - bboxDim[i]
+            if deltaDim > 0:
+                bboxDim[i] = innerDim * numPatches
+                initialBBoxMin[i] -= deltaDim // 2
+            self._numPatches[i] = numPatches
         initialBBox = afwGeom.Box2I(initialBBoxMin, bboxDim)
 
         # compute final bbox the same size but with LL corner = 0,0; use that to compute final WCS
@@ -108,6 +115,22 @@ class TractInfo(object):
                                         self._bbox.getMinY() - initialBBox.getMinY())
         crPixPos = initialCRPixPos + pixPosOffset
         self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=self._ctrCoord)
+
+    def findPatch(self, coord):
+        """Find the patch containing the specified coord
+
+        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @return PatchInfo of patch whose inner bbox contains the specified coord
+        
+        @raise RuntimeError if coord is not in tract
+        
+        @note This routine will be more efficient if coord is ICRS.
+        """
+        pixelInd = afwGeom.Point2I(self.getWcs().skyToPixel(coord.toIcrs()))
+        if not self.getBBox().contains(pixelInd):
+            raise RuntimeError("coord %s is not in tract %s" % (coord, self.getId()))
+        patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
+        return self.getPatchInfo(patchInd)
     
     def getBBox(self):
         """Get bounding box of tract (as an afwGeom.Box2I)
@@ -138,13 +161,6 @@ class TractInfo(object):
         """
         return self._patchBorder
     
-    def getPatchInnerDim(self):
-        """Get dimensions of inner region of the patches (all are the same)
-        
-        @return dimensions of inner region of the patches (as an afwGeom Extent2I)
-        """
-        return self._patchInnerDim
-    
     def getPatchInfo(self, index):
         """Return information for the specified patch
         
@@ -157,8 +173,8 @@ class TractInfo(object):
             or (not 0 <= index[1] < self._numPatches[1]):
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" % \
                 (index, self._numPatches[0]-1, self._numPatches[1]-1))
-        innerMin = afwGeom.Point2I(*[index[i] * self._patchInnerDim[i] for i in range(2)])
-        innerBBox = afwGeom.Box2I(innerMin, self._patchInnerDim)
+        innerMin = afwGeom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
+        innerBBox = afwGeom.Box2I(innerMin, self._patchInnerDimensions)
         if not self._bbox.contains(innerBBox):
             raise RuntimeError(
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" % \
@@ -171,22 +187,13 @@ class TractInfo(object):
             innerBBox = innerBBox,
             outerBBox = outerBBox,
         )
-
-    def findPatch(self, coord):
-        """Find the patch containing the specified coord
-
-        @param[in] coord: sky coordinate (afwCoord.Coord)
-        @return PatchInfo of patch whose inner bbox contains the specified coord
+    
+    def getPatchInnerDimensions(self):
+        """Get dimensions of inner region of the patches (all are the same)
         
-        @raise RuntimeError if coord is not in tract
-        
-        @note This routine will be more efficient if coord is ICRS.
+        @return dimensions of inner region of the patches (as an afwGeom Extent2I)
         """
-        pixelInd = afwGeom.Point2I(self.getWcs().skyToPixel(coord.toIcrs()))
-        if not self.getBBox().contains(pixelInd):
-            raise RuntimeError("coord %s is not in tract %s" % (coord, self.getId()))
-        patchInd = tuple(int(pixelInd[i]/self._patchInnerDim[i]) for i in range(2))
-        return self.getPatchInfo(patchInd)
+        return self._patchInnerDimensions
     
     def getTractOverlap(self):
         """Get minimum overlap of adjacent sky tracts
@@ -194,13 +201,6 @@ class TractInfo(object):
         @return minimum overlap between adjacent sky tracts, as an afwGeom Angle
         """
         return self._tractOverlap
-    
-    def getWcs(self):
-        """Get WCS of tract
-        
-        @warning: this is not a deep copy
-        """
-        return self._wcs
 
     def getVertexList(self):
         """Get list of sky coordinates of vertices that define the boundary of the inner region
@@ -209,6 +209,13 @@ class TractInfo(object):
         @warning vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         return self._vertexCoordList
+    
+    def getWcs(self):
+        """Get WCS of tract
+        
+        @warning: this is not a deep copy
+        """
+        return self._wcs
 
     def __str__(self):
         return "TractInfo(id=%s)" % (self._id,)

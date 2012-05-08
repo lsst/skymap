@@ -71,7 +71,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
             skyMap = EquatSkyMap(numTracts = 4, projection = projection)
             self.assertEqual(skyMap.getProjection(), projection)
 
-        for numTracts in (2, 4, 25):
+        for numTracts in (1, 2, 4, 25):
             skyMap = EquatSkyMap(numTracts = numTracts)
             self.assertEqual(len(skyMap), numTracts)
         
@@ -91,7 +91,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
         unpickledSkyMap = pickle.loads(pickleStr)
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
         for getterName in (
-            "getNumPatches",
+            "getPatchInnerDimensions",
             "getPatchBorder",
             "getProjection",
             "getPixelScale",
@@ -106,7 +106,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
                 "getId",
                 "getNumPatches",
                 "getPatchBorder",
-                "getPatchInnerDim",
+                "getPatchInnerDimensions",
                 "getTractOverlap",
                 "getVertexList",
                 "getWcs",
@@ -125,11 +125,35 @@ class EquatSkyMapTestCase(unittest.TestCase):
             
             # compare a few patches
             numPatches = tractInfo.getNumPatches()
+            patchBorder = tractInfo.getPatchBorder()
             for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
                 for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
                     patchInfo = tractInfo.getPatchInfo((xInd, yInd))
                     unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
                     self.assertEqual(patchInfo, unpickledPatchInfo)
+                    
+                    # check inner and outer bbox (nothing to do with pickle,
+                    # but a convenient place for the test)
+                    innerBBox = patchInfo.getInnerBBox()
+                    outerBBox = patchInfo.getOuterBBox()
+                    
+                    if xInd == 0:
+                        self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
+                    else:
+                        self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
+                    if yInd == 0:
+                        self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
+                    else:
+                        self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
+                        
+                    if xInd == numPatches[0] - 1:
+                        self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
+                    else:
+                        self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
+                    if yInd == numPatches[1] - 1:
+                        self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
+                    else:
+                        self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
 
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
@@ -164,10 +188,6 @@ class EquatSkyMapTestCase(unittest.TestCase):
         for numTracts in (2, 4):
             skyMap = EquatSkyMap(numTracts = numTracts)
             decRange = skyMap.getDecRange()
-            badDecList = (
-                decRange[0] - (skyMap.getTractOverlap() * 1.0001),
-                decRange[1] + (skyMap.getTractOverlap() * 1.0001),
-            )
             decList = (
                 (decRange[0] * 0.999) + (decRange[1] * 0.901),
                 (decRange[0] * 0.500) + (decRange[1] * 0.500),
@@ -208,10 +228,19 @@ class EquatSkyMapTestCase(unittest.TestCase):
                             pixelInd = afwGeom.Point2I(
                                 nearestTractInfo.getWcs().skyToPixel(testCoord.toIcrs()))
                             self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
-            
-                for badDec in badDecList:
-                    testCoord = afwCoord.IcrsCoord(ctrCoord0.getRa(), badDec)
-                    tractInfo = skyMap.findTract(testCoord)
+                
+                # find a point outside the tract and make sure it fails
+                tractInfo = tractInfo0
+                wcs = tractInfo.getWcs()
+                bbox = afwGeom.Box2D(tractInfo.getBBox())
+                outerPixPosList = [
+                    bbox.getMin() - afwGeom.Extent2D(1, 1),
+                    afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()) - afwGeom.Extent2D(1, 1),
+                    bbox.getMax() + afwGeom.Extent2D(1, 1),
+                    afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()) + afwGeom.Extent2D(1, 1),
+                ]
+                for outerPixPos in outerPixPosList:
+                    testCoord = wcs.pixelToSky(outerPixPos)
                     self.assertRaises(RuntimeError, tractInfo.findPatch, testCoord)
             
 

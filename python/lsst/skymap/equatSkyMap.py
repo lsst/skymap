@@ -38,7 +38,7 @@ _DefaultProjection = "CEA"
 _DefaultNumTracts = 2
 
 # yields patches similar in size to the existing FPC files
-_DefaultNumPatches = (200, 10)
+_DefaultPatchInnerDimensions = (2048, 2048)
 
 # match SDSS normal images; roughly 50"
 _DefaultPatchBorder = 128
@@ -47,11 +47,10 @@ _DefaultPatchBorder = 128
 class EquatSkyMap(BaseSkyMap):
     """Equatorial sky map pixelization, e.g. for SDSS stripe 82 image data.
         
-    EquatSkyMap divides an equatorial band into one or more overlapping tracts.
-    The tracts are only divided along declination (i.e. all tracts have the same center declination).
+    EquatSkyMap represents an equatorial band of sky divided along declination into overlapping tracts.
     """
     def __init__(self,
-        numPatches = _DefaultNumPatches,
+        patchInnerDimensions = _DefaultPatchInnerDimensions,
         patchBorder = _DefaultPatchBorder,
         tractOverlap = _DefaultTractOverlap,
         pixelScale = _DefaultPlateScale,
@@ -61,18 +60,18 @@ class EquatSkyMap(BaseSkyMap):
     ):
         """Construct a EquatSkyMap
 
-        @param[in] numPatches: number of patches in a tract along the (x=RA, y=Dec) direction
+        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
         @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
         @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
         @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
         @param[in] projection: one of the FITS WCS projection codes
         @param[in] numTracts: number of tracts along RA (there is only one along Dec)
         @param[in] decRange: range of declination (a pair of afwGeom.Angle)
+        
+        @warning: some projections, such as "TAN", require at least 3 tracts.
+        If you use too few then construction will fail.
         """
         self._version = (1, 0) # for pickle
-        
-        if numTracts < 2:
-            raise RuntimeError("numTracts = %s; must be at least 2 to keep wcslib happy" % (numTracts,))
 
         try:
             assert(len(decRange) == 2)
@@ -82,7 +81,7 @@ class EquatSkyMap(BaseSkyMap):
             raise RuntimeError("decRange = %s; must be a pair of afwGeom Angles" % (decRange,))
 
         BaseSkyMap.__init__(self,
-            numPatches = numPatches,
+            patchInnerDimensions = patchInnerDimensions,
             patchBorder = patchBorder,
             tractOverlap = tractOverlap,
             pixelScale = pixelScale,
@@ -106,7 +105,7 @@ class EquatSkyMap(BaseSkyMap):
                 
             self._tractInfoList.append(TractInfo(
                 id = id,
-                numPatches = self.getNumPatches(),
+                patchInnerDimensions = self.getPatchInnerDimensions(),
                 patchBorder = self.getPatchBorder(),
                 ctrCoord = ctrCoord,
                 vertexCoordList = vertexCoordList,
@@ -122,7 +121,7 @@ class EquatSkyMap(BaseSkyMap):
         """
         return dict(
             version = self._version,
-            numPatches = self.getNumPatches(),
+            patchInnerDimensions = tuple(self.getPatchInnerDimensions()),
             patchBorder = self.getPatchBorder(),
             tractOverlap = self.getTractOverlap().asRadians(),
             pixelScale = self.getPixelScale().asRadians(),
