@@ -35,7 +35,7 @@ import numpy
 import lsst.utils.tests as utilsTests
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-from lsst.skymap import EquatSkyMap
+from lsst.skymap import EquatSkyMap, skyMapRegistry
 
 class EquatSkyMapTestCase(unittest.TestCase):
     def getNeighborTracts(self, skyMap, tractId):
@@ -78,7 +78,8 @@ class EquatSkyMapTestCase(unittest.TestCase):
                 self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
             self.assertEqual(len(skyMap), skyMap.config.numTracts)
  
-        config = EquatSkyMap.ConfigClass()
+        skyMapClass = skyMapRegistry["equat"]
+        config = skyMapClass.ConfigClass()
         for xInnerDim in (1005, 5062):
             for yInnerDim in (2032, 5431):
                 config.patchInnerDimensions = (xInnerDim, yInnerDim)

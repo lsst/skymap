@@ -35,7 +35,7 @@ import numpy
 import lsst.utils.tests as utilsTests
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-from lsst.skymap import DodecaSkyMap
+from lsst.skymap import DodecaSkyMap, skyMapRegistry
 
 # dodecahedron properties
 _NumTracts = 12
@@ -63,7 +63,8 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                 self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
             self.assertEqual(len(skyMap), _NumTracts)
  
-        config = DodecaSkyMap.ConfigClass()
+        skyMapClass = skyMapRegistry["dodeca"]
+        config = skyMapClass.ConfigClass()
         for xInnerDim in (1005, 5062):
             for yInnerDim in (2032, 5431):
                 config.patchInnerDimensions = (xInnerDim, yInnerDim)
