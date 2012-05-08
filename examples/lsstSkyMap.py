@@ -27,9 +27,11 @@ from lsst.skymap import DodecaSkyMap
 
 print "Warning: this does not take into account the extra space required by patch borders"
 
-for tractOverlapDeg in (0.0, 0.33, 1.0, 3.5):
-    print "tractOverlap = %s degrees" % (tractOverlapDeg)
-    skyMap = DodecaSkyMap(tractOverlap=afwGeom.Angle(tractOverlapDeg, afwGeom.degrees))
+config = DodecaSkyMap.ConfigClass()
+for tractOverlap in (0.0, 0.33, 1.0, 3.5):
+    print "tractOverlap = %s degrees" % (tractOverlap,)
+    config.tractOverlap = tractOverlap
+    skyMap = DodecaSkyMap(config)
     totNumPix = 0
     print "Tract  Ctr RA  Ctr Dec    Rows        Cols       # Pix   Width  Height"
     print " ID     (deg)   (deg)     (pix)       (pix)              (deg)  (deg)"
@@ -53,7 +55,8 @@ for tractOverlapDeg in (0.0, 0.33, 1.0, 3.5):
             (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1], \
             dimensions[0], dimensions[1], numPix, xSpan, ySpan)
     
-    nomPixelArea = skyMap.getPixelScale().asRadians()**2 # nominal area of a pixel in rad^2
-    numPixToTileSphere = 4 * math.pi / nomPixelArea
+    pixelScaleRad = afwGeom.Angle(skyMap.config.pixelScale, afwGeom.arcseconds).asRadians()
+    nomPixelAreaRad2 = pixelScaleRad**2 # nominal area of a pixel in rad^2
+    numPixToTileSphere = 4 * math.pi / nomPixelAreaRad2
     print "total # pixels = %.1e\npixels to tile sphere = %.1e\nextra storage (tot pix/pix to tile) = %.1f\n" % \
         (totNumPix, numPixToTileSphere, totNumPix / float(numPixToTileSphere))
