@@ -56,32 +56,36 @@ class EquatSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
+        config = EquatSkyMap.ConfigClass()
+        for numTracts in (1, 2, 4, 25):
+            config.numTracts = numTracts
+            skyMap = EquatSkyMap(config)
+            self.assertEqual(len(skyMap), numTracts)
+
+        config = EquatSkyMap.ConfigClass()
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
-            skyMap = EquatSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
-            self.assertEqual(skyMap.getTractOverlap().asDegrees(), tractOverlap)
+            config.tractOverlap = tractOverlap
+            skyMap = EquatSkyMap(config)
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
-        
-        for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
-            skyMap = EquatSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
-            self.assertAlmostEqual(skyMap.getPixelScale().asArcseconds(), pixelScale)
-        
-        for projection in ("CEA", "TAN", "MOL"):
-            # use numTracts > 2 to avoid "TAN" failing in wcslib
-            skyMap = EquatSkyMap(numTracts = 4, projection = projection)
-            self.assertEqual(skyMap.getProjection(), projection)
+            self.assertEqual(len(skyMap), skyMap.config.numTracts)
 
-        for numTracts in (1, 2, 4, 25):
-            skyMap = EquatSkyMap(numTracts = numTracts)
-            self.assertEqual(len(skyMap), numTracts)
-        
-        for minDec in (-45.0, -3.7, 2.5):
-            for maxDec in (-2.5, 3.7, 69.0):
-                if maxDec <= minDec:
-                    continue
-                decRange = (afwGeom.Angle(minDec, afwGeom.degrees), afwGeom.Angle(maxDec, afwGeom.degrees))
-                skyMap = EquatSkyMap(decRange = decRange)
-                self.assertEqual(skyMap.getDecRange(), decRange)
+        config = EquatSkyMap.ConfigClass()
+        for patchBorder in (0, 101):
+            config.patchBorder = patchBorder
+            skyMap = EquatSkyMap(config)
+            for tractInfo in skyMap:
+                self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
+            self.assertEqual(len(skyMap), skyMap.config.numTracts)
+ 
+        config = EquatSkyMap.ConfigClass()
+        for xInnerDim in (1005, 5062):
+            for yInnerDim in (2032, 5431):
+                config.patchInnerDimensions = (xInnerDim, yInnerDim)
+                skyMap = EquatSkyMap(config)
+                for tractInfo in skyMap:
+                    self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
+                self.assertEqual(len(skyMap), skyMap.config.numTracts)
 
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly
@@ -89,16 +93,18 @@ class EquatSkyMapTestCase(unittest.TestCase):
         skyMap = EquatSkyMap()
         pickleStr = pickle.dumps(skyMap)
         unpickledSkyMap = pickle.loads(pickleStr)
+        self.assertEqual(skyMap.getVersion(), unpickledSkyMap.getVersion())
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
-        for getterName in (
-            "getPatchInnerDimensions",
-            "getPatchBorder",
-            "getProjection",
-            "getPixelScale",
-            "getTractOverlap",
-            "getVersion",
+        for configName in (
+            "patchInnerDimensions",
+            "patchBorder",
+            "projection",
+            "pixelScale",
+            "tractOverlap",
+            "numTracts",
+            "decRange",
         ):
-            self.assertEqual(getattr(skyMap, getterName)(), getattr(unpickledSkyMap, getterName)())
+            self.assertEqual(getattr(skyMap.config, configName), getattr(unpickledSkyMap.config, configName))
         for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
             for getterName in (
                 "getBBox",
@@ -125,7 +131,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
             
             # compare a few patches
             numPatches = tractInfo.getNumPatches()
-            patchBorder = tractInfo.getPatchBorder()
+            patchBorder = skyMap.config.patchBorder
             for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
                 for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
                     patchInfo = tractInfo.getPatchInfo((xInd, yInd))
@@ -158,13 +164,14 @@ class EquatSkyMapTestCase(unittest.TestCase):
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
+        config = EquatSkyMap.ConfigClass()
         for numTracts in (2, 4, 25):
             for minDec in (-45, -2.5, 32):
                 for deltaDec in (2, 17):
                     maxDec = minDec + deltaDec
-                    decRange = (afwGeom.Angle(minDec, afwGeom.degrees), afwGeom.Angle(maxDec, afwGeom.degrees))
-                    
-                    skyMap = EquatSkyMap(numTracts = numTracts, decRange = decRange)
+                    config.numTracts = numTracts
+                    config.decRange = (minDec, maxDec)
+                    skyMap = EquatSkyMap(config)
                     predDeltaRa = 360.0 / numTracts
             
                     for tractId, tractInfo in enumerate(skyMap):
@@ -185,9 +192,11 @@ class EquatSkyMapTestCase(unittest.TestCase):
     def testFindTract(self):
         """Test the findTract method
         """
+        config = EquatSkyMap.ConfigClass()
         for numTracts in (2, 4):
-            skyMap = EquatSkyMap(numTracts = numTracts)
-            decRange = skyMap.getDecRange()
+            config.numTracts = numTracts
+            skyMap = EquatSkyMap(config)
+            decRange = skyMap.config.decRange
             decList = (
                 (decRange[0] * 0.999) + (decRange[1] * 0.901),
                 (decRange[0] * 0.500) + (decRange[1] * 0.500),
@@ -216,7 +225,8 @@ class EquatSkyMapTestCase(unittest.TestCase):
                         else:
                             expectedTractId = tractId1
                         
-                        for testDec in decList:
+                        for testDecDeg in decList:
+                            testDec = afwGeom.Angle(testDecDeg, afwGeom.degrees)
                             testCoord = afwCoord.IcrsCoord(testRa, testDec)
                         
                             nearestTractInfo = skyMap.findTract(testCoord)

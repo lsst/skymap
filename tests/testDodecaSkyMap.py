@@ -47,38 +47,48 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
+        config = DodecaSkyMap.ConfigClass()
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
-            sm = DodecaSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
-            self.assertEqual(sm.getTractOverlap().asDegrees(), tractOverlap)
-            for tractInfo in sm:
+            config.tractOverlap = tractOverlap
+            skyMap = DodecaSkyMap(config)
+            for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
-            self.assertEqual(len(sm), _NumTracts)
-        
-        for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
-            sm = DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
-            self.assertAlmostEqual(sm.getPixelScale().asArcseconds(), pixelScale)
-        
-        for projection in ("STG", "TAN", "MOL"):
-            sm = DodecaSkyMap(projection = projection)
-            self.assertEqual(sm.getProjection(), projection)
-        
+            self.assertEqual(len(skyMap), _NumTracts)
+
+        config = DodecaSkyMap.ConfigClass()
+        for patchBorder in (0, 101):
+            config.patchBorder = patchBorder
+            skyMap = DodecaSkyMap(config)
+            for tractInfo in skyMap:
+                self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
+            self.assertEqual(len(skyMap), _NumTracts)
+ 
+        config = DodecaSkyMap.ConfigClass()
+        for xInnerDim in (1005, 5062):
+            for yInnerDim in (2032, 5431):
+                config.patchInnerDimensions = (xInnerDim, yInnerDim)
+                skyMap = DodecaSkyMap(config)
+                for tractInfo in skyMap:
+                    self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
+                self.assertEqual(len(skyMap), _NumTracts)
+       
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly
         """
         skyMap = DodecaSkyMap()
         pickleStr = pickle.dumps(skyMap)
         unpickledSkyMap = pickle.loads(pickleStr)
+        self.assertEqual(skyMap.getVersion(), unpickledSkyMap.getVersion())
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
-        for getterName in (
-            "getPatchInnerDimensions",
-            "getPatchBorder",
-            "getProjection",
-            "getPixelScale",
-            "getTractOverlap",
-            "getVersion",
-            "getWithTractsOnPoles",
+        for configName in (
+            "patchInnerDimensions",
+            "patchBorder",
+            "projection",
+            "pixelScale",
+            "tractOverlap",
+            "withTractsOnPoles",
         ):
-            self.assertEqual(getattr(skyMap, getterName)(), getattr(unpickledSkyMap, getterName)())
+            self.assertEqual(getattr(skyMap.config, configName), getattr(unpickledSkyMap.config, configName))
         for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
             for getterName in (
                 "getBBox",
@@ -105,7 +115,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
             
             # compare a few patches
             numPatches = tractInfo.getNumPatches()
-            patchBorder = tractInfo.getPatchBorder()
+            patchBorder = skyMap.config.patchBorder
             for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
                 for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
                     patchInfo = tractInfo.getPatchInfo((xInd, yInd))
@@ -139,13 +149,13 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        sm = DodecaSkyMap()
-        for tractId, tractInfo in enumerate(sm):
+        skyMap = DodecaSkyMap()
+        for tractId, tractInfo in enumerate(skyMap):
             self.assertEqual(tractInfo.getId(), tractId)
         
             ctrCoord = tractInfo.getCtrCoord()
             distList = []
-            for tractInfo1 in sm:
+            for tractInfo1 in skyMap:
                 otherCtrCoord = tractInfo1.getCtrCoord()
                 distList.append(ctrCoord.angularSeparation(otherCtrCoord).asDegrees())
             distList.sort()
@@ -157,15 +167,15 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testFindTract(self):
         """Test the findTract method
         """
-        sm = DodecaSkyMap()
-        for tractInfo0 in sm:
+        skyMap = DodecaSkyMap()
+        for tractInfo0 in skyMap:
             tractId0 = tractInfo0.getId()
             ctrCoord0 = tractInfo0.getCtrCoord()
             vector0 = numpy.array(ctrCoord0.getVector())
             
             # make a list of all 5 nearest neighbors
             nbrTractList = []
-            for otherTractInfo in sm:
+            for otherTractInfo in skyMap:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
@@ -222,7 +232,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                                 testVector /= vecLen
                                 lsstVec = afwGeom.Point3D(testVector)
                                 testCoord = afwCoord.IcrsCoord(lsstVec)
-                                nearestTractInfo = sm.findTract(testCoord)
+                                nearestTractInfo = skyMap.findTract(testCoord)
                                 nearestTractId = nearestTractInfo.getId()
     
                                 if expectedTractId != nearestTractId:

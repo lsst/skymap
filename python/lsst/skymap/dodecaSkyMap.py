@@ -23,59 +23,44 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
+import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 from . import detail
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
 
-# Default tract overlap is approximately one field diameter
-_DefaultTractOverlap = afwGeom.Angle(3.5, afwGeom.degrees)
+class DodecaSkyMapConfig(BaseSkyMap.ConfigClass):
+    withTractsOnPoles = pexConfig.Field(
+        doc = "if True center a tract on each pole, else put a vertex on each pole",
+        dtype = bool,
+        default = False,
+    )
 
-# Default patch border -- approx. 50" worth of pixels
-_DefaultPatchBorder = 250
+    def setDefaults(self):
+        self.tractOverlap = 3.5
+        self.patchBorder = 250
+        self.pixelScale = 10.0 / 50.0 # LSST plate scale is 50 um/arcsec and pixel size is 10 um
+        self.patchInnerDimensions = (4000, 4000)
+        self.projection = "STG"
 
-# LSST plate scale is 50 um/arcsec
-# LSST pixel size is 10 um
-# Default sky pixel scale is the same as the image pixel scale
-_DefaultPlateScale = afwGeom.Angle(10.0 / 50.0, afwGeom.arcseconds)
-
-# Default patchInnerDimensions
-_DefaultPatchInnerDimensions = (4000, 4000)
 
 class DodecaSkyMap(BaseSkyMap):
     """Dodecahedron-based sky map pixelization.
         
     DodecaSkyMap divides the sky into 12 overlapping Tracts arranged as the faces of a dodecahedron.
     """
-    def __init__(self,
-        patchInnerDimensions = _DefaultPatchInnerDimensions,
-        patchBorder = _DefaultPatchBorder,
-        tractOverlap = _DefaultTractOverlap,
-        pixelScale = _DefaultPlateScale,
-        projection = "STG",
-        withTractsOnPoles = False,
-    ):
+    ConfigClass = DodecaSkyMapConfig
+    _version = (1, 0) # for pickle
+
+    def __init__(self, config=None):
         """Construct a DodecaSkyMap
 
-        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
-        @param[in] patchBorder: overlap between adjacent patches (in pixels, one int)
-        @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
-        @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
-        @param[in] projection: one of the FITS WCS projection codes, such as:
-          - STG: stereographic projection
-          - MOL: Molleweide's projection
-          - TAN: tangent-plane projection
-        @param[in] withTractsOnPoles: if True center a tract on each pole, else put a vertex on each pole
+        @param[in] config: an instance of self.ConfigClass; if None the default config is used
         """
-        self._version = (1, 0) # for pickle
-        self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = withTractsOnPoles)
-        BaseSkyMap.__init__(self,
-            patchInnerDimensions = patchInnerDimensions,
-            patchBorder = patchBorder,
-            tractOverlap = tractOverlap,
-            pixelScale = pixelScale,
-            projection = projection,
-        )
+        BaseSkyMap.__init__(self, config)
+        self._dodecahedron = detail.Dodecahedron(withFacesOnPoles = self.config.withTractsOnPoles)
+        
+        tractOverlap = afwGeom.Angle(self.config.tractOverlap, afwGeom.degrees)
 
         for id in range(12):
             tractVec = self._dodecahedron.getFaceCtr(id)
@@ -86,11 +71,11 @@ class DodecaSkyMap(BaseSkyMap):
             self._tractInfoList.append(
                 TractInfo(
                     id = id,
-                    patchInnerDimensions = self._patchInnerDimensions,
-                    patchBorder = self._patchBorder,
+                    patchInnerDimensions = self.config.patchInnerDimensions,
+                    patchBorder = self.config.patchBorder,
                     ctrCoord = tractCoord,
                     vertexCoordList = [detail.coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
-                    tractOverlap = self.getTractOverlap(),
+                    tractOverlap = tractOverlap,
                     wcsFactory = self._wcsFactory,
                 )
             )
@@ -98,34 +83,26 @@ class DodecaSkyMap(BaseSkyMap):
     def __getstate__(self):
         """Support pickle
         
-        @return a dict that can be used to call __init__ that specifies all parameters.
-        
-        @note: angle arguments cannot be pickled, so they are converted to radians
+        @return a dict containing:
+        - version: a pair of ints
+        - config: the config
         """
         return dict(
             version = self._version,
-            patchInnerDimensions = tuple(self.getPatchInnerDimensions()),
-            patchBorder = self.getPatchBorder(),
-            tractOverlap = self.getTractOverlap().asRadians(),
-            pixelScale = self.getPixelScale().asRadians(),
-            projection = self.getProjection(),
-            withTractsOnPoles = self.getWithTractsOnPoles(),
+            config = self.config,
         )
     
-    def __setstate__(self, argDict):
+    def __setstate__(self, stateDict):
         """Support unpickle
         
-        @param[in] argDict: a dict that can be used to call __init__ that specifies all parameters
-        
-        @note: angle arguments cannot be pickled, so they have been converted to radians
-            and must be converted back.
+        @param[in] stateDict: a dict containing:
+        - version: a pair of ints
+        - config: the config
         """
-        version = argDict.pop("version")
+        version = stateDict["version"]
         if version >= (2, 0):
             raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
-        for angleArg in ("tractOverlap", "pixelScale"):
-            argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
-        self.__init__(**argDict)
+        self.__init__(stateDict["config"])
     
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord.
