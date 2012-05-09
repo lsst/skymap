@@ -56,22 +56,22 @@ class EquatSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
-        config = EquatSkyMap.ConfigClass()
         for numTracts in (1, 2, 4, 25):
+            config = EquatSkyMap.ConfigClass()
             config.numTracts = numTracts
             skyMap = EquatSkyMap(config)
             self.assertEqual(len(skyMap), numTracts)
 
-        config = EquatSkyMap.ConfigClass()
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
+            config = EquatSkyMap.ConfigClass()
             config.tractOverlap = tractOverlap
             skyMap = EquatSkyMap(config)
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
             self.assertEqual(len(skyMap), skyMap.config.numTracts)
 
-        config = EquatSkyMap.ConfigClass()
         for patchBorder in (0, 101):
+            config = EquatSkyMap.ConfigClass()
             config.patchBorder = patchBorder
             skyMap = EquatSkyMap(config)
             for tractInfo in skyMap:
@@ -79,9 +79,9 @@ class EquatSkyMapTestCase(unittest.TestCase):
             self.assertEqual(len(skyMap), skyMap.config.numTracts)
  
         skyMapClass = skyMapRegistry["equat"]
-        config = skyMapClass.ConfigClass()
         for xInnerDim in (1005, 5062):
             for yInnerDim in (2032, 5431):
+                config = skyMapClass.ConfigClass()
                 config.patchInnerDimensions = (xInnerDim, yInnerDim)
                 skyMap = EquatSkyMap(config)
                 for tractInfo in skyMap:
@@ -165,11 +165,11 @@ class EquatSkyMapTestCase(unittest.TestCase):
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        config = EquatSkyMap.ConfigClass()
         for numTracts in (2, 4, 25):
             for minDec in (-45, -2.5, 32):
                 for deltaDec in (2, 17):
                     maxDec = minDec + deltaDec
+                    config = EquatSkyMap.ConfigClass()
                     config.numTracts = numTracts
                     config.decRange = (minDec, maxDec)
                     skyMap = EquatSkyMap(config)
@@ -193,8 +193,8 @@ class EquatSkyMapTestCase(unittest.TestCase):
     def testFindTract(self):
         """Test the findTract method
         """
-        config = EquatSkyMap.ConfigClass()
         for numTracts in (2, 4):
+            config = EquatSkyMap.ConfigClass()
             config.numTracts = numTracts
             skyMap = EquatSkyMap(config)
             decRange = skyMap.config.decRange

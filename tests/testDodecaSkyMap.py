@@ -47,16 +47,16 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
-        config = DodecaSkyMap.ConfigClass()
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
+            config = DodecaSkyMap.ConfigClass()
             config.tractOverlap = tractOverlap
             skyMap = DodecaSkyMap(config)
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
             self.assertEqual(len(skyMap), _NumTracts)
 
-        config = DodecaSkyMap.ConfigClass()
         for patchBorder in (0, 101):
+            config = DodecaSkyMap.ConfigClass()
             config.patchBorder = patchBorder
             skyMap = DodecaSkyMap(config)
             for tractInfo in skyMap:
@@ -64,9 +64,9 @@ class DodecaSkyMapTestCase(unittest.TestCase):
             self.assertEqual(len(skyMap), _NumTracts)
  
         skyMapClass = skyMapRegistry["dodeca"]
-        config = skyMapClass.ConfigClass()
         for xInnerDim in (1005, 5062):
             for yInnerDim in (2032, 5431):
+                config = skyMapClass.ConfigClass()
                 config.patchInnerDimensions = (xInnerDim, yInnerDim)
                 skyMap = DodecaSkyMap(config)
                 for tractInfo in skyMap:
