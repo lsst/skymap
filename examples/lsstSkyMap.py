@@ -27,9 +27,9 @@ from lsst.skymap import DodecaSkyMap
 
 print "Warning: this does not take into account the extra space required by patch borders"
 
-config = DodecaSkyMap.ConfigClass()
 for tractOverlap in (0.0, 0.33, 1.0, 3.5):
     print "tractOverlap = %s degrees" % (tractOverlap,)
+    config = DodecaSkyMap.ConfigClass()
     config.tractOverlap = tractOverlap
     skyMap = DodecaSkyMap(config)
     totNumPix = 0
