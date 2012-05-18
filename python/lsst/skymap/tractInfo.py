@@ -123,13 +123,13 @@ class TractInfo(object):
         @param[in] coord: sky coordinate (afwCoord.Coord)
         @return PatchInfo of patch whose inner bbox contains the specified coord
         
-        @raise RuntimeError if coord is not in tract
+        @raise LookupError if coord is not in tract
         
         @note This routine will be more efficient if coord is ICRS.
         """
         pixelInd = afwGeom.Point2I(self.getWcs().skyToPixel(coord.toIcrs()))
         if not self.getBBox().contains(pixelInd):
-            raise RuntimeError("coord %s is not in tract %s" % (coord, self.getId()))
+            raise LookupError("coord %s is not in tract %s" % (coord, self.getId()))
         patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
         return self.getPatchInfo(patchInd)
     
