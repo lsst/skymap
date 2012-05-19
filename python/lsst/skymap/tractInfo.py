@@ -137,24 +137,24 @@ class TractInfo(object):
         """Find patches containing the specified list of coords
         
         @param[in] coordList: list of sky coordinates (afwCoord.Coord)
-        @return list of PatchInfo for patches that may contain the specified region
-            (presently just the inner regions). The list will be empty if there is no overlap.
-            
-        @todo: modify to return overlap with outer regions, not just inner regions of patches
+        @return list of PatchInfo for patches that contain, or may contain, the specified region.
+            The list will be empty if there is no overlap.
         
-        @warning may return extra patches
+        @warning this uses a naive algorithm that may find some patches that do not overlap the region
+            (especially if the region is not a rectangle aligned along patch x,y).
         """
         box2D = afwGeom.Box2D()
         for coord in coordList:
             skyPos = self.getWcs().skyToPixel(coord.toIcrs())
             box2D.include(skyPos)
         bbox = afwGeom.Box2I(box2D).intersect(self.getBBox())
+        bbox.grow(self.getPatchBorder())
         if bbox.isEmpty():
             return ()
 
         llPatchInd = tuple(int(bbox.getMin()[i]/self._patchInnerDimensions[i]) for i in range(2))
         urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
-        return tuple((xInd, yInd)
+        return tuple(self.getPatchInfo((xInd, yInd))
             for xInd in range(llPatchInd[0], urPatchInd[0]+1)
             for yInd in range(llPatchInd[0], urPatchInd[0]+1))
 
@@ -206,7 +206,7 @@ class TractInfo(object):
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" % \
                 (index, innerBBox, self._bbox))
         outerBBox = afwGeom.Box2I(innerBBox)
-        outerBBox.grow(self._patchBorder)
+        outerBBox.grow(self.getPatchBorder())
         outerBBox.clip(self._bbox)
         return PatchInfo(
             index = index,

@@ -105,11 +105,28 @@ class BaseSkyMap(object):
         """
         icrsCoord = coord.toIcrs()
         distTractInfoList = []
-        for tractInfo in self._tractInfoList:
+        for tractInfo in self:
             angSep = icrsCoord.angularSeparation(tractInfo.getCtrCoord()).asDegrees()
             distTractInfoList.append((angSep, tractInfo))
         distTractInfoList.sort()
         return distTractInfoList[0][1]
+    
+    def findTractPatchList(self, coordList):
+        """Find tracts and patches that overlap a region
+        
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
+            or may contain, the specified region. The list will be empty if there is no overlap.
+        
+        @warning this uses a naive algorithm that may find some tracts and patches that do not overlap
+            the region (especially if the region is not a rectangle aligned along patch x,y).
+        """
+        retList = []
+        for tractInfo in self:
+            patchList = tractInfo.findPatchList(coordList)
+            if patchList:
+                retList.append(tractInfo, patchList)
+        return retList
     
     def __getitem__(self, ind):
         return self._tractInfoList[ind]
