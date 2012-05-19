@@ -133,6 +133,31 @@ class TractInfo(object):
         patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
         return self.getPatchInfo(patchInd)
     
+    def findPatchList(self, coordList):
+        """Find patches containing the specified list of coords
+        
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of PatchInfo for patches that may contain the specified region
+            (presently just the inner regions). The list will be empty if there is no overlap.
+            
+        @todo: modify to return overlap with outer regions, not just inner regions of patches
+        
+        @warning may return extra patches
+        """
+        box2D = afwGeom.Box2D()
+        for coord in coordList:
+            skyPos = self.getWcs().skyToPixel(coord.toIcrs())
+            box2D.include(skyPos)
+        bbox = afwGeom.Box2I(box2D).intersect(self.getBBox())
+        if bbox.isEmpty():
+            return ()
+
+        llPatchInd = tuple(int(bbox.getMin()[i]/self._patchInnerDimensions[i]) for i in range(2))
+        urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
+        return tuple((xInd, yInd)
+            for xInd in range(llPatchInd[0], urPatchInd[0]+1)
+            for yInd in range(llPatchInd[0], urPatchInd[0]+1))
+
     def getBBox(self):
         """Get bounding box of tract (as an afwGeom.Box2I)
         """
