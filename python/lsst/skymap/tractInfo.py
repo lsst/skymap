@@ -147,8 +147,9 @@ class TractInfo(object):
         for coord in coordList:
             skyPos = self.getWcs().skyToPixel(coord.toIcrs())
             box2D.include(skyPos)
-        bbox = afwGeom.Box2I(box2D).intersect(self.getBBox())
+        bbox = afwGeom.Box2I(box2D)
         bbox.grow(self.getPatchBorder())
+        bbox.clip(self.getBBox())
         if bbox.isEmpty():
             return ()
 

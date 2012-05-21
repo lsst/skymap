@@ -125,7 +125,7 @@ class BaseSkyMap(object):
         for tractInfo in self:
             patchList = tractInfo.findPatchList(coordList)
             if patchList:
-                retList.append(tractInfo, patchList)
+                retList.append((tractInfo, patchList))
         return retList
     
     def __getitem__(self, ind):
