@@ -252,7 +252,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
                 ]
                 for outerPixPos in outerPixPosList:
                     testCoord = wcs.pixelToSky(outerPixPos)
-                    self.assertRaises(RuntimeError, tractInfo.findPatch, testCoord)
+                    self.assertRaises(LookupError, tractInfo.findPatch, testCoord)
             
 
 def suite():
