@@ -211,6 +211,55 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                 foundIndexSet = set(patchInfo.getIndex() for patchInfo in patchInfoList)
                 self.assertEqual(foundIndexSet, predFoundIndexSet)
     
+    def testFindTractPatchList(self):
+        """Test findTractPatchList
+        
+        Note: this test uses single points for speed and to avoid really large regions
+        one could take a single point and grow a reasonable-sized region around it,
+        but that seems unnecessary because findTract is already being tested elsewhere.
+        """
+        skyMap = DodecaSkyMap()
+        for tractId in (1, 3, 7):
+            tractInfo = skyMap[tractId]
+            self.assertTractPatchListOk(
+                skyMap = skyMap,
+                coordList = [tractInfo.getCtrCoord()],
+                knownTractId = tractId,
+            )
+
+            self.assertTractPatchListOk(
+                skyMap = skyMap,
+                coordList = [tractInfo.getVertexList()[0]],
+                knownTractId = tractId,
+            )
+
+            self.assertTractPatchListOk(
+                skyMap = skyMap,
+                coordList = [tractInfo.getVertexList()[2]],
+                knownTractId = tractId,
+            )
+    
+    def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
+        """Assert that findTractPatchList produces the correct results
+        
+        @param[in] skyMap: sky map to test
+        @param[in] coordList: coordList of region to search for
+        @param[in] knownTractId: this tractId must appear in the found list
+        """
+        tractPatchList = skyMap.findTractPatchList(coordList)
+        tractPatchDict = dict((tp[0].getId(), tp[1]) for tp in tractPatchList)
+        self.assertTrue(knownTractId in tractPatchDict)
+        for tractInfo in skyMap:
+            tractId = tractInfo.getId()
+            patchList = tractInfo.findPatchList(coordList)
+            if patchList:
+                self.assertTrue(tractId in tractPatchDict)
+                self.assertTrue(len(patchList) == len(tractPatchDict[tractId]))
+            else:
+                self.assertTrue(tractId not in tractPatchDict)
+            
+        
+    
     def testFindTract(self):
         """Test findTract and tractInfo.findPatch
         """

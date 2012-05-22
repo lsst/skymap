@@ -19,6 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from lsst.pex.exceptions import LsstCppException
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -140,13 +141,19 @@ class TractInfo(object):
         @return list of PatchInfo for patches that contain, or may contain, the specified region.
             The list will be empty if there is no overlap.
         
-        @warning this uses a naive algorithm that may find some patches that do not overlap the region
+        @warning:
+        * This may give incorrect answers on regions that are larger than a tract
+        * This uses a naive algorithm that may find some patches that do not overlap the region
             (especially if the region is not a rectangle aligned along patch x,y).
         """
         box2D = afwGeom.Box2D()
         for coord in coordList:
-            skyPos = self.getWcs().skyToPixel(coord.toIcrs())
-            box2D.include(skyPos)
+            try:
+                pixelPos = self.getWcs().skyToPixel(coord.toIcrs())
+            except LsstCppException:
+                # the point is so far off the tract that its pixel position cannot be computed
+                continue
+            box2D.include(pixelPos)
         bbox = afwGeom.Box2I(box2D)
         bbox.grow(self.getPatchBorder())
         bbox.clip(self.getBBox())
