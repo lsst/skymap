@@ -157,7 +157,7 @@ class TractInfo(object):
         urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
         return tuple(self.getPatchInfo((xInd, yInd))
             for xInd in range(llPatchInd[0], urPatchInd[0]+1)
-            for yInd in range(llPatchInd[0], urPatchInd[0]+1))
+            for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
     def getBBox(self):
         """Get bounding box of tract (as an afwGeom.Box2I)
