@@ -214,9 +214,8 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testFindTractPatchList(self):
         """Test findTractPatchList
         
-        Note: this test uses single points for speed and to avoid really large regions
-        one could take a single point and grow a reasonable-sized region around it,
-        but that seems unnecessary because findTract is already being tested elsewhere.
+        Note: this test uses single points for speed and to avoid really large regions.
+        Note that findPatchList is being tested elsewhere.
         """
         skyMap = DodecaSkyMap()
         for tractId in (1, 3, 7):
