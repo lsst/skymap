@@ -31,17 +31,12 @@ import matplotlib.pyplot as plt
 import lsst.afw.geom as afwGeom
 from lsst.skymap import DodecaSkyMap
 
-smap = DodecaSkyMap(
-    tractOverlap = afwGeom.Angle(0, afwGeom.degrees),
-    pixelScale = afwGeom.Angle(3.5 / (50.0 * math.sqrt(2.0)), afwGeom.arcseconds),
-    projection = "STG",
-    withTractsOnPoles = False,
-)
+skyMap = DodecaSkyMap()
 
 fig = plt.figure()
 ax = fig.gca(projection='3d')
 
-for tractInfo in smap:
+for tractInfo in skyMap:
     # display inner region
     vertexList = list(tractInfo.getVertexList())
     vertexList.append(vertexList[0]) # to close region

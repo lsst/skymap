@@ -35,7 +35,7 @@ import numpy
 import lsst.utils.tests as utilsTests
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-from lsst.skymap import DodecaSkyMap
+from lsst.skymap import DodecaSkyMap, skyMapRegistry
 
 # dodecahedron properties
 _NumTracts = 12
@@ -48,37 +48,48 @@ class DodecaSkyMapTestCase(unittest.TestCase):
         """Confirm that constructor attributes are available
         """
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
-            sm = DodecaSkyMap(tractOverlap = afwGeom.Angle(tractOverlap, afwGeom.degrees))
-            self.assertEqual(sm.getTractOverlap().asDegrees(), tractOverlap)
-            for tractInfo in sm:
+            config = DodecaSkyMap.ConfigClass()
+            config.tractOverlap = tractOverlap
+            skyMap = DodecaSkyMap(config)
+            for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
-            self.assertEqual(len(sm), _NumTracts)
-        
-        for pixelScale in (0.01, 0.1, 1.0): # arcseconds/pixel
-            sm = DodecaSkyMap(pixelScale = afwGeom.Angle(pixelScale, afwGeom.arcseconds))
-            self.assertAlmostEqual(sm.getPixelScale().asArcseconds(), pixelScale)
-        
-        for projection in ("STG", "TAN", "MOL"):
-            sm = DodecaSkyMap(projection = projection)
-            self.assertEqual(sm.getProjection(), projection)
-        
+            self.assertEqual(len(skyMap), _NumTracts)
+
+        for patchBorder in (0, 101):
+            config = DodecaSkyMap.ConfigClass()
+            config.patchBorder = patchBorder
+            skyMap = DodecaSkyMap(config)
+            for tractInfo in skyMap:
+                self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
+            self.assertEqual(len(skyMap), _NumTracts)
+ 
+        skyMapClass = skyMapRegistry["dodeca"]
+        for xInnerDim in (1005, 5062):
+            for yInnerDim in (2032, 5431):
+                config = skyMapClass.ConfigClass()
+                config.patchInnerDimensions = (xInnerDim, yInnerDim)
+                skyMap = DodecaSkyMap(config)
+                for tractInfo in skyMap:
+                    self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
+                self.assertEqual(len(skyMap), _NumTracts)
+       
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly
         """
         skyMap = DodecaSkyMap()
         pickleStr = pickle.dumps(skyMap)
         unpickledSkyMap = pickle.loads(pickleStr)
+        self.assertEqual(skyMap.getVersion(), unpickledSkyMap.getVersion())
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
-        for getterName in (
-            "getPatchInnerDimensions",
-            "getPatchBorder",
-            "getProjection",
-            "getPixelScale",
-            "getTractOverlap",
-            "getVersion",
-            "getWithTractsOnPoles",
+        for configName in (
+            "patchInnerDimensions",
+            "patchBorder",
+            "projection",
+            "pixelScale",
+            "tractOverlap",
+            "withTractsOnPoles",
         ):
-            self.assertEqual(getattr(skyMap, getterName)(), getattr(unpickledSkyMap, getterName)())
+            self.assertEqual(getattr(skyMap.config, configName), getattr(unpickledSkyMap.config, configName))
         for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
             for getterName in (
                 "getBBox",
@@ -105,7 +116,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
             
             # compare a few patches
             numPatches = tractInfo.getNumPatches()
-            patchBorder = tractInfo.getPatchBorder()
+            patchBorder = skyMap.config.patchBorder
             for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
                 for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
                     patchInfo = tractInfo.getPatchInfo((xInd, yInd))
@@ -139,13 +150,13 @@ class DodecaSkyMapTestCase(unittest.TestCase):
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        sm = DodecaSkyMap()
-        for tractId, tractInfo in enumerate(sm):
+        skyMap = DodecaSkyMap()
+        for tractId, tractInfo in enumerate(skyMap):
             self.assertEqual(tractInfo.getId(), tractId)
         
             ctrCoord = tractInfo.getCtrCoord()
             distList = []
-            for tractInfo1 in sm:
+            for tractInfo1 in skyMap:
                 otherCtrCoord = tractInfo1.getCtrCoord()
                 distList.append(ctrCoord.angularSeparation(otherCtrCoord).asDegrees())
             distList.sort()
@@ -154,18 +165,112 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                 self.assertAlmostEquals(dist, _NeighborAngularSeparation)
             self.assertAlmostEquals(distList[11], 180.0)
     
-    def testFindTract(self):
-        """Test the findTract method
+    def testFindPatchList(self):
+        """Test findTract.findPatchList
         """
-        sm = DodecaSkyMap()
-        for tractInfo0 in sm:
+        skyMap = DodecaSkyMap()
+        for tractId in (0, 5):
+            tractInfo = skyMap[tractId]
+            wcs = tractInfo.getWcs()
+            numPatches = tractInfo.getNumPatches()
+            border = tractInfo.getPatchBorder()
+            for patchInd in (
+                (0, 0),
+                (0, 1),
+                (5, 0),
+                (5, 6),
+                (numPatches[0] - 2, numPatches[1] - 1),
+                (numPatches[0] - 1, numPatches[1] - 2),
+                (numPatches[0] - 1, numPatches[1] - 1),
+            ):
+                patchInfo = tractInfo.getPatchInfo(patchInd)
+                patchIndex = patchInfo.getIndex()
+                bbox = patchInfo.getInnerBBox()
+                bbox.grow(-(border+1))
+                coordList = getCornerCoords(wcs = wcs, bbox = bbox)
+                patchInfoList = tractInfo.findPatchList(coordList)
+                self.assertEqual(len(patchInfoList), 1)
+                self.assertEqual(patchInfoList[0].getIndex(), patchIndex)
+                
+                # grow to include neighbors and test again
+                bbox.grow(2)
+                predFoundIndexSet = set()
+                for dx in (-1, 0, 1):
+                    nbrX = patchIndex[0] + dx
+                    if not 0 <= nbrX < numPatches[0]:
+                        continue
+                    for dy in (-1, 0, 1):
+                        nbrY = patchIndex[1] + dy
+                        if not 0 <= nbrY < numPatches[1]:
+                            continue
+                        nbrInd = (nbrX, nbrY)
+                        predFoundIndexSet.add(nbrInd)
+                coordList = getCornerCoords(wcs = wcs, bbox = bbox)
+                patchInfoList = tractInfo.findPatchList(coordList)
+                self.assertEqual(len(patchInfoList), len(predFoundIndexSet))
+                foundIndexSet = set(patchInfo.getIndex() for patchInfo in patchInfoList)
+                self.assertEqual(foundIndexSet, predFoundIndexSet)
+    
+    def testFindTractPatchList(self):
+        """Test findTractPatchList
+        
+        Note: this test uses single points for speed and to avoid really large regions.
+        Note that findPatchList is being tested elsewhere.
+        """
+        skyMap = DodecaSkyMap()
+        for tractId in (1, 3, 7):
+            tractInfo = skyMap[tractId]
+            self.assertTractPatchListOk(
+                skyMap = skyMap,
+                coordList = [tractInfo.getCtrCoord()],
+                knownTractId = tractId,
+            )
+
+            self.assertTractPatchListOk(
+                skyMap = skyMap,
+                coordList = [tractInfo.getVertexList()[0]],
+                knownTractId = tractId,
+            )
+
+            self.assertTractPatchListOk(
+                skyMap = skyMap,
+                coordList = [tractInfo.getVertexList()[2]],
+                knownTractId = tractId,
+            )
+    
+    def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
+        """Assert that findTractPatchList produces the correct results
+        
+        @param[in] skyMap: sky map to test
+        @param[in] coordList: coordList of region to search for
+        @param[in] knownTractId: this tractId must appear in the found list
+        """
+        tractPatchList = skyMap.findTractPatchList(coordList)
+        tractPatchDict = dict((tp[0].getId(), tp[1]) for tp in tractPatchList)
+        self.assertTrue(knownTractId in tractPatchDict)
+        for tractInfo in skyMap:
+            tractId = tractInfo.getId()
+            patchList = tractInfo.findPatchList(coordList)
+            if patchList:
+                self.assertTrue(tractId in tractPatchDict)
+                self.assertTrue(len(patchList) == len(tractPatchDict[tractId]))
+            else:
+                self.assertTrue(tractId not in tractPatchDict)
+            
+        
+    
+    def testFindTract(self):
+        """Test findTract and tractInfo.findPatch
+        """
+        skyMap = DodecaSkyMap()
+        for tractInfo0 in skyMap:
             tractId0 = tractInfo0.getId()
             ctrCoord0 = tractInfo0.getCtrCoord()
             vector0 = numpy.array(ctrCoord0.getVector())
             
             # make a list of all 5 nearest neighbors
             nbrTractList = []
-            for otherTractInfo in sm:
+            for otherTractInfo in skyMap:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.angularSeparation(otherCtrCoord).asDegrees()
                 if abs(dist - _NeighborAngularSeparation) < 0.1:
@@ -222,7 +327,7 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                                 testVector /= vecLen
                                 lsstVec = afwGeom.Point3D(testVector)
                                 testCoord = afwCoord.IcrsCoord(lsstVec)
-                                nearestTractInfo = sm.findTract(testCoord)
+                                nearestTractInfo = skyMap.findTract(testCoord)
                                 nearestTractId = nearestTractInfo.getId()
     
                                 if expectedTractId != nearestTractId:
@@ -250,6 +355,19 @@ class DodecaSkyMapTestCase(unittest.TestCase):
                                     nearestTractInfo.getWcs().skyToPixel(testCoord.toIcrs()))
                                 self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
+
+def getCornerCoords(wcs, bbox):
+    """Return the coords of the four corners of a bounding box
+    """
+    bbox = afwGeom.Box2D(bbox) # mak
+    cornerPosList = (
+        bbox.getMin(),
+        afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()),
+        bbox.getMax(),
+        afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()),
+    )
+    return [wcs.pixelToSky(cp).toIcrs() for cp in cornerPosList]
+    
 
 def suite():
     """Return a suite containing all the test cases in this module.

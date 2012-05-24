@@ -32,7 +32,7 @@ class WcsFactory(object):
     def __init__(self, pixelScale, projection):
         """Make a WcsFactory
         
-        @param[in] pixelScale: desired scale, in angle/pixel
+        @param[in] pixelScale: desired scale, as sky/pixel, an afwGeom.Angle
         @param[in] projection: FITS-standard 3-letter name of projection, e.g.:
             TAN (tangent), STG (stereographic), MOL (Mollweide's), AIT (Hammer-Aitoff)
             see Representations of celestial coordinates in FITS (Calabretta and Greisen, 2002)

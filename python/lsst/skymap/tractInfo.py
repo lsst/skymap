@@ -19,6 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from lsst.pex.exceptions import LsstCppException
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -123,16 +124,48 @@ class TractInfo(object):
         @param[in] coord: sky coordinate (afwCoord.Coord)
         @return PatchInfo of patch whose inner bbox contains the specified coord
         
-        @raise RuntimeError if coord is not in tract
+        @raise LookupError if coord is not in tract
         
         @note This routine will be more efficient if coord is ICRS.
         """
         pixelInd = afwGeom.Point2I(self.getWcs().skyToPixel(coord.toIcrs()))
         if not self.getBBox().contains(pixelInd):
-            raise RuntimeError("coord %s is not in tract %s" % (coord, self.getId()))
+            raise LookupError("coord %s is not in tract %s" % (coord, self.getId()))
         patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
         return self.getPatchInfo(patchInd)
     
+    def findPatchList(self, coordList):
+        """Find patches containing the specified list of coords
+        
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of PatchInfo for patches that contain, or may contain, the specified region.
+            The list will be empty if there is no overlap.
+        
+        @warning:
+        * This may give incorrect answers on regions that are larger than a tract
+        * This uses a naive algorithm that may find some patches that do not overlap the region
+            (especially if the region is not a rectangle aligned along patch x,y).
+        """
+        box2D = afwGeom.Box2D()
+        for coord in coordList:
+            try:
+                pixelPos = self.getWcs().skyToPixel(coord.toIcrs())
+            except LsstCppException:
+                # the point is so far off the tract that its pixel position cannot be computed
+                continue
+            box2D.include(pixelPos)
+        bbox = afwGeom.Box2I(box2D)
+        bbox.grow(self.getPatchBorder())
+        bbox.clip(self.getBBox())
+        if bbox.isEmpty():
+            return ()
+
+        llPatchInd = tuple(int(bbox.getMin()[i]/self._patchInnerDimensions[i]) for i in range(2))
+        urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
+        return tuple(self.getPatchInfo((xInd, yInd))
+            for xInd in range(llPatchInd[0], urPatchInd[0]+1)
+            for yInd in range(llPatchInd[1], urPatchInd[1]+1))
+
     def getBBox(self):
         """Get bounding box of tract (as an afwGeom.Box2I)
         """
@@ -181,7 +214,7 @@ class TractInfo(object):
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" % \
                 (index, innerBBox, self._bbox))
         outerBBox = afwGeom.Box2I(innerBBox)
-        outerBBox.grow(self._patchBorder)
+        outerBBox.grow(self.getPatchBorder())
         outerBBox.clip(self._bbox)
         return PatchInfo(
             index = index,

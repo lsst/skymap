@@ -23,10 +23,44 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
+import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 from . import detail
 
 __all__ = ["BaseSkyMap"]
+
+class BaseSkyMapConfig(pexConfig.Config):
+    patchInnerDimensions = pexConfig.ListField(
+        doc = "dimensions of inner region of patches (x,y pixels)",
+        dtype = int,
+        length = 2,
+        default = (4000, 4000),
+    )
+    patchBorder = pexConfig.Field(
+        doc = "border between patch inner and outer bbox (pixels)",
+        dtype = int,
+        default = 100,
+    )
+    tractOverlap = pexConfig.Field(
+        doc = "minimum overlap between adjacent sky tracts, on the sky (deg)",
+        dtype = float,
+        default = 1.0,
+    )
+    pixelScale = pexConfig.Field(
+        doc = "nominal pixel scale (arcsec/pixel)",
+        dtype = float,
+        default = 0.333
+    )
+    projection = pexConfig.Field(
+        doc = """one of the FITS WCS projection codes, such as:
+          - STG: stereographic projection
+          - MOL: Molleweide's projection
+          - TAN: tangent-plane projection
+        """,
+        dtype = str,
+        default = "STG",
+    )
+        
 
 class BaseSkyMap(object):
     """A collection of overlapping Tracts that map part or all of the sky.
@@ -36,66 +70,24 @@ class BaseSkyMap(object):
     BaseSkyMap is an abstract base class. Subclasses must do the following:
     @li define __init__ and have it construct the TractInfo objects and put them in _tractInfoList
     @li define __getstate__ and __setstate__ to allow pickling (the butler saves sky maps using pickle);
-        see DodecaSkyMap for an example of how to do this.
+        see DodecaSkyMap for an example of how to do this. (Most of that code could be moved
+        into this base class, but that would make it harder to handle older versions of pickle data.)
     """
-    def __init__(self,
-        patchInnerDimensions,
-        patchBorder,
-        tractOverlap,
-        pixelScale,
-        projection,
-    ):
+    ConfigClass = BaseSkyMapConfig
+    def __init__(self, config=None):
         """Construct a BaseSkyMap
         
-        @warning: inheriting classes must set self._tractInfoList
-
-        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
-        @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
-        @param[in] tractOverlap: minimum overlap between adjacent sky tracts, on the sky; an afwGeom.Angle
-        @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
-        @param[in] projection: one of the FITS WCS projection codes, such as:
-          - STG: stereographic projection
-          - MOL: Molleweide's projection
-          - TAN: tangent-plane projection
+        @param[in] config: an instance of self.ConfigClass; if None the default config is used
         """
-        try:
-            assert len(patchInnerDimensions) == 2
-            self._patchInnerDimensions = afwGeom.Extent2I(*(int(val) for val in patchInnerDimensions))
-        except Exception:
-            raise RuntimeError("patchInnerDimensions = %r must contain 2 ints" % (patchInnerDimensions,))
-        self._patchBorder = int(patchBorder)
-        self._tractOverlap = tractOverlap
-        self._pixelScale = pixelScale
-        self._projection = str(projection)
+        if config is None:
+            config = self.ConfigClass()
+        config.freeze() # just to be sure, e.g. for pickling
+        self.config = config
         self._tractInfoList = []
-        self._wcsFactory = detail.WcsFactory(self._pixelScale, self._projection)
-
-    def getPatchBorder(self):
-        """Get the border between the inner and outer bbox of patches (pixels)
-        """
-        return self._patchBorder
-    
-    def getPatchInnerDimensions(self):
-        """Get dimensions of inner region of the patches (all are the same)
-        
-        @return dimensions of inner region of the patches (as an afwGeom Extent2I)
-        """
-        return self._patchInnerDimensions
-    
-    def getPixelScale(self):
-        """Get the nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
-        """
-        return self._pixelScale
-    
-    def getProjection(self):
-        """Get the projection as a FITS WCS code
-        """
-        return self._projection
-
-    def getTractOverlap(self):
-        """Get the minimum overlap between adjacent sky tracts, on the sky; an afwGeom.Angle
-        """
-        return self._tractOverlap
+        self._wcsFactory = detail.WcsFactory(
+            pixelScale = afwGeom.Angle(self.config.pixelScale, afwGeom.arcseconds),
+            projection = self.config.projection,
+        )
     
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
@@ -113,11 +105,28 @@ class BaseSkyMap(object):
         """
         icrsCoord = coord.toIcrs()
         distTractInfoList = []
-        for tractInfo in self._tractInfoList:
+        for tractInfo in self:
             angSep = icrsCoord.angularSeparation(tractInfo.getCtrCoord()).asDegrees()
             distTractInfoList.append((angSep, tractInfo))
         distTractInfoList.sort()
         return distTractInfoList[0][1]
+    
+    def findTractPatchList(self, coordList):
+        """Find tracts and patches that overlap a region
+        
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
+            or may contain, the specified region. The list will be empty if there is no overlap.
+        
+        @warning this uses a naive algorithm that may find some tracts and patches that do not overlap
+            the region (especially if the region is not a rectangle aligned along patch x,y).
+        """
+        retList = []
+        for tractInfo in self:
+            patchList = tractInfo.findPatchList(coordList)
+            if patchList:
+                retList.append((tractInfo, patchList))
+        return retList
     
     def __getitem__(self, ind):
         return self._tractInfoList[ind]

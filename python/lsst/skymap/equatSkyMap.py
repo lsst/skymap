@@ -19,29 +19,27 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import lsst.pex.config as pexConfig
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
 
-# Default overlap is 50", which is approximately the overlap SDSS uses between images
-_DefaultTractOverlap = afwGeom.Angle(50, afwGeom.arcseconds)
-
-# SDSS plate scale is 0.396"/pixel
-_DefaultPlateScale = afwGeom.Angle(0.396, afwGeom.arcseconds)
-
-# SDSS stripe 82 covers a declination range of -1.25 to 1.25 degrees
-_DefaultDecRange = (afwGeom.Angle(-1.25, afwGeom.degrees), afwGeom.Angle(1.25, afwGeom.degrees))
-
-_DefaultProjection = "CEA"
-
-_DefaultNumTracts = 2
-
-# yields patches similar in size to the existing FPC files
-_DefaultPatchInnerDimensions = (2048, 2048)
-
-# match SDSS normal images; roughly 50"
-_DefaultPatchBorder = 128
+class EquatSkyMapConfig(BaseSkyMap.ConfigClass):
+    numTracts = pexConfig.Field(
+        doc = "number of tracts; warning: TAN projection requires at least 3",
+        dtype = int,
+        default = 4,
+    )
+    decRange = pexConfig.ListField(
+        doc = "range of declination (deg)",
+        dtype = float,
+        length = 2,
+        default = (-1.25, 1.25),
+    )
+    
+    def setDefault(self):
+        self.projection = "CEA"
 
 
 class EquatSkyMap(BaseSkyMap):
@@ -49,55 +47,29 @@ class EquatSkyMap(BaseSkyMap):
         
     EquatSkyMap represents an equatorial band of sky divided along declination into overlapping tracts.
     """
-    def __init__(self,
-        patchInnerDimensions = _DefaultPatchInnerDimensions,
-        patchBorder = _DefaultPatchBorder,
-        tractOverlap = _DefaultTractOverlap,
-        pixelScale = _DefaultPlateScale,
-        projection = _DefaultProjection,
-        decRange = _DefaultDecRange,
-        numTracts = _DefaultNumTracts,
-    ):
+    ConfigClass = EquatSkyMapConfig
+    _version = (1, 0) # for pickle
+
+    def __init__(self, config=None):
         """Construct a EquatSkyMap
 
-        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
-        @param[in] patchBorder: border between patch inner and outer bbox (pixels); an int
-        @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle
-        @param[in] pixelScale: nominal pixel scale (angle on sky/pixel); an afwGeom.Angle
-        @param[in] projection: one of the FITS WCS projection codes
-        @param[in] numTracts: number of tracts along RA (there is only one along Dec)
-        @param[in] decRange: range of declination (a pair of afwGeom.Angle)
-        
-        @warning: some projections, such as "TAN", require at least 3 tracts.
-        If you use too few then construction will fail.
+        @param[in] config: an instance of self.ConfigClass; if None the default config is used
         """
-        self._version = (1, 0) # for pickle
-
-        try:
-            assert(len(decRange) == 2)
-            junkRad = [ang.asRadians() for ang in decRange] # test elements are Angles
-            self._decRange = tuple(decRange)
-        except Exception:
-            raise RuntimeError("decRange = %s; must be a pair of afwGeom Angles" % (decRange,))
-
-        BaseSkyMap.__init__(self,
-            patchInnerDimensions = patchInnerDimensions,
-            patchBorder = patchBorder,
-            tractOverlap = tractOverlap,
-            pixelScale = pixelScale,
-            projection = projection,
-        )
+        BaseSkyMap.__init__(self, config)
     
-        midDec = (self._decRange[0] + self._decRange[1]) / 2.0
-        tractWidthRA = afwGeom.Angle(360.0 / numTracts, afwGeom.degrees)
-        for id in range(numTracts):
+        decRange = tuple(afwGeom.Angle(dr, afwGeom.degrees) for dr in self.config.decRange)
+        midDec = (decRange[0] +decRange[1]) / 2.0
+        tractWidthRA = afwGeom.Angle(360.0 / self.config.numTracts, afwGeom.degrees)
+        tractOverlap = afwGeom.Angle(self.config.tractOverlap, afwGeom.degrees)
+
+        for id in range(self.config.numTracts):
             begRA = tractWidthRA * id
             endRA = begRA + tractWidthRA
             vertexCoordList = (
-                afwCoord.IcrsCoord(begRA, self._decRange[0]),
-                afwCoord.IcrsCoord(endRA, self._decRange[0]),
-                afwCoord.IcrsCoord(endRA, self._decRange[1]),
-                afwCoord.IcrsCoord(begRA, self._decRange[1]),
+                afwCoord.IcrsCoord(begRA, decRange[0]),
+                afwCoord.IcrsCoord(endRA, decRange[0]),
+                afwCoord.IcrsCoord(endRA, decRange[1]),
+                afwCoord.IcrsCoord(begRA, decRange[1]),
             )
 
             midRA = begRA + tractWidthRA / 2.0
@@ -105,11 +77,11 @@ class EquatSkyMap(BaseSkyMap):
                 
             self._tractInfoList.append(TractInfo(
                 id = id,
-                patchInnerDimensions = self.getPatchInnerDimensions(),
-                patchBorder = self.getPatchBorder(),
+                patchInnerDimensions = self.config.patchInnerDimensions,
+                patchBorder = self.config.patchBorder,
                 ctrCoord = ctrCoord,
                 vertexCoordList = vertexCoordList,
-                tractOverlap = self.getTractOverlap(),
+                tractOverlap = tractOverlap,
                 wcsFactory = self._wcsFactory,
             ))
 
@@ -117,43 +89,26 @@ class EquatSkyMap(BaseSkyMap):
     def __getstate__(self):
         """Support pickle
         
-        @return a dict that can be used to call __init__ that specifies all parameters.
-        
-        @note: angle arguments cannot be pickled, so they are converted to radians
+        @return a dict containing:
+        - version: a pair of ints
+        - config: the config
         """
         return dict(
             version = self._version,
-            patchInnerDimensions = tuple(self.getPatchInnerDimensions()),
-            patchBorder = self.getPatchBorder(),
-            tractOverlap = self.getTractOverlap().asRadians(),
-            pixelScale = self.getPixelScale().asRadians(),
-            projection = self.getProjection(),
-            decRange = [ang.asRadians() for ang in self.getDecRange()],
-            numTracts = len(self),
+            config = self.config,
         )
     
-    def __setstate__(self, argDict):
+    def __setstate__(self, stateDict):
         """Support unpickle
         
-        @param[in] argDict: a dict that can be used to call __init__ that specifies all parameters
-        
-        @note: angle arguments cannot be pickled, so they have been converted to radians
-            and must be converted back.
+        @param[in] stateDict: a dict containing:
+        - version: a pair of ints
+        - config: the config
         """
-        version = argDict.pop("version")
+        version = stateDict["version"]
         if version >= (2, 0):
             raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
-        for angleArg in ("tractOverlap", "pixelScale"):
-            argDict[angleArg] = afwGeom.Angle(argDict[angleArg], afwGeom.radians)
-        argDict["decRange"] = tuple(afwGeom.Angle(ang, afwGeom.radians) for ang in argDict["decRange"])
-        self.__init__(**argDict)
-
-    def getDecRange(self):
-        """Return the declination range
-        
-        @return declination range as a pair of afwGeom.Angles
-        """
-        return self._decRange
+        self.__init__(stateDict["config"])
 
     def getVersion(self):
         """Return version (e.g. for pickle)
