@@ -61,6 +61,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
             config.numTracts = numTracts
             skyMap = EquatSkyMap(config)
             self.assertEqual(len(skyMap), numTracts)
+            self.assertEqual(skyMap.config.projection, "CEA")
 
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
             config = EquatSkyMap.ConfigClass()

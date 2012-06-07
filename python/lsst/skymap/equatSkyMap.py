@@ -38,7 +38,7 @@ class EquatSkyMapConfig(BaseSkyMap.ConfigClass):
         default = (-1.25, 1.25),
     )
     
-    def setDefault(self):
+    def setDefaults(self):
         self.projection = "CEA"
 
 
