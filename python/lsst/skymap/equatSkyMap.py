@@ -74,6 +74,12 @@ class EquatSkyMap(BaseSkyMap):
 
             midRA = begRA + tractWidthRA / 2.0
             ctrCoord = afwCoord.IcrsCoord(midRA, midDec)
+            
+            # CRVal must have Dec=0 for symmetry about the equator
+            crValCoord = afwCoord.IcrsCoord(midRA, afwGeom.Angle(0.0))
+
+            # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
+            wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=crValCoord)
                 
             self._tractInfoList.append(TractInfo(
                 id = id,
@@ -82,8 +88,9 @@ class EquatSkyMap(BaseSkyMap):
                 ctrCoord = ctrCoord,
                 vertexCoordList = vertexCoordList,
                 tractOverlap = tractOverlap,
-                wcsFactory = self._wcsFactory,
+                wcs = wcs,
             ))
+            
 
     
     def __getstate__(self):
