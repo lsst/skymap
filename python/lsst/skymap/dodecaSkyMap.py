@@ -68,6 +68,9 @@ class DodecaSkyMap(BaseSkyMap):
             tractRA = tractCoord.getLongitude()
             vertexVecList = self._dodecahedron.getVertices(id)
             
+            # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
+            wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=tractCoord)
+            
             self._tractInfoList.append(
                 TractInfo(
                     id = id,
@@ -76,7 +79,7 @@ class DodecaSkyMap(BaseSkyMap):
                     ctrCoord = tractCoord,
                     vertexCoordList = [detail.coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
                     tractOverlap = tractOverlap,
-                    wcsFactory = self._wcsFactory,
+                    wcs = wcs,
                 )
             )
     

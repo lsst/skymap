@@ -42,8 +42,7 @@ class TractInfo(object):
         0 <= y index < numPatches[1]
       Patch 0,0 is at the minimum corner of the tract bounding box.
     """
-    def __init__(self, id, patchInnerDimensions, patchBorder, ctrCoord, vertexCoordList, tractOverlap,
-        wcsFactory):
+    def __init__(self, id, patchInnerDimensions, patchBorder, ctrCoord, vertexCoordList, tractOverlap, wcs):
         """Construct a TractInfo
 
         @param[in] id: tract ID
@@ -55,7 +54,8 @@ class TractInfo(object):
             of vertices that define the boundaries of the inner region
         @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle;
             this defines the minimum distance the tract extends beyond the inner region in all directions
-        @param[in] wcsFactory: a skymap.detail.WcsFactory object
+        @param[in,out] wcs: an afwImage.Wcs; the reference pixel will be shifted as required
+            so that the lower left-hand pixel (index 0,0) has pixel position 0.0, 0.0
         
         @warning
         - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
@@ -72,11 +72,8 @@ class TractInfo(object):
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
         self._tractOverlap = tractOverlap
         
-        # We don't know how big the tract will be, yet, so start by computing everything
-        # as if the tract center was at pixel position 0, 0; then shift all pixel positions
-        # so that the tract's bbox starts from 0,0
-        initialCRPixPos = afwGeom.Point2D(0.0, 0.0)
-        initialWcs = wcsFactory.makeWcs(crPixPos=initialCRPixPos, crValCoord=self._ctrCoord)
+        # We don't know how big the tract will be, yet. Start by computing a bbox that holds everything,
+        # then shift it so that the pixel position of the lower left corner (index 0,0) is 0.0, 0.0
 
         # compute minimum bounding box that will hold all corners and tractOverlap
         minBBoxD = afwGeom.Box2D()
@@ -84,7 +81,7 @@ class TractInfo(object):
         for vertexCoord in self._vertexCoordList:
             vertexDeg = vertexCoord.getPosition(afwGeom.degrees)
             if self._tractOverlap == 0:
-                minBBoxD.include(initialWcs.skyToPixel(vertexCoord))
+                minBBoxD.include(wcs.skyToPixel(vertexCoord))
             else:
                 numAngles = 24
                 angleIncr = afwGeom.Angle(360.0, afwGeom.degrees) / float(numAngles)
@@ -92,9 +89,10 @@ class TractInfo(object):
                     offAngle = angleIncr * i
                     offCoord = vertexCoord.clone()
                     offCoord.offset(offAngle, halfOverlap)
-                    pixPos = initialWcs.skyToPixel(offCoord)
+                    pixPos = wcs.skyToPixel(offCoord)
                     minBBoxD.include(pixPos)
         initialBBox = afwGeom.Box2I(minBBoxD)
+        initialCtrPixPos = wcs.skyToPixel(ctrCoord)
 
         # grow initialBBox to hold exactly a multiple of patchInnerDimensions in x,y,
         # while keeping the center roughly the same
@@ -112,11 +110,13 @@ class TractInfo(object):
 
         # compute final bbox the same size but with LL corner = 0,0; use that to compute final WCS
         self._bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), initialBBox.getDimensions())
-        # crpix for final Wcs is shifted by the same amount as bbox
+        # shift the WCS by the same amount as the bbox; extra code is required
+        # because simply subtracting makes an Extent2I
         pixPosOffset = afwGeom.Extent2D(self._bbox.getMinX() - initialBBox.getMinX(),
                                         self._bbox.getMinY() - initialBBox.getMinY())
-        crPixPos = initialCRPixPos + pixPosOffset
-        self._wcs = wcsFactory.makeWcs(crPixPos=crPixPos, crValCoord=self._ctrCoord)
+        wcs.shiftReferencePixel(pixPosOffset)
+        finalCtrPixPos = wcs.skyToPixel(ctrCoord)
+        self._wcs = wcs
 
     def findPatch(self, coord):
         """Find the patch containing the specified coord

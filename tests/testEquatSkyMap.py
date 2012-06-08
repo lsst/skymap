@@ -52,6 +52,49 @@ class EquatSkyMapTestCase(unittest.TestCase):
         else:
             nextTract = skyMap[0]
         return (prevTract, nextTract)
+    
+    def testDefaults(self):
+        """Test important default values
+        """
+        config = EquatSkyMap.ConfigClass()
+        skyMap = EquatSkyMap(config)
+        self.assertEqual(skyMap.config.projection, "CEA")
+    
+    def testSymmetry(self):
+        """Verify that the projection is symmetrical about the equator
+        """
+        for minDec in (-5.0, -1.0, 0.5):
+            maxDec = minDec + 2.0
+            config = EquatSkyMap.ConfigClass()
+            config.decRange = minDec, maxDec
+            skyMap = EquatSkyMap(config)
+            for tractInfo in skyMap[0:1]:
+                numPatches = tractInfo.getNumPatches()
+                midXIndex = numPatches[0] / 2
+                minPixelPosList = []
+                maxPixelPosList = []
+                maxYInd = numPatches[1] - 1
+                for xInd in (0, midXIndex, numPatches[0] - 1):
+                    minDecPatchInfo = tractInfo.getPatchInfo((xInd,0))
+                    minDecPosBox = afwGeom.Box2D(minDecPatchInfo.getOuterBBox())
+                    minPixelPosList += [
+                        minDecPosBox.getMin(),
+                        afwGeom.Point2D(minDecPosBox.getMaxX(), minDecPosBox.getMinY()),
+                    ]
+                    
+                    maxDecPatchInfo = tractInfo.getPatchInfo((xInd, maxYInd))
+                    maxDecPosBox = afwGeom.Box2D(maxDecPatchInfo.getOuterBBox())
+                    maxPixelPosList += [
+                        maxDecPosBox.getMax(),
+                        afwGeom.Point2D(maxDecPosBox.getMinX(), maxDecPosBox.getMaxY()),
+                    ]
+                wcs = tractInfo.getWcs()
+                minDecList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees)[1] for pos in minPixelPosList]
+                maxDecList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees)[1] for pos in maxPixelPosList]
+                self.assertTrue(numpy.allclose(minDecList, minDecList[0]))
+                self.assertTrue(numpy.allclose(maxDecList, maxDecList[0]))
+                self.assertTrue(minDecList[0] <= minDec)
+                self.assertTrue(maxDecList[0] >= maxDec)
 
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
@@ -61,7 +104,6 @@ class EquatSkyMapTestCase(unittest.TestCase):
             config.numTracts = numTracts
             skyMap = EquatSkyMap(config)
             self.assertEqual(len(skyMap), numTracts)
-            self.assertEqual(skyMap.config.projection, "CEA")
 
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
             config = EquatSkyMap.ConfigClass()
