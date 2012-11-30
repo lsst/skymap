@@ -136,7 +136,6 @@ class SkyMapTestCase(unittest.TestCase):
                     else:
                         self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
                     
-    @utilsTests.debugger()
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
