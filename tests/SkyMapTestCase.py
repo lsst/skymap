@@ -34,16 +34,22 @@ import numpy
 import lsst.utils.tests as utilsTests
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
+from lsst.skymap import skyMapRegistry
 
 class SkyMapTestCase(unittest.TestCase):
     """An abstract base class for testing a SkyMap.
 
     To use, subclass and set the following class variables:
     _SkyMapClass: the particular SkyMap subclass to test
+    _SkyMapName: the name of the particular SkyMap class in the registry
     _NumTracts: the number of tracts to expect (for the default configuration)
     _NeighborAngularSeparation: Expected angular separation between tracts
     _numNeighbors: Number of neighbors that should be within the expected angular separation
     """
+
+    def testRegistry(self):
+        """Confirm that the skymap can be retrieved from the registry"""
+        self.assertEqual(skyMapRegistry[self._SkyMapName], self._SkyMapClass)
 
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available

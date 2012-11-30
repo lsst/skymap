@@ -46,6 +46,7 @@ class DodecaSkyMapTestCase(SkyMapTestCase):
     _NumTracts = 12 # Number of tracts to expect
     _NeighborAngularSeparation = 180.0 * afwGeom.degrees - _DihedralAngle # Separation between tracts to expect
     _SkyMapClass = DodecaSkyMap # Class of SkyMap to test
+    _SkyMapName = "dodeca" # Name of SkyMap class to test
     _numNeighbors = 6 # Number of neighbours
 
     def testFindTract(self):
