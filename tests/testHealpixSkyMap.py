@@ -4,7 +4,14 @@ import lsst.utils.tests as utilsTests
 import unittest
 
 
-import healpy
+try:
+    import healpy
+except:
+    import sys
+    print >>sys.stderr, "WARNING: not testing HealpixSkyMap because healpy can't be imported."
+    sys.exit(0)
+
+
 import lsst.afw.geom as afwGeom
 from SkyMapTestCase import SkyMapTestCase
 from lsst.skymap.healpixSkyMap import HealpixSkyMap
