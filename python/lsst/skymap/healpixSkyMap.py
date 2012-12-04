@@ -57,12 +57,12 @@ class HealpixSkyMap(BaseSkyMap):
         super(HealpixSkyMap, self).__init__(config)
         self.nside = 1 << self.config.nSide
         numPixels = healpy.nside2npix(self.nside)
-        maxRadius = healpy.max_pixrad(self.nside) * afwGeom.degrees
+        maxRadius = healpy.max_pixrad(self.nside) * afwGeom.radians
         indices = numpy.arange(numPixels)
         theta, phi = healpy.pix2ang(self.nside, indices, nest=self.config.nest)
         for i, th, ph in zip(indices, theta, phi):
-            center = IcrsCoord(afwGeom.Angle(ph, afwGeom.degrees),
-                               afwGeom.Angle(th - 0.5*numpy.pi, afwGeom.degrees))
+            center = IcrsCoord(afwGeom.Angle(ph, afwGeom.radians),
+                               afwGeom.Angle(th - 0.5*numpy.pi, afwGeom.radians))
             vertices = []
             for angle in numpy.linspace(0.0, 360.0, self.numAngles, endpoint=False):
                 coord = center.clone()
