@@ -27,8 +27,10 @@ import math
 import numpy
 import sys
 import pickle
+import argparse
 
 from mpl_toolkits.mplot3d import Axes3D # used by fig.gca
+import matplotlib
 import matplotlib.pyplot as plt
 
 import lsst.afw.geom as afwGeom
@@ -57,7 +59,7 @@ def reportSkyMapInfo(skyMap):
             (tractInfo.getId(), ", ".join(posStrList), \
             tractInfo.getNumPatches()[0], tractInfo.getNumPatches()[1]))
 
-def plotSkyMap(skyMap):
+def plotSkyMap3d(skyMap):
     fig = plt.figure()
     ax = fig.gca(projection="3d")
     ax.set_axis_off()
@@ -91,14 +93,51 @@ def plotSkyMap(skyMap):
     
     plt.show()
 
+def plotSkyMap2d(skyMap):
+    fig = plt.figure()
+    plt.clf()
+    axes = plt.axes()
+
+    colorCycle = matplotlib.rcParams['axes.color_cycle']
+    for i, tract in enumerate(skyMap):
+        center = tract.getCtrCoord()
+        wcs = tract.getWcs()
+        box = tract.getBBox()
+        xMin, xMax, yMin, yMax = box.getMinX(), box.getMaxX(), box.getMinY(), box.getMaxY()
+        num = 50
+        xList = numpy.linspace(xMin, xMax, num=num, endpoint=True)
+        yList = numpy.linspace(yMin, yMax, num=num, endpoint=True)
+        color = colorCycle[i % len(colorCycle)]
+        axes.plot(center.getLongitude().asDegrees(), math.sin(center.getLatitude().asRadians()), color + 'o')
+        centerRa = center.getLongitude().asDegrees()
+        for xs, ys in ((xList, yMin*numpy.ones(num)),
+                       (xMax*numpy.ones(num), yList),
+                       (xList, yMax*numpy.ones(num)),
+                       (xMin*numpy.ones(num), yList),
+                       ):
+            coords = [wcs.pixelToSky(afwGeom.Point2D(x,y)) for x,y in zip(xs,ys)]
+            ra = [c.getLongitude().asDegrees() for c in coords]
+            ra = [r + 360 if r < 90 and centerRa > 270 else
+                  r - 360 if r > 270 and centerRa < 90 else
+                  r for r in ra]
+            dec = [math.sin(c.getLatitude().asRadians()) for c in coords]
+            axes.plot(ra, dec, color + '-')
+
+    plt.xlabel("RA (deg)")
+    plt.ylabel("sin(Dec)")
+    plt.grid(True)
+    plt.show()
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("To use: plotSkyMap path-to-skymap-pickle")
-        sys.exit(1)
-    
-    pathToSkyMap = sys.argv[1]
-    
-    with file(pathToSkyMap, "r") as f:
+    plotStyles = {"3d": plotSkyMap3d,
+                  "2d": plotSkyMap2d,
+                  }
+    parser = argparse.ArgumentParser()
+    parser.add_argument("skymap", nargs=1, help="Path to skymap pickle")
+    parser.add_argument("--style", choices=plotStyles.keys(), default="3d", help="Plot style to use")
+    args = parser.parse_args()
+
+    with file(args.skymap[0], "r") as f:
         skyMap = pickle.load(f)
         reportSkyMapInfo(skyMap)
-        plotSkyMap(skyMap)
+        plotStyles[args.style](skyMap)
