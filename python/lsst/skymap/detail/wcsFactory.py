@@ -29,18 +29,27 @@ import lsst.afw.image as afwImage
 class WcsFactory(object):
     """A factory for creating Wcs objects for the sky tiles.
     """
-    def __init__(self, pixelScale, projection):
+    def __init__(self, pixelScale, projection, rotation=0*afwGeom.radians):
         """Make a WcsFactory
         
         @param[in] pixelScale: desired scale, as sky/pixel, an afwGeom.Angle
         @param[in] projection: FITS-standard 3-letter name of projection, e.g.:
             TAN (tangent), STG (stereographic), MOL (Mollweide's), AIT (Hammer-Aitoff)
             see Representations of celestial coordinates in FITS (Calabretta and Greisen, 2002)
+        @param[in] rotation:   Rotation relative to cardinal, as an lsst.afw.geom.Angle
         """
         if len(projection) != 3:
             raise RuntimeError("projection=%r; must have length 3" % (projection,))
         self._pixelScaleDeg = pixelScale.asDegrees()
         self._projection = str(projection)
+        self._rotation = rotation
+        cosTerm = self._pixelScaleDeg * math.cos(rotation.asRadians())
+        sinTerm = self._pixelScaleDeg * math.sin(rotation.asRadians())
+        self._cdMatrix = {"CD1_1": -cosTerm,
+                          "CD2_1": sinTerm,
+                          "CD1_2": sinTerm,
+                          "CD2_2": cosTerm,
+                          }
         self._ctypes = [("%-5s%3s" % (("RA", "DEC")[i], self._projection)).replace(" ", "-")
             for i in range(2)]
 
@@ -61,10 +70,8 @@ class WcsFactory(object):
             ps.add("CRVAL%1d" % (ip1,), crValDeg[i])
         ps.add("RADECSYS", "ICRS")
         ps.add("EQUINOX", 2000)
-        ps.add("CD1_1", -self._pixelScaleDeg)
-        ps.add("CD2_1", 0.0)
-        ps.add("CD1_2", 0.0)
-        ps.add("CD2_2", self._pixelScaleDeg)
+        for k,v in self._cdMatrix.items():
+            ps.add(k, v)
         for key, value in kargs.iteritems():
             ps.add(key, value)
         return afwImage.makeWcs(ps)

@@ -60,6 +60,11 @@ class BaseSkyMapConfig(pexConfig.Config):
         dtype = str,
         default = "STG",
     )
+    rotation = pexConfig.Field(
+        doc = "Rotation for WCS (deg)",
+        dtype = float,
+        default = 0,
+        )
         
 
 class BaseSkyMap(object):
@@ -87,6 +92,7 @@ class BaseSkyMap(object):
         self._wcsFactory = detail.WcsFactory(
             pixelScale = afwGeom.Angle(self.config.pixelScale, afwGeom.arcseconds),
             projection = self.config.projection,
+            rotation = self.config.rotation * afwGeom.degrees,
         )
     
     def findTract(self, coord):
