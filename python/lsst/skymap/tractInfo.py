@@ -72,10 +72,20 @@ class TractInfo(object):
         self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
         self._tractOverlap = tractOverlap
         
-        # We don't know how big the tract will be, yet. Start by computing a bbox that holds everything,
-        # then shift it so that the pixel position of the lower left corner (index 0,0) is 0.0, 0.0
+        minBBox = self._minimumBoundingBox(wcs)
+        initialBBox, self._numPatches = self._setupPatches(minBBox, wcs)
+        self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
 
-        # compute minimum bounding box that will hold all corners and tractOverlap
+
+    def _minimumBoundingBox(self, wcs):
+        """Calculate the minimum bounding box for the tract, given the WCS
+
+        The bounding box is created in the frame of the supplied WCS,
+        so that it's OK if the coordinates are negative.
+
+        We compute the bounding box that holds all the vertices and the
+        desired overlap.
+        """
         minBBoxD = afwGeom.Box2D()
         halfOverlap = self._tractOverlap / 2.0
         for vertexCoord in self._vertexCoordList:
@@ -91,32 +101,54 @@ class TractInfo(object):
                     offCoord.offset(offAngle, halfOverlap)
                     pixPos = wcs.skyToPixel(offCoord)
                     minBBoxD.include(pixPos)
-        initialBBox = afwGeom.Box2I(minBBoxD)
-        initialCtrPixPos = wcs.skyToPixel(ctrCoord)
+        return minBBoxD
 
-        # grow initialBBox to hold exactly a multiple of patchInnerDimensions in x,y,
-        # while keeping the center roughly the same
-        initialBBoxMin = initialBBox.getMin()
-        bboxDim = initialBBox.getDimensions()
-        self._numPatches = afwGeom.Extent2I(0, 0)
+    def _setupPatches(self, minBBox, wcs):
+        """Setup for patches of a particular size.
+
+        We grow the bounding box to hold an exact multiple of
+        the desired size (patchInnerDimensions), while keeping
+        the center roughly the same.  We return the final
+        bounding box, and the number of patches in each dimension
+        (as an Extent2I).
+
+        @param minBBox     Minimum bounding box for tract
+        @param wcs         Wcs object
+        @return final bounding box, number of patches
+        """
+        bbox = afwGeom.Box2I(minBBox)
+        bboxMin = bbox.getMin()
+        bboxDim = bbox.getDimensions()
+        numPatches = afwGeom.Extent2I(0, 0)
         for i, innerDim in enumerate(self._patchInnerDimensions):
-            numPatches =  (bboxDim[i] + innerDim - 1) // innerDim # round up
-            deltaDim = (innerDim * numPatches) - bboxDim[i]
+            num =  (bboxDim[i] + innerDim - 1) // innerDim # round up
+            deltaDim = (innerDim * num) - bboxDim[i]
             if deltaDim > 0:
-                bboxDim[i] = innerDim * numPatches
-                initialBBoxMin[i] -= deltaDim // 2
-            self._numPatches[i] = numPatches
-        initialBBox = afwGeom.Box2I(initialBBoxMin, bboxDim)
+                bboxDim[i] = innerDim * num
+                bboxMin[i] -= deltaDim // 2
+            numPatches[i] = num
+        bbox = afwGeom.Box2I(bboxMin, bboxDim)
+        return bbox, numPatches
 
-        # compute final bbox the same size but with LL corner = 0,0; use that to compute final WCS
-        self._bbox = afwGeom.Box2I(afwGeom.Point2I(0, 0), initialBBox.getDimensions())
+
+    def _finalOrientation(self, bbox, wcs):
+        """Determine the final orientation
+
+        We offset everything so the lower-left corner is at 0,0
+        and compute the final Wcs.
+
+        @param bbox   Current bounding box
+        @param wcs    Current Wcs
+        @return revised bounding box, revised Wcs
+        """
+        finalBBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), bbox.getDimensions())
         # shift the WCS by the same amount as the bbox; extra code is required
         # because simply subtracting makes an Extent2I
-        pixPosOffset = afwGeom.Extent2D(self._bbox.getMinX() - initialBBox.getMinX(),
-                                        self._bbox.getMinY() - initialBBox.getMinY())
+        pixPosOffset = afwGeom.Extent2D(finalBBox.getMinX() - bbox.getMinX(),
+                                        finalBBox.getMinY() - bbox.getMinY())
         wcs.shiftReferencePixel(pixPosOffset)
-        finalCtrPixPos = wcs.skyToPixel(ctrCoord)
-        self._wcs = wcs
+        return finalBBox, wcs
+
 
     def findPatch(self, coord):
         """Find the patch containing the specified coord
