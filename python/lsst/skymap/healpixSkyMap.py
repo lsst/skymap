@@ -25,7 +25,7 @@ try:
     import healpy
 except Exception, e:
     class DummyHealpy(object):
-        """A null pattern which blows up when we try to read it"""
+        """An object which blows up when we try to read it"""
         def __getattr__(self, name):
             raise RuntimeError("Was unable to import healpy: %s" % e)
     healpy = DummyHealpy()
@@ -36,9 +36,36 @@ import lsst.afw.geom as afwGeom
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
 
+
+def angToCoord(thetaphi):
+    """Convert healpy's ang to an afw Coord
+
+    The ang is provided as a single object, thetaphi, so the output
+    of healpy functions can be directed to this function without
+    additional translation.
+    """
+    return IcrsCoord(float(thetaphi[1])*afwGeom.radians, float(thetaphi[0] - 0.5*numpy.pi)*afwGeom.radians)
+
+def coordToAng(coord):
+    """Convert an afw Coord to a healpy ang (theta, phi)"""
+    return (coord.getLatitude().asRadians() - 0.5*numpy.pi, coord.getLongitude().asRadians())
+
+class HealpixTractInfo(TractInfo):
+    """Tract for the HealpixSkyMap"""
+    def __init__(self, nSide, ident, nest, patchInnerDimensions, patchBorder, ctrCoord, tractOverlap, wcs):
+        """Set vertices from nside, ident, nest"""
+        theta, phi = healpy.vec2ang(numpy.transpose(healpy.boundary(nSide, ident, nest=nest)))
+        vertexList = [angToCoord(thetaphi) for thetaphi in zip(theta,phi)]
+        super(HealpixTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
+                                               vertexList, tractOverlap, wcs)
+
+
 class HealpixSkyMapConfig(BaseSkyMap.ConfigClass):
+    """Configuration for the HealpixSkyMap"""
     nSide = Field(dtype=int, default=0, doc="Number of sides, expressed in powers of 2")
     nest = Field(dtype=bool, default=False, doc="Use NEST ordering instead of RING?")
+    def setDefaults(self):
+        self.rotation = 45 # HEALPixels are oriented at 45 degrees
 
 class HealpixSkyMap(BaseSkyMap):
     """HEALPix-based sky map pixelization.
@@ -47,50 +74,56 @@ class HealpixSkyMap(BaseSkyMap):
     """
     ConfigClass = HealpixSkyMapConfig
     _version = (1, 0) # for pickle
-    numAngles = 12 # Number of angles for vertices
+    numAngles = 4 # Number of angles for vertices
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, version=0):
         """Constructor
 
         @param[in] config: an instance of self.ConfigClass; if None the default config is used
+        @param[in] version: software version of this class, to retain compatibility with old instances
         """
         super(HealpixSkyMap, self).__init__(config)
+        self._version = version
         self.nside = 1 << self.config.nSide
-        numPixels = healpy.nside2npix(self.nside)
-        maxRadius = healpy.max_pixrad(self.nside) * afwGeom.radians
-        indices = numpy.arange(numPixels)
-        theta, phi = healpy.pix2ang(self.nside, indices, nest=self.config.nest)
-        for i, th, ph in zip(indices, theta, phi):
-            center = IcrsCoord(afwGeom.Angle(ph, afwGeom.radians),
-                               afwGeom.Angle(th - 0.5*numpy.pi, afwGeom.radians))
-            vertices = []
-            for angle in numpy.linspace(0.0, 360.0, self.numAngles, endpoint=False):
-                coord = center.clone()
-                coord.offset(afwGeom.Angle(angle, afwGeom.degrees), maxRadius)
-                vertices.append(coord)
+        self.numTracts = healpy.nside2npix(self.nside)
+        self._tractCache = {}
+        self._tractInfo = None # We shouldn't be using this; we will generate tracts on demand
 
-            # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
-            wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
+    def __reduce__(self):
+        """To support pickling"""
+        return (self.__class__, (self.config, self._version))
 
-            tract = TractInfo(id=i, patchInnerDimensions=self.config.patchInnerDimensions,
-                              patchBorder=self.config.patchBorder, ctrCoord=center, vertexCoordList=vertices,
-                              tractOverlap=self.config.tractOverlap*afwGeom.degrees, wcs=wcs)
-            self._tractInfoList.append(tract)
-
-
-    def __getstate__(self):
-        """Return state, for pickling"""
-        return dict(version=self._version, config=self.config)
-
-    def __setstate__(self, state):
-        """Set state, from pickling"""
-        version = state["version"]
-        if version >= (2, 0):
-            raise RuntimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
-        self.__init__(state["config"])
-    
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord."""
-        coord = coord.toIcrs()
-        return self[healpy.ang2pix(self.nside, coord.getLatitude() + 0.5*numpy.pi,
-                                   coord.getLongitude(), nest=self.config.nest)]
+        theta, phi = coordToAng(coord.toIcrs())
+        index = healpy.ang2pix(self.nside, theta, phi, nest=self.config.nest)
+        return self[index]
+
+    def __getitem__(self, index):
+        """Get the TractInfo for a particular index
+
+        The tract is returned from a cache, if available, otherwise generated
+        on the fly.
+        """
+        if index < 0 or index > self.numTracts:
+            raise IndexError("Index out of range: %d vs %d" % (index, self.numTracts))
+        if index in self._tractCache:
+            return self._tractCache[index]
+        center = angToCoord(healpy.pix2ang(self.nside, index, nest=self.config.nest))
+        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
+        tract = HealpixTractInfo(self.nside, index, self.config.nest, self.config.patchInnerDimensions,
+                                 self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
+                                 wcs)
+        self._tractCache[index] = tract
+        return tract
+
+    def __iter__(self):
+        """Iterator over tracts"""
+        for i in xrange(self.numTracts):
+            yield self[i]
+
+    def __len__(self):
+        """Length is number of tracts"""
+        return self.numTracts
+
+
