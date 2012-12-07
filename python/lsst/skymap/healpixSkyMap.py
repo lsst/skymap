@@ -62,7 +62,7 @@ class HealpixTractInfo(TractInfo):
 
 class HealpixSkyMapConfig(BaseSkyMap.ConfigClass):
     """Configuration for the HealpixSkyMap"""
-    nSide = Field(dtype=int, default=0, doc="Number of sides, expressed in powers of 2")
+    log2NSide = Field(dtype=int, default=0, doc="Number of sides, expressed in powers of 2")
     nest = Field(dtype=bool, default=False, doc="Use NEST ordering instead of RING?")
     def setDefaults(self):
         self.rotation = 45 # HEALPixels are oriented at 45 degrees
@@ -84,7 +84,7 @@ class HealpixSkyMap(BaseSkyMap):
         """
         super(HealpixSkyMap, self).__init__(config)
         self._version = version
-        self.nside = 1 << self.config.nSide
+        self._nside = 1 << self.config.log2NSide
         self._numTracts = healpy.nside2npix(self._nside)
         self._tractCache = {}
         self._tractInfo = None # We shouldn't be using this; we will generate tracts on demand
@@ -96,7 +96,7 @@ class HealpixSkyMap(BaseSkyMap):
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord."""
         theta, phi = coordToAng(coord.toIcrs())
-        index = healpy.ang2pix(self.nside, theta, phi, nest=self.config.nest)
+        index = healpy.ang2pix(self._nside, theta, phi, nest=self.config.nest)
         return self[index]
 
     def __getitem__(self, index):
@@ -109,9 +109,9 @@ class HealpixSkyMap(BaseSkyMap):
             raise IndexError("Index out of range: %d vs %d" % (index, self._numTracts))
         if index in self._tractCache:
             return self._tractCache[index]
-        center = angToCoord(healpy.pix2ang(self.nside, index, nest=self.config.nest))
+        center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
-        tract = HealpixTractInfo(self.nside, index, self.config.nest, self.config.patchInnerDimensions,
+        tract = HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,
                                  self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
                                  wcs)
         self._tractCache[index] = tract

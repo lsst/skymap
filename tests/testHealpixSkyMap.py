@@ -18,7 +18,7 @@ from lsst.skymap.healpixSkyMap import HealpixSkyMap
 
 config = HealpixSkyMap.ConfigClass()
 global nside
-nside = 2**config.nSide
+nside = 2**config.log2NSide
 
 class HealpixTestCase(SkyMapTestCase):
     _NumTracts = healpy.nside2npix(nside) # Number of tracts to expect
