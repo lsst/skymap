@@ -85,7 +85,7 @@ class HealpixSkyMap(BaseSkyMap):
         super(HealpixSkyMap, self).__init__(config)
         self._version = version
         self.nside = 1 << self.config.nSide
-        self.numTracts = healpy.nside2npix(self.nside)
+        self._numTracts = healpy.nside2npix(self._nside)
         self._tractCache = {}
         self._tractInfo = None # We shouldn't be using this; we will generate tracts on demand
 
@@ -105,8 +105,8 @@ class HealpixSkyMap(BaseSkyMap):
         The tract is returned from a cache, if available, otherwise generated
         on the fly.
         """
-        if index < 0 or index > self.numTracts:
-            raise IndexError("Index out of range: %d vs %d" % (index, self.numTracts))
+        if index < 0 or index > self._numTracts:
+            raise IndexError("Index out of range: %d vs %d" % (index, self._numTracts))
         if index in self._tractCache:
             return self._tractCache[index]
         center = angToCoord(healpy.pix2ang(self.nside, index, nest=self.config.nest))
@@ -119,11 +119,11 @@ class HealpixSkyMap(BaseSkyMap):
 
     def __iter__(self):
         """Iterator over tracts"""
-        for i in xrange(self.numTracts):
+        for i in xrange(self._numTracts):
             yield self[i]
 
     def __len__(self):
         """Length is number of tracts"""
-        return self.numTracts
+        return self._numTracts
 
 
