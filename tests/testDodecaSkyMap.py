@@ -44,7 +44,7 @@ _DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
 
 class DodecaSkyMapTestCase(SkyMapTestCase):
     _NumTracts = 12 # Number of tracts to expect
-    _NeighborAngularSeparation = 180.0 * afwGeom.degrees - _DihedralAngle # Separation between tracts to expect
+    _NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) - _DihedralAngle # Tract separation
     _SkyMapClass = DodecaSkyMap # Class of SkyMap to test
     _SkyMapName = "dodeca" # Name of SkyMap class to test
     _numNeighbors = 6 # Number of neighbours
@@ -63,7 +63,7 @@ class DodecaSkyMapTestCase(SkyMapTestCase):
             for otherTractInfo in skyMap:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.angularSeparation(otherCtrCoord)
-                if abs(dist - self._NeighborAngularSeparation) < 0.1 * afwGeom.degrees:
+                if abs(dist - self._NeighborAngularSeparation) < afwGeom.Angle(0.1, afwGeom.degrees):
                     nbrTractList.append(otherTractInfo)
             self.assertEqual(len(nbrTractList), 5)
             
@@ -73,7 +73,7 @@ class DodecaSkyMapTestCase(SkyMapTestCase):
                 vector1 = numpy.array(ctrCoord1.getVector())
                 for tractInfo2 in nbrTractList[tractInfo1.getId():]:
                     dist = ctrCoord1.angularSeparation(tractInfo2.getCtrCoord())
-                    if abs(dist - self._NeighborAngularSeparation) > 0.1 * afwGeom.degrees:
+                    if abs(dist - self._NeighborAngularSeparation) > afwGeom.Angle(0.1, afwGeom.degrees):
                         continue
                     tractId2 = tractInfo2.getId()
                     ctrCoord2 = tractInfo2.getCtrCoord()

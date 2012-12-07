@@ -92,7 +92,7 @@ class BaseSkyMap(object):
         self._wcsFactory = detail.WcsFactory(
             pixelScale = afwGeom.Angle(self.config.pixelScale, afwGeom.arcseconds),
             projection = self.config.projection,
-            rotation = self.config.rotation * afwGeom.degrees,
+            rotation = afwGeom.Angle(self.config.rotation, afwGeom.degrees),
         )
     
     def findTract(self, coord):
