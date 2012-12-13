@@ -21,6 +21,11 @@
 #
 
 import numpy
+
+# We want to register the HealpixSkyMap, but want "healpy" to be an
+# optional dependency.  However, the HealpixSkyMap requires the use
+# of healpy.  Therefore, we'll only raise an exception on the healpy
+# import when it comes time to using it.
 try:
     import healpy
 except Exception, e:
