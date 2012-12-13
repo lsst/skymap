@@ -70,8 +70,6 @@ class WcsFactory(object):
             ps.add("CRVAL%1d" % (ip1,), crValDeg[i])
         ps.add("RADECSYS", "ICRS")
         ps.add("EQUINOX", 2000)
-        for k,v in self._cdMatrix.items():
+        for k,v in self._cdMatrix.items() + kargs.items():
             ps.add(k, v)
-        for key, value in kargs.iteritems():
-            ps.add(key, value)
         return afwImage.makeWcs(ps)
