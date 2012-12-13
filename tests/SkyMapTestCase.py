@@ -79,6 +79,62 @@ class SkyMapTestCase(unittest.TestCase):
                     self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
                 self.assertEqual(len(skyMap), self._NumTracts)
 
+    def assertUnpickledTractInfo(unpickled, original):
+        """Assert that an unpickled TractInfo is functionally identical to the original"""
+        for getterName in ("getBBox",
+                           "getCtrCoord",
+                           "getId",
+                           "getNumPatches",
+                           "getPatchBorder",
+                           "getPatchInnerDimensions",
+                           "getTractOverlap",
+                           "getVertexList",
+                           "getWcs",
+                           ):
+            self.assertEqual(getattr(tractInfo, getterName)(), getattr(unpickledTractInfo, getterName)())
+
+        # test WCS at a few locations
+        wcs = tractInfo.getWcs()
+        unpickledWcs = unpickledTractInfo.getWcs()
+        for x in (-1000.0, 0.0, 1000.0):
+            for y in (-532.5, 0.5, 532.5):
+                pixelPos = afwGeom.Point2D(x, y)
+                skyPos = wcs.pixelToSky(pixelPos)
+                unpickledSkyPos = unpickledWcs.pixelToSky(pixelPos)
+                self.assertEqual(skyPos, unpickledSkyPos)
+
+        # compare a few patches
+        numPatches = tractInfo.getNumPatches()
+        patchBorder = skyMap.config.patchBorder
+        for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
+            for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
+                patchInfo = tractInfo.getPatchInfo((xInd, yInd))
+                unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
+                self.assertEqual(patchInfo, unpickledPatchInfo)
+
+                # check inner and outer bbox (nothing to do with pickle,
+                # but a convenient place for the test)
+                innerBBox = patchInfo.getInnerBBox()
+                outerBBox = patchInfo.getOuterBBox()
+
+                if xInd == 0:
+                    self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
+                else:
+                    self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
+                if yInd == 0:
+                    self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
+                else:
+                    self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
+
+                if xInd == numPatches[0] - 1:
+                    self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
+                else:
+                    self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
+                if yInd == numPatches[1] - 1:
+                    self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
+                else:
+                    self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
+
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly
         """
@@ -88,60 +144,8 @@ class SkyMapTestCase(unittest.TestCase):
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
         self.assertEqual(unpickledSkyMap.config, skyMap.config)
         for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
-            for getterName in ("getBBox",
-                               "getCtrCoord",
-                               "getId",
-                               "getNumPatches",
-                               "getPatchBorder",
-                               "getPatchInnerDimensions",
-                               "getTractOverlap",
-                               "getVertexList",
-                               "getWcs",
-                               ):
-                self.assertEqual(getattr(tractInfo, getterName)(), getattr(unpickledTractInfo, getterName)())
-            
-            # test WCS at a few locations
-            wcs = tractInfo.getWcs()
-            unpickledWcs = unpickledTractInfo.getWcs()
-            for x in (-1000.0, 0.0, 1000.0):
-                for y in (-532.5, 0.5, 532.5):
-                    pixelPos = afwGeom.Point2D(x, y)
-                    skyPos = wcs.pixelToSky(pixelPos)
-                    unpickledSkyPos = unpickledWcs.pixelToSky(pixelPos)
-                    self.assertEqual(skyPos, unpickledSkyPos)
-            
-            # compare a few patches
-            numPatches = tractInfo.getNumPatches()
-            patchBorder = skyMap.config.patchBorder
-            for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
-                for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
-                    patchInfo = tractInfo.getPatchInfo((xInd, yInd))
-                    unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
-                    self.assertEqual(patchInfo, unpickledPatchInfo)
-                    
-                    # check inner and outer bbox (nothing to do with pickle,
-                    # but a convenient place for the test)
-                    innerBBox = patchInfo.getInnerBBox()
-                    outerBBox = patchInfo.getOuterBBox()
-                    
-                    if xInd == 0:
-                        self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
-                    else:
-                        self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
-                    if yInd == 0:
-                        self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
-                    else:
-                        self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
-                        
-                    if xInd == numPatches[0] - 1:
-                        self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
-                    else:
-                        self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
-                    if yInd == numPatches[1] - 1:
-                        self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
-                    else:
-                        self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
-                    
+            self.assertUnpickledTractInfo(unpickledTractInfo, tractInfo)
+
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
@@ -168,15 +172,14 @@ class SkyMapTestCase(unittest.TestCase):
             wcs = tractInfo.getWcs()
             numPatches = tractInfo.getNumPatches()
             border = tractInfo.getPatchBorder()
-            for patchInd in (
-                (0, 0),
-                (0, 1),
-                (5, 0),
-                (5, 6),
-                (numPatches[0] - 2, numPatches[1] - 1),
-                (numPatches[0] - 1, numPatches[1] - 2),
-                (numPatches[0] - 1, numPatches[1] - 1),
-            ):
+            for patchInd in ((0, 0),
+                             (0, 1),
+                             (5, 0),
+                             (5, 6),
+                             (numPatches[0] - 2, numPatches[1] - 1),
+                             (numPatches[0] - 1, numPatches[1] - 2),
+                             (numPatches[0] - 1, numPatches[1] - 1),
+                             ):
                 patchInfo = tractInfo.getPatchInfo(patchInd)
                 patchIndex = patchInfo.getIndex()
                 bbox = patchInfo.getInnerBBox()
@@ -250,6 +253,9 @@ class SkyMapTestCase(unittest.TestCase):
                 self.assertTrue(len(patchList) == len(tractPatchDict[tractId]))
             else:
                 self.assertTrue(tractId not in tractPatchDict)
+
+
+##############################################################################################################
 
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
