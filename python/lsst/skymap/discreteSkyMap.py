@@ -47,6 +47,7 @@ class DiscreteTractInfo(TractInfo):
     """Tract for DiscreteSkyMap
 
     A tract is placed at the nominated coordinates, with the nominated radius.
+    The tracts are square (i.e., the radius is really a half-size).
     """
     def __init__(self, ident, patchInnerDimensions, patchBorder, ctrCoord, tractOverlap, wcs, radius):
         vertexList = []
@@ -68,7 +69,7 @@ class DiscreteTractInfo(TractInfo):
 class DiscreteSkyMap(BaseSkyMap):
     """Discrete sky map pixelization.
 
-    We put a Tract at each of the nominated coordinates.
+    We put a square Tract at each of the nominated coordinates.
     """
     ConfigClass = DiscreteSkyMapConfig
     _version = (1, 0) # for pickle
