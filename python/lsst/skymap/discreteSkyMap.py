@@ -73,7 +73,6 @@ class DiscreteSkyMap(BaseSkyMap):
     """
     ConfigClass = DiscreteSkyMapConfig
     _version = (1, 0) # for pickle
-    numAngles = 4 # Number of angles for vertices
 
     def __init__(self, config=None, version=0):
         """Constructor
