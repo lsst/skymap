@@ -243,17 +243,20 @@ class SkyMapTestCase(unittest.TestCase):
                 knownTractId = tractId,
             )
 
-            self.assertTractPatchListOk(
-                skyMap = skyMap,
-                coordList = [tractInfo.getVertexList()[0]],
-                knownTractId = tractId,
-            )
+            vertices = tractInfo.getVertexList()
+            if len(vertices) > 0:
+                self.assertTractPatchListOk(
+                    skyMap = skyMap,
+                    coordList = [tractInfo.getVertexList()[0]],
+                    knownTractId = tractId,
+                )
 
-            self.assertTractPatchListOk(
-                skyMap = skyMap,
-                coordList = [tractInfo.getVertexList()[2]],
-                knownTractId = tractId,
-            )
+            if len(vertices) > 2:
+                self.assertTractPatchListOk(
+                    skyMap = skyMap,
+                    coordList = [tractInfo.getVertexList()[2]],
+                    knownTractId = tractId,
+                )
     
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
