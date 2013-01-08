@@ -41,11 +41,27 @@ class SkyMapTestCase(unittest.TestCase):
 
     To use, subclass and set the following class variables:
     _SkyMapClass: the particular SkyMap subclass to test
+    _SkyMapConfig: a SkyMapConfig instance to use in the test, or None to use _SkyMapClass.ConfigClass()
     _SkyMapName: the name of the particular SkyMap class in the registry
     _NumTracts: the number of tracts to expect (for the default configuration)
     _NeighborAngularSeparation: Expected angular separation between tracts
     _numNeighbors: Number of neighbors that should be within the expected angular separation
     """
+    _SkyMapConfig = None
+
+    def getSkyMap(self, config=None):
+        """Provide an instance of the skymap"""
+        if config is None:
+            config = self.getConfig()
+        return self._SkyMapClass(config=config)
+
+    def getConfig(self):
+        """Provide an instance of the configuration class"""
+        if self._SkyMapConfig is None:
+            return self._SkyMapClass.ConfigClass()
+        # Want to return a copy of self._SkyMapConfig, so it can be modified.
+        # However, there is no Config.copy() method, so this is more complicated than desirable.
+        return pickle.loads(pickle.dumps(self._SkyMapConfig))
 
     def testRegistry(self):
         """Confirm that the skymap can be retrieved from the registry"""
@@ -55,26 +71,26 @@ class SkyMapTestCase(unittest.TestCase):
         """Confirm that constructor attributes are available
         """
         for tractOverlap in (0.0, 0.01, 0.1): # degrees
-            config = self._SkyMapClass.ConfigClass()
+            config = self.getConfig()
             config.tractOverlap = tractOverlap
-            skyMap = self._SkyMapClass(config)
+            skyMap = self.getSkyMap(config)
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
             self.assertEqual(len(skyMap), self._NumTracts)
 
         for patchBorder in (0, 101):
-            config = self._SkyMapClass.ConfigClass()
+            config = self.getConfig()
             config.patchBorder = patchBorder
-            skyMap = self._SkyMapClass(config)
+            skyMap = self.getSkyMap(config)
             for tractInfo in skyMap:
                 self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
             self.assertEqual(len(skyMap), self._NumTracts)
  
         for xInnerDim in (1005, 5062):
             for yInnerDim in (2032, 5431):
-                config = self._SkyMapClass.ConfigClass()
+                config = self.getConfig()
                 config.patchInnerDimensions = (xInnerDim, yInnerDim)
-                skyMap = self._SkyMapClass(config)
+                skyMap = self.getSkyMap(config)
                 for tractInfo in skyMap:
                     self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
                 self.assertEqual(len(skyMap), self._NumTracts)
@@ -142,7 +158,7 @@ class SkyMapTestCase(unittest.TestCase):
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly
         """
-        skyMap = self._SkyMapClass()
+        skyMap = self.getSkyMap()
         pickleStr = pickle.dumps(skyMap)
         unpickledSkyMap = pickle.loads(pickleStr)
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
@@ -153,7 +169,7 @@ class SkyMapTestCase(unittest.TestCase):
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
-        skyMap = self._SkyMapClass()
+        skyMap = self.getSkyMap()
         for tractId, tractInfo in enumerate(skyMap):
             self.assertEqual(tractInfo.getId(), tractId)
         
@@ -170,7 +186,7 @@ class SkyMapTestCase(unittest.TestCase):
     def testFindPatchList(self):
         """Test findTract.findPatchList
         """
-        skyMap = self._SkyMapClass()
+        skyMap = self.getSkyMap()
         for tractId in (0, 5):
             tractInfo = skyMap[tractId]
             wcs = tractInfo.getWcs()
@@ -218,7 +234,7 @@ class SkyMapTestCase(unittest.TestCase):
         Note: this test uses single points for speed and to avoid really large regions.
         Note that findPatchList is being tested elsewhere.
         """
-        skyMap = self._SkyMapClass()
+        skyMap = self.getSkyMap()
         for tractId in (1, 3, 7):
             tractInfo = skyMap[tractId]
             self.assertTractPatchListOk(
