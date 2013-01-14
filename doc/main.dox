@@ -29,6 +29,8 @@ Classes available from Python include:
 collection of Tracts.
 @li lsst.skymap.DodecaSkyMap: tracts are arranged as the faces of a dodecahedron covering the whole sky.
 @li lsst.skymap.EquatSkyMap: tracts are arranged in a band described by a declination range.
+@li lsst.skymap.DiscreteSkyMap: tracts are placed at nominated positions (e.g., for deep fields).
+@li lsst.skymap.RingsSkyMap: square tracts are arranged in declination rings with polar caps.
 @li lsst.skymap.HealpixSkyMap: tracts are arranged as HEALPixels (requires healpy package).
 @li lsst.skymap.TractInfo: information about a tract, including a bounding box, WCS,
 vertices describing the inner region, and a collection of PatchInfo.
