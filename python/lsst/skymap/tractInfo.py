@@ -288,3 +288,27 @@ class TractInfo(object):
     
     def __repr__(self):
         return "TractInfo(id=%s, ctrCoord=%s)" % (self._id, self._ctrCoord.getVector())
+
+
+class ExplicitTractInfo(TractInfo):
+    """Information for a tract specified explicitly
+
+    A tract is placed at the nominated coordinates, with the nominated radius.
+    The tracts are square (i.e., the radius is really a half-size).
+    """
+    def __init__(self, ident, patchInnerDimensions, patchBorder, ctrCoord, radius, tractOverlap, wcs):
+        vertexList = []
+        self._radius = radius
+        super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
+                                                vertexList, tractOverlap, wcs)
+
+    def _minimumBoundingBox(self, wcs):
+        """The minimum bounding box is calculated using the nominated radius"""
+        bbox = afwGeom.Box2D()
+        for i in range(4):
+            coord = self._ctrCoord.clone()
+            coord.offset(i * 90 * afwGeom.degrees, self._radius + self._tractOverlap)
+            pixPos = wcs.skyToPixel(coord)
+            bbox.include(pixPos)
+        return bbox
+
