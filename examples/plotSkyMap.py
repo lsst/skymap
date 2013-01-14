@@ -93,44 +93,110 @@ def plotSkyMap3d(skyMap):
     
     plt.show()
 
-def plotSkyMap2d(skyMap):
-    fig = plt.figure()
-    plt.clf()
-    axes = plt.axes()
 
-    colorCycle = matplotlib.rcParams['axes.color_cycle']
-    for i, tract in enumerate(skyMap):
-        center = tract.getCtrCoord()
-        wcs = tract.getWcs()
-        box = tract.getBBox()
-        xMin, xMax, yMin, yMax = box.getMinX(), box.getMaxX(), box.getMinY(), box.getMaxY()
-        num = 50
-        xList = numpy.linspace(xMin, xMax, num=num, endpoint=True)
-        yList = numpy.linspace(yMin, yMax, num=num, endpoint=True)
-        color = colorCycle[i % len(colorCycle)]
-        axes.plot(center.getLongitude().asDegrees(), math.sin(center.getLatitude().asRadians()), color + 'o')
-        centerRa = center.getLongitude().asDegrees()
-        for xs, ys in ((xList, yMin*numpy.ones(num)),
-                       (xMax*numpy.ones(num), yList),
-                       (xList, yMax*numpy.ones(num)),
-                       (xMin*numpy.ones(num), yList),
-                       ):
-            coords = [wcs.pixelToSky(afwGeom.Point2D(x,y)) for x,y in zip(xs,ys)]
-            ra = [c.getLongitude().asDegrees() for c in coords]
-            ra = [r + 360 if r < 90 and centerRa > 270 else
-                  r - 360 if r > 270 and centerRa < 90 else
-                  r for r in ra]
-            dec = [math.sin(c.getLatitude().asRadians()) for c in coords]
-            axes.plot(ra, dec, color + '-')
+class DefaultProjector(object):
+    """Default projector for plotting a SkyMap in 2D
 
-    plt.xlabel("RA (deg)")
-    plt.ylabel("sin(Dec)")
-    plt.grid(True)
-    plt.show()
+    Coordinates may be projected and optionally recentered. The recentering
+    helps to avoid lines crisscrossing the plot when plotting boundaries.
+
+    Class variables xLabel and yLabel provide labels for the plots.
+    """
+    xLabel = "RA (radians)"
+    yLabel = "sin(Dec)"
+
+    def __init__(self, coord):
+        """Constructor
+
+        Provided coordinate will be stored as the center of the area
+        of interest, for subsequent recentering.
+        """
+        self._ra0 = coord.getLongitude().asRadians()
+        self._dec0 = coord.getLatitude().asRadians()
+
+    @staticmethod
+    def project(coord):
+        """Project the provided coordinates"""
+        return coord.getLongitude().asRadians(), math.sin(coord.getLatitude().asRadians())
+
+    def recenter(self, x, y):
+        """Recenter the projected coordinates.
+
+        The recentering seeks to keep boundaries on the same side of
+        the plot as the center.
+        """
+        if x < 0.5*math.pi and self._ra0 > 1.5*math.pi:
+            x += 2*math.pi
+        elif x > 1.5*math.pi and self._ra0 < 0.5*math.pi:
+            x -= 2*math.pi
+        return x, y
+
+    def projectWithRecenter(self, coord):
+        """Project the coordinates and recenter"""
+        x, y = self.project(coord)
+        return self.recenter(x, y)
+
+class PoleProjector(DefaultProjector):
+    """A projection at the north pole"""
+    xLabel = "x"
+    yLabel = "y"
+
+    def project(self, coord):
+        ra, dec = coord.getLongitude().asRadians(), coord.getLatitude().asRadians()
+        r = 0.5*math.pi - dec
+        theta = ra
+        return r*math.cos(theta), r*math.sin(theta)
+
+    def recenter(self, x, y):
+        """No recentering required."""
+        return x, y
+
+def makePlotter(Projector=DefaultProjector):
+    """Make a function that will plot a SkyMap in 2D
+
+    The Projector is used to project the center of each tract and its boundaries
+    onto the plot.
+    """
+
+    def plotSkyMap2d(skyMap):
+        fig = plt.figure()
+        plt.clf()
+        axes = plt.axes()
+
+        colorCycle = matplotlib.rcParams['axes.color_cycle']
+        for i, tract in enumerate(skyMap):
+            center = tract.getCtrCoord()
+            wcs = tract.getWcs()
+            box = tract.getBBox()
+            xMin, xMax, yMin, yMax = box.getMinX(), box.getMaxX(), box.getMinY(), box.getMaxY()
+            num = 50
+            color = colorCycle[i % len(colorCycle)]
+            ra0 = center.getLongitude().asRadians()
+            dec0 = center.getLatitude().asRadians()
+            proj = Projector(center)
+            x, y = proj.project(center)
+            axes.plot(x, y, color + 'o')
+            xList = numpy.linspace(xMin, xMax, num=num, endpoint=True)
+            yList = numpy.linspace(yMin, yMax, num=num, endpoint=True)
+            for xs, ys in ((xList, yMin*numpy.ones(num)),
+                           (xMax*numpy.ones(num), yList),
+                           (xList, yMax*numpy.ones(num)),
+                           (xMin*numpy.ones(num), yList),
+                           ):
+                coords = [wcs.pixelToSky(afwGeom.Point2D(x,y)) for x,y in zip(xs,ys)]
+                bounds = [proj.projectWithRecenter(c) for c in coords]
+                axes.plot([b[0] for b in bounds], [b[1] for b in bounds], color + '-')
+
+        plt.xlabel(Projector.xLabel)
+        plt.ylabel(Projector.yLabel)
+        plt.grid(True)
+        plt.show()
+    return plotSkyMap2d
 
 if __name__ == "__main__":
     plotStyles = {"3d": plotSkyMap3d,
-                  "2d": plotSkyMap2d,
+                  "2d": makePlotter(),
+                  "pole": makePlotter(PoleProjector),
                   }
     parser = argparse.ArgumentParser()
     parser.add_argument("skymap", nargs=1, help="Path to skymap pickle")
