@@ -23,6 +23,7 @@ from lsst.pex.config import makeRegistry
 from .dodecaSkyMap import DodecaSkyMap
 from .equatSkyMap import EquatSkyMap
 from .discreteSkyMap import DiscreteSkyMap
+from .ringsSkyMap import RingsSkyMap
 from .healpixSkyMap import HealpixSkyMap
 
 __all__ = ["skyMapRegistry"]
@@ -35,4 +36,5 @@ skyMapRegistry = makeRegistry(
 skyMapRegistry.register("dodeca", DodecaSkyMap)
 skyMapRegistry.register("equat", EquatSkyMap)
 skyMapRegistry.register("discrete", DiscreteSkyMap)
+skyMapRegistry.register("rings", RingsSkyMap)
 skyMapRegistry.register("healpix", HealpixSkyMap)
