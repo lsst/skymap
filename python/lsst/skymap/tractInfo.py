@@ -293,8 +293,8 @@ class TractInfo(object):
 class ExplicitTractInfo(TractInfo):
     """Information for a tract specified explicitly
 
-    A tract is placed at the nominated coordinates, with the nominated radius.
-    The tracts are square (i.e., the radius is really a half-size).
+    A tract is placed at the explicitly defined coordinates, with the nominated
+    radius.  The tracts are square (i.e., the radius is really a half-size).
     """
     def __init__(self, ident, patchInnerDimensions, patchBorder, ctrCoord, radius, tractOverlap, wcs):
         vertexList = []
