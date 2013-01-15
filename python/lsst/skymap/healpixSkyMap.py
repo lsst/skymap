@@ -38,7 +38,7 @@ except Exception, e:
 from lsst.pex.config import Field
 from lsst.afw.coord import IcrsCoord
 import lsst.afw.geom as afwGeom
-from .baseSkyMap import BaseSkyMap
+from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
 
 
@@ -65,14 +65,14 @@ class HealpixTractInfo(TractInfo):
                                                vertexList, tractOverlap, wcs)
 
 
-class HealpixSkyMapConfig(BaseSkyMap.ConfigClass):
+class HealpixSkyMapConfig(CachingSkyMap.ConfigClass):
     """Configuration for the HealpixSkyMap"""
     log2NSide = Field(dtype=int, default=0, doc="Number of sides, expressed in powers of 2")
     nest = Field(dtype=bool, default=False, doc="Use NEST ordering instead of RING?")
     def setDefaults(self):
         self.rotation = 45 # HEALPixels are oriented at 45 degrees
 
-class HealpixSkyMap(BaseSkyMap):
+class HealpixSkyMap(CachingSkyMap):
     """HEALPix-based sky map pixelization.
 
     We put a Tract at the position of each HEALPixel.
@@ -81,22 +81,15 @@ class HealpixSkyMap(BaseSkyMap):
     _version = (1, 0) # for pickle
     numAngles = 4 # Number of angles for vertices
 
-    def __init__(self, config=None, version=0):
+    def __init__(self, config, version=0):
         """Constructor
 
         @param[in] config: an instance of self.ConfigClass; if None the default config is used
         @param[in] version: software version of this class, to retain compatibility with old instances
         """
-        super(HealpixSkyMap, self).__init__(config)
-        self._version = version
-        self._nside = 1 << self.config.log2NSide
-        self._numTracts = healpy.nside2npix(self._nside)
-        self._tractCache = {}
-        self._tractInfo = None # We shouldn't be using this; we will generate tracts on demand
-
-    def __reduce__(self):
-        """To support pickling"""
-        return (self.__class__, (self.config, self._version))
+        self._nside = 1 << config.log2NSide
+        numTracts = healpy.nside2npix(self._nside)
+        super(HealpixSkyMap, self).__init__(numTracts, config, version)
 
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord."""
@@ -104,31 +97,12 @@ class HealpixSkyMap(BaseSkyMap):
         index = healpy.ang2pix(self._nside, theta, phi, nest=self.config.nest)
         return self[index]
 
-    def __getitem__(self, index):
-        """Get the TractInfo for a particular index
-
-        The tract is returned from a cache, if available, otherwise generated
-        on the fly.
-        """
-        if index < 0 or index > self._numTracts:
-            raise IndexError("Index out of range: %d vs %d" % (index, self._numTracts))
-        if index in self._tractCache:
-            return self._tractCache[index]
+    def generateTract(self, index):
+        """Get the TractInfo for a particular index"""
         center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
-        tract = HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,
-                                 self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
-                                 wcs)
-        self._tractCache[index] = tract
-        return tract
-
-    def __iter__(self):
-        """Iterator over tracts"""
-        for i in xrange(self._numTracts):
-            yield self[i]
-
-    def __len__(self):
-        """Length is number of tracts"""
-        return self._numTracts
+        return HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,
+                                self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
+                                wcs)
 
 
