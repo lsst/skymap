@@ -28,6 +28,9 @@ class CachingSkyMap(BaseSkyMap):
     A subclass should define
     * __init__ to calculate the required number of tracts (and pass it up)
     * generateTract to generate a tract
+
+    Subclassers should also check that the arguments to the constructor are
+    consistent with the below __reduce__ method.
     """
     def __init__(self, numTracts, config=None, version=0):
         super(CachingSkyMap, self).__init__(config)
@@ -37,7 +40,14 @@ class CachingSkyMap(BaseSkyMap):
         self._version = version
 
     def __reduce__(self):
-        """To support pickling"""
+        """To support pickling
+
+        Warning: This method assumes that the constructor should be defined:
+            __init__(self, config, version=defaultVersion)
+        The use of 'config' is effectively set by the registry mechanism.
+        If additional optional arguments are added, this method should be
+        overridden to correspond.
+        """
         return (self.__class__, (self.config, self._version))
 
     def __iter__(self):
