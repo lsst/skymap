@@ -70,10 +70,10 @@ class PatchInfo(object):
     def __str__(self):
         """Return a brief string representation
         """
-        return "TractInfo(index=%s)" % (self.getIndex(),)
+        return "PatchInfo(index=%s)" % (self.getIndex(),)
     
     def __repr__(self):
         """Return a detailed string representation
         """
-        return "TractInfo(index=%s, innerBBox=%s, outerBBox=%s)" % \
+        return "PatchInfo(index=%s, innerBBox=%s, outerBBox=%s)" % \
             (self.getIndex(), self.getInnerBBox(), self.getOuterBBox())
