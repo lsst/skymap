@@ -253,7 +253,7 @@ class TractInfo(object):
             innerBBox = innerBBox,
             outerBBox = outerBBox,
         )
-    
+
     def getPatchInnerDimensions(self):
         """Get dimensions of inner region of the patches (all are the same)
         
@@ -288,6 +288,19 @@ class TractInfo(object):
     
     def __repr__(self):
         return "TractInfo(id=%s, ctrCoord=%s)" % (self._id, self._ctrCoord.getVector())
+
+    def __iter__(self):
+        xNum, yNum = self.getNumPatches()
+        for y in range(yNum):
+            for x in range(xNum):
+                yield self.getPatchInfo((x,y))
+
+    def __len__(self):
+        xNum, yNum = self.getNumPatches()
+        return xNum*yNum
+
+    def __getitem__(self, index):
+        return self.getPatchInfo(index)
 
 
 class ExplicitTractInfo(TractInfo):
