@@ -104,3 +104,50 @@ class RingsSkyMap(CachingSkyMap):
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
                                  0.5*self._ringSize*afwGeom.radians, self.config.tractOverlap*afwGeom.degrees,
                                  wcs)
+
+    def findTract(self, coord):
+        """Find the tract whose center is nearest the specified coord.
+
+        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @return TractInfo of tract whose center is nearest the specified coord
+
+        @warning:
+        - if tracts do not cover the whole sky then the returned tract may not include the coord
+
+        @note
+        - This routine will be more efficient if coord is ICRS.
+        - If coord is equidistant between multiple sky tract centers then one is arbitrarily chosen.
+        - The default implementation is not very efficient; subclasses may wish to override.
+        """
+        icrsCoord = coord.toIcrs()
+        ra = icrsCoord.getLongitude().asRadians()
+        dec = icrsCoord.getLatitude().asRadians()
+        ringNum = int(math.floor((dec + 0.5*math.pi) / self._ringSize - 0.5))
+        tractNum =int(math.fmod(ra - self.config.raStart, 2*math.pi) / (2*math.pi/self._ringNums[ringNum]) + 0.5)
+
+        index = 1
+        for i in range(ringNum):
+            index += self._ringNums[i]
+        index += tractNum
+
+#        print ra, dec, self[index].getVertexList()
+
+        return self[index]
+
+    def findTractPatchList(self, coordList):
+        """Find tracts and patches that overlap a region
+        
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
+            or may contain, the specified region. The list will be empty if there is no overlap.
+        
+        @warning this uses a naive algorithm that may find some tracts and patches that do not overlap
+            the region (especially if the region is not a rectangle aligned along patch x,y).
+        """
+        retList = []
+        for coord in coordList:
+            tractInfo = self.findTract(coord)
+            patchList = tractInfo.findPatchList(coordList)
+            if patchList:
+                retList.append((tractInfo, patchList))
+        return retList
