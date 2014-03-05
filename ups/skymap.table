@@ -1,5 +1,5 @@
 setupRequired(numpy)
-setupRequired(afw >= 3.6.0)
+setupRequired(afw)
 setupOptional(healpy)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
