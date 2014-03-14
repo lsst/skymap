@@ -242,6 +242,7 @@ class SkyMapTestCase(unittest.TestCase):
                 coordList = [tractInfo.getCtrCoord()],
                 knownTractId = tractId,
             )
+            self.assertClosestTractPatchList(skyMap, [tractInfo.getCtrCoord()], tractId)
 
             vertices = tractInfo.getVertexList()
             if len(vertices) > 0:
@@ -276,6 +277,16 @@ class SkyMapTestCase(unittest.TestCase):
                 self.assertTrue(len(patchList) == len(tractPatchDict[tractId]))
             else:
                 self.assertTrue(tractId not in tractPatchDict)
+
+    def assertClosestTractPatchList(self, skyMap, coordList, knownTractId):
+        if not hasattr(skyMap, "findClosestTractPatchList"):
+            self.skipTest("This skymap doesn't implement findClosestTractPatchList")
+        tractPatchList = skyMap.findClosestTractPatchList(coordList)
+        self.assertEqual(len(coordList), len(tractPatchList))  # One tract+patchList per coordinate
+        for coord, (tract, patchList) in zip(coordList, tractPatchList):
+            self.assertEqual(tract.getId(), knownTractId)
+            self.assertEqual(patchList, tract.findPatchList([coord]))
+
 
 
 ##############################################################################################################

@@ -133,7 +133,22 @@ class BaseSkyMap(object):
             if patchList:
                 retList.append((tractInfo, patchList))
         return retList
-    
+
+    def findClosestTractPatchList(self, coordList):
+        """Find closest tract and patches that overlap coordinates
+
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
+            or may contain, the specified region. The list will be empty if there is no overlap.
+        """
+        retList = []
+        for coord in coordList:
+            tractInfo = self.findTract(coord)
+            patchList = tractInfo.findPatchList(coordList)
+            if patchList:
+                retList.append((tractInfo, patchList))
+        return retList
+
     def __getitem__(self, ind):
         return self._tractInfoList[ind]
     
