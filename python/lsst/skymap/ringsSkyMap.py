@@ -131,7 +131,7 @@ class RingsSkyMap(CachingSkyMap):
             # Northern cap
             return self[-1]
 
-        ringNum = int((dec - firstRingStart) / self._ringSize - 0.5)
+        ringNum = int((dec - firstRingStart)/self._ringSize)
         tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi)/
                       (2*math.pi/self._ringNums[ringNum]) + 0.5)
 
