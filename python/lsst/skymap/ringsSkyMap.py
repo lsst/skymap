@@ -140,3 +140,68 @@ class RingsSkyMap(CachingSkyMap):
             index += self._ringNums[i]
 
         return self[index]
+
+    def findAllTracts(self, coord):
+        """Find all tracts which include the specified coord.
+
+        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @return List of TractInfo of tracts which include the specified coord
+
+        @note
+        - This routine will be more efficient if coord is ICRS.
+        """
+        icrsCoord = coord.toIcrs()
+        ra = icrsCoord.getLongitude().asRadians()
+        dec = icrsCoord.getLatitude().asRadians()
+
+        firstRingStart = self._ringSize*0.5 - 0.5*math.pi
+
+        if dec < firstRingStart:
+            # Southern cap
+            return self[0]
+        elif dec > firstRingStart*-1:
+            # Northern cap
+            return self[-1]
+
+        ringNum = int((dec - firstRingStart)/self._ringSize)
+
+        tractList = list()
+        # ringNum denotes the closest ring to the specified coord
+        # I will check adjacent rings which may include the specified coord
+        for r in [ringNum-1, ringNum, ringNum+1]:
+            if r < 0 or r > self.config.numRings-1:
+                continue
+            tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi)/
+                          (2*math.pi/self._ringNums[r]) + 0.5)
+            # Adjacent tracts will also be checked.
+            for t in [tractNum-1, tractNum, tractNum+1]:
+                if t < 0 or t > self._ringNums[r]-1:
+                    continue
+
+                index = t + 1  # Allow 1 for south pole
+                for i in range(r):
+                    index += self._ringNums[i]
+
+                tract = self[index]
+                if tract.getBBox().contains(afwGeom.Point2I(tract.getWcs().skyToPixel(coord.toIcrs()))):
+                    tractList.append(tract)
+
+        return tractList
+
+    def findTractPatchList(self, coordList):
+        """Find tracts and patches that overlap a region
+
+        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
+            or may contain, the specified region. The list will be empty if there is no overlap.
+
+        @warning this uses a naive algorithm that may find some tracts and patches that do not overlap
+            the region (especially if the region is not a rectangle aligned along patch x,y).
+        """
+        retList = []
+        for coord in coordList:
+            for tractInfo in self.findAllTracts(coord):
+                patchList = tractInfo.findPatchList(coordList)
+                if patchList and not (tractInfo, patchList) in retList:
+                    retList.append((tractInfo, patchList))
+        return retList
