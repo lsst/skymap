@@ -168,17 +168,17 @@ class RingsSkyMap(CachingSkyMap):
         tractList = list()
         # ringNum denotes the closest ring to the specified coord
         # I will check adjacent rings which may include the specified coord
-        for r in [ringNum-1, ringNum, ringNum+1]:
-            if r < 0 or r > self.config.numRings-1:
+        for r in [ringNum - 1, ringNum, ringNum + 1]:
+            if r < 0 or r > self.config.numRings - 1:
                 continue
             tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi)/
                           (2*math.pi/self._ringNums[r]) + 0.5)
             # Adjacent tracts will also be checked.
-            for t in [tractNum-1, tractNum, tractNum+1]:
+            for t in [tractNum - 1, tractNum, tractNum + 1]:
                 # Wrap over raStart
                 if t < 0:
                     t = t + self._ringNums[r]
-                elif t > self._ringNums[r]-1:
+                elif t > self._ringNums[r] - 1:
                     t = t - self._ringNums[r]
 
                 index = t + 1  # Allow 1 for south pole
