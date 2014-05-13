@@ -175,8 +175,11 @@ class RingsSkyMap(CachingSkyMap):
                           (2*math.pi/self._ringNums[r]) + 0.5)
             # Adjacent tracts will also be checked.
             for t in [tractNum-1, tractNum, tractNum+1]:
-                if t < 0 or t > self._ringNums[r]-1:
-                    continue
+                # Wrap over raStart
+                if t < 0:
+                    t = t + self._ringNums[r]
+                elif t > self._ringNums[r]-1:
+                    t = t - self._ringNums[r]
 
                 index = t + 1  # Allow 1 for south pole
                 for i in range(r):
@@ -185,6 +188,13 @@ class RingsSkyMap(CachingSkyMap):
                 tract = self[index]
                 if tract.getBBox().contains(afwGeom.Point2I(tract.getWcs().skyToPixel(coord.toIcrs()))):
                     tractList.append(tract)
+
+        # Always check tracts at poles
+        # Southern cap is 0, Northern cap is the last entry in self
+        for entry in [0,len(self)-1]:
+            tract = self[entry]
+            if tract.getBBox().contains(afwGeom.Point2I(tract.getWcs().skyToPixel(coord.toIcrs()))):
+                tractList.append(tract)
 
         return tractList
 
