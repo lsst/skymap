@@ -19,7 +19,7 @@
 # the GNU General Public License along with this program.  If not, 
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-from lsst.pex.exceptions import LsstCppException
+import lsst.pex.exceptions
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
@@ -182,7 +182,7 @@ class TractInfo(object):
         for coord in coordList:
             try:
                 pixelPos = self.getWcs().skyToPixel(coord.toIcrs())
-            except LsstCppException:
+            except lsst.pex.exceptions.Exception:
                 # the point is so far off the tract that its pixel position cannot be computed
                 continue
             box2D.include(pixelPos)
