@@ -1,39 +1,48 @@
+namespace lsst { namespace skymap {
+
 /**
 \mainpage lsst::skymap;  sky pixelization
 
-\section secIntro Introduction
+\section skyMap_introduction Introduction
 
-Skymap describes image data that covers most or all of the sky.
+A sky map describes a pixelization of image data that covers most or all of the sky.
 
-The imaging data is arranged as a sequence of large, rectangular, overlapping "tracts".
+The imaging data is arranged as a sequence of overlapping rectangular "tracts".
 Each tract is, in essence, a single large exposure. However, tracts are typically too large
-to fit into memory, so tracts are subdivided into possibly overlapping patches. The patch size
-is chosen to easily fit into memory.
+to fit into memory, so tracts are subdivided into rectangular, possibly overlapping "patches".
+The patch size is chosen to easily fit into memory.
 
 Tracts contain an inner region described by a collection of vertices. The inner regions exactly tile
 the portion of sky covered by the sky map. All pixels beyond the inner region provide overlap
-with neighboring tracts and a rectangular outer border.
+with neighboring tracts.
 
 Patches contain rectangular inner and outer regions. The inner regions exactly tile the tract,
 and all patches in a tract have the same inner dimensions.
-Each patch has a border around the inner region to provide some overlap with adjacent patches;
-there is no border on patch edges that lie against tract boundaries.
+Each patch has a border around the inner region to provide some overlap with adjacent patches,
+but there is no border on patch edges that lie against tract boundaries.
 
 Imaging data is saved as one FITS file per patch. To access a patch the butler requires the tract ID
-and patch index. SkyMap.findTract(coord) finds a tract and returns its TractInfo,
-given a coord. TractInfo.findPatch(coord) finds a patch and returns its PatchInfo.
+and patch index. \ref baseSkyMap.BaseSkyMap.findTract "BaseSkyMap.findTract(coord)" finds a tract
+and returns its \ref tractInfo.TractInfo "TractInfo", given a \ref afw::coord::Coord "coord".
+\ref tractInfo.TractInfo.findPatch "TractInfo.findPatch(coord)" finds a patch and returns its
+\ref patchInfo.PatchInfo "PatchInfo".
 
 Classes available from Python include:
 
-@li lsst.skymap.BaseSkyMap: abstract base class for sky maps. Each subclass acts as an iterable
-collection of Tracts.
-@li lsst.skymap.DodecaSkyMap: tracts are arranged as the faces of a dodecahedron covering the whole sky.
-@li lsst.skymap.EquatSkyMap: tracts are arranged in a band described by a declination range.
-@li lsst.skymap.DiscreteSkyMap: tracts are placed at explicitly defined positions (e.g., for deep fields).
-@li lsst.skymap.RingsSkyMap: square tracts are arranged in declination rings with polar caps.
-@li lsst.skymap.HealpixSkyMap: tracts are arranged as HEALPixels (requires healpy package).
-@li lsst.skymap.TractInfo: information about a tract, including a bounding box, WCS,
-vertices describing the inner region, and a collection of PatchInfo.
-@li lsst.skymap.PatchInfo: information about a patch, including index, inner and outer bounding boxes.
+- \ref baseSkyMap.BaseSkyMap "BaseSkyMap": abstract base class for sky maps. Each subclass acts as an iterable
+    collection of \ref tractInfo.TractInfo "TractInfo".
+- \ref dodecaSkyMap.DodecaSkyMap "DodecaSkyMap": tracts are arranged as the faces of a dodecahedron
+    covering the whole sky.
+- \ref equatSkyMap.EquatSkyMap "EquatSkyMap": tracts are arranged in a band described by a declination range.
+- \ref discreteSkyMap.DiscreteSkyMap "DiscreteSkyMap": tracts are placed at explicitly defined positions
+    (e.g., for deep fields).
+- \ref ringsSkyMap.RingsSkyMap "RingsSkyMap": square tracts are arranged in declination rings with polar caps.
+- \ref healpixSkyMap.HealpixSkyMap "HealpixSkyMap": tracts are arranged as HEALPixels
+    (requires the healpy package).
+- \ref tractInfo.TractInfo "TractInfo": information about a tract, including a bounding box, WCS,
+    vertices describing the inner region, and a collection of \ref patchInfo.PatchInfo "PatchInfo".
+- \ref patchInfo.PatchInfo "PatchInfo": information about a patch, including index, inner and outer bounding
+    boxes.
 */
-}}}
+
+}} // namespace lsst::skymap
