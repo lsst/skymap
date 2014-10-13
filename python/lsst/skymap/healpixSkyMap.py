@@ -59,7 +59,7 @@ class HealpixTractInfo(TractInfo):
     """Tract for the HealpixSkyMap"""
     def __init__(self, nSide, ident, nest, patchInnerDimensions, patchBorder, ctrCoord, tractOverlap, wcs):
         """Set vertices from nside, ident, nest"""
-        theta, phi = healpy.vec2ang(numpy.transpose(healpy.boundary(nSide, ident, nest=nest)))
+        theta, phi = healpy.vec2ang(numpy.transpose(healpy.boundaries(nSide, ident, nest=nest)))
         vertexList = [angToCoord(thetaphi) for thetaphi in zip(theta,phi)]
         super(HealpixTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                vertexList, tractOverlap, wcs)
