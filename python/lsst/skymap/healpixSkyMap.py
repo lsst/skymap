@@ -52,8 +52,11 @@ def angToCoord(thetaphi):
     return IcrsCoord(float(thetaphi[1])*afwGeom.radians, float(thetaphi[0] - 0.5*numpy.pi)*afwGeom.radians)
 
 def coordToAng(coord):
-    """Convert an afw Coord to a healpy ang (theta, phi)"""
-    return (coord.getLatitude().asRadians() - 0.5*numpy.pi, coord.getLongitude().asRadians())
+    """Convert an afw Coord to a healpy ang (theta, phi)
+
+    The Healpix convention is that 0 <= theta <= pi, 0 <= phi < 2pi.
+    """
+    return (coord.getLatitude().asRadians() + 0.5*numpy.pi, coord.getLongitude().asRadians())
 
 class HealpixTractInfo(TractInfo):
     """Tract for the HealpixSkyMap"""
