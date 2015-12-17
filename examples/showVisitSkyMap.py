@@ -1,15 +1,35 @@
 #!/usr/bin/env python
+#
+# LSST Data Management System
+# Copyright 2015 AURA/LSST.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <https://www.lsstcorp.org/LegalNotices/>.
+#
 
-import sys, os, re
+from __future__ import print_function
+
 import argparse
+import re
 import matplotlib.pyplot as pyplot
 
-import lsst.daf.persistence  as dafPersist
-import lsst.afw.cameraGeom   as camGeom
-import lsst.afw.coord        as afwCoord
-import lsst.afw.geom         as afwGeom
-import lsst.afw.image        as afwImage
-
+import lsst.afw.geom as afwGeom
+import lsst.afw.image as afwImage
+import lsst.daf.persistence as dafPersist
 
 def bboxToRaDec(bbox, wcs):
     """Get the corners of a BBox and convert them to lists of RA and Dec."""
@@ -28,18 +48,14 @@ def percent(values, p=0.5):
     return m + p*interval
 
 def main(rootDir, tract, visits, ccds=None, showPatch=False):
-
     butler = dafPersist.Butler(rootDir)
     mapper = butler.mapper
     camera = mapper.camera
 
-    ##################
-    ###  draw the CCDs
+    # draw the CCDs
     ras, decs = [], []
     for i_v, visit in enumerate(visits):
-        print i_v, visit
-        # ccdList = [camGeom.cast_Ccd(ccd) for ccd in camGeom.cast_Raft(butler.get("camera")[0])]
-        ccdList = [detector.getSerial() for detector in camera]
+        print("%r visit=%r" % (i_v, visit))
         for ccd in camera:
             bbox = ccd.getBBox()
             ccdId = int(ccd.getSerial())
@@ -62,10 +78,9 @@ def main(rootDir, tract, visits, ccds=None, showPatch=False):
     xlim = max(ras)+buff, min(ras)-buff
     ylim = min(decs)-buff, max(decs)+buff
 
-    ###################
-    ### draw the skymap
+    # draw the skymap
     if showPatch:
-        skymap = butler.get('deepCoadd_skyMap', {'tract':0})
+        skymap = butler.get('deepCoadd_skyMap', {'tract': 0})
         for tract in skymap:
             for patch in tract:
                 ra, dec = bboxToRaDec(patch.getInnerBBox(), tract.getWcs())
@@ -74,9 +89,7 @@ def main(rootDir, tract, visits, ccds=None, showPatch=False):
                     pyplot.text(percent(ra), percent(dec, 0.9), str(patch.getIndex()),
                                 fontsize=6, horizontalalignment='center', verticalalignment='top')
 
-
-    ######################
-    ### add labels as save
+    # add labels and save
     ax = pyplot.gca()
     ax.set_xlabel("R.A. (deg)")
     ax.set_ylabel("Decl. (deg)")
@@ -84,7 +97,6 @@ def main(rootDir, tract, visits, ccds=None, showPatch=False):
     ax.set_ylim(ylim)
     fig = pyplot.gcf()
     fig.savefig("patches.png")
-
 
 
 if __name__ == '__main__':
