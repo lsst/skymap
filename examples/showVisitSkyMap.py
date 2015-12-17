@@ -47,7 +47,7 @@ def percent(values, p=0.5):
     interval = max(values) - m
     return m + p*interval
 
-def main(rootDir, tract, visits, ccds=None, showPatch=False):
+def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False):
     butler = dafPersist.Butler(rootDir)
     mapper = butler.mapper
     camera = mapper.camera
@@ -61,9 +61,9 @@ def main(rootDir, tract, visits, ccds=None, showPatch=False):
             ccdId = int(ccd.getSerial())
 
             if (ccds is None or ccdId in ccds) and ccdId < 104:
-                dataId = {'visit': visit, 'ccd': ccdId}
+                dataId = {'visit': visit, ccdKey: ccdId}
                 try:
-                    md = butler.get("calexp_md", visit=visit, ccd=ccdId)
+                    md = butler.get("calexp_md", dataId)
                     wcs = afwImage.makeWcs(md)
 
                     ra, dec = bboxToRaDec(bbox, wcs)
@@ -107,6 +107,7 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--ccds", help="specify CCDs")
     parser.add_argument("-p", "--showPatch", action='store_true', default=False,
                         help="Show the patch boundaries")
+    parser.add_argument("--ccdKey", default="ccd", help="Data ID name of the CCD key")
     args = parser.parse_args()
 
     def idSplit(id):
@@ -123,4 +124,5 @@ if __name__ == '__main__':
                 ids.append(int(r))
         return ids
 
-    main(args.root, args.tract, visits=idSplit(args.visits), ccds=idSplit(args.ccds), showPatch=args.showPatch)
+    main(args.root, args.tract, visits=idSplit(args.visits), ccds=idSplit(args.ccds),
+         ccdKey=args.ccdKey, showPatch=args.showPatch)
