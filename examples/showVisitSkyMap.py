@@ -27,6 +27,7 @@ import argparse
 import re
 import matplotlib.pyplot as pyplot
 
+import lsst.afw.cameraGeom as cameraGeom
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.daf.persistence as dafPersist
@@ -60,7 +61,7 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False):
             bbox = ccd.getBBox()
             ccdId = int(ccd.getSerial())
 
-            if (ccds is None or ccdId in ccds) and ccdId < 104:
+            if (ccds is None or ccdId in ccds) and ccd.getType() is cameraGeom.SCIENCE:
                 dataId = {'visit': visit, ccdKey: ccdId}
                 try:
                     md = butler.get("calexp_md", dataId)
