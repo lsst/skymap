@@ -48,7 +48,7 @@ def percent(values, p=0.5):
     interval = max(values) - m
     return m + p*interval
 
-def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False):
+def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None):
     butler = dafPersist.Butler(rootDir)
     mapper = butler.mapper
     camera = mapper.camera
@@ -97,7 +97,10 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False):
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     fig = pyplot.gcf()
-    fig.savefig("patches.png")
+    if saveFile is not None:
+        fig.savefig(saveFile)
+    else:
+        fig.show()
 
 
 if __name__ == '__main__':
@@ -108,6 +111,8 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--ccds", help="specify CCDs")
     parser.add_argument("-p", "--showPatch", action='store_true', default=False,
                         help="Show the patch boundaries")
+    parser.add_argument("--saveFile", type=str, default=None,
+                        help="Filename to write the plot to")
     parser.add_argument("--ccdKey", default="ccd", help="Data ID name of the CCD key")
     args = parser.parse_args()
 
@@ -126,4 +131,4 @@ if __name__ == '__main__':
         return ids
 
     main(args.root, args.tract, visits=idSplit(args.visits), ccds=idSplit(args.ccds),
-         ccdKey=args.ccdKey, showPatch=args.showPatch)
+         ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile)
