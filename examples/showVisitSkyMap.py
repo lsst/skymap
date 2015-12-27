@@ -24,13 +24,13 @@
 from __future__ import print_function
 
 import argparse
-import re
 import matplotlib.pyplot as pyplot
 
 import lsst.afw.cameraGeom as cameraGeom
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.daf.persistence as dafPersist
+from lsst.pipe.base.argumentParser import IdValueAction, DataIdContainer
 
 def bboxToRaDec(bbox, wcs):
     """Get the corners of a BBox and convert them to lists of RA and Dec."""
@@ -102,13 +102,28 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
     else:
         fig.show()
 
+def splitId(argName):
+    class SplitIdValueAction(IdValueAction):
+        def __call__(self, parser, namespace, values, option_string):
+            # Hack to use IdValueAction
+            keyValues = [argName + "=" + str(values[0])]
+            setattr(namespace, "config", "hack")
+            setattr(namespace, argName, DataIdContainer())
+            # Parse the data into namespace.argName.idList
+            IdValueAction.__call__(self, parser, namespace, keyValues, "--"+argName)
+            # Save the list into namespace.argName
+            setattr(namespace, argName,
+                    list({int(dataId[argName]) for dataId in getattr(namespace, argName).idList}))
+    return SplitIdValueAction
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("root", help="Root directory of data repository")
     parser.add_argument("tract", type=int, help="Tract to show")
-    parser.add_argument("visits", help="visit to show")
-    parser.add_argument("-c", "--ccds", help="specify CCDs")
+    parser.add_argument("visits", nargs=1, action=splitId("visits"),
+                        help="Visits to show", metavar="VISIT1[^VISIT2[^VISIT3...]")
+    parser.add_argument("-c", "--ccds", nargs=1, action=splitId("ccds"), default=None,
+                        help="CCDs to show", metavar="CCD1[^CCD2[^CCD3...]")
     parser.add_argument("-p", "--showPatch", action='store_true', default=False,
                         help="Show the patch boundaries")
     parser.add_argument("--saveFile", type=str, default=None,
@@ -116,19 +131,5 @@ if __name__ == '__main__':
     parser.add_argument("--ccdKey", default="ccd", help="Data ID name of the CCD key")
     args = parser.parse_args()
 
-    def idSplit(id):
-        if id is None:
-            return id
-        ids = []
-        for r in id.split("^"):
-            m = re.match(r"^(\d+)\.\.(\d+):?(\d+)?$", r)
-            if m:
-                limits = [int(v) if v else 1 for v in m.groups()]
-                limits[1] += 1
-                ids += range(*limits)
-            else:
-                ids.append(int(r))
-        return ids
-
-    main(args.root, args.tract, visits=idSplit(args.visits), ccds=idSplit(args.ccds),
+    main(args.root, args.tract, visits=args.visits, ccds=args.ccds,
          ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile)
