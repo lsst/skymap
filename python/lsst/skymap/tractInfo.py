@@ -310,10 +310,13 @@ class ExplicitTractInfo(TractInfo):
     radius.  The tracts are square (i.e., the radius is really a half-size).
     """
     def __init__(self, ident, patchInnerDimensions, patchBorder, ctrCoord, radius, tractOverlap, wcs):
+        # We don't want TractInfo setting the bbox on the basis of vertices, but on the radius.
         vertexList = []
         self._radius = radius
         super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
+        # Now we know what the vertices are
+        self._vertexCoordList = [wcs.pixelToSky(afwGeom.Point2D(p)) for p in self.getBBox().getCorners()]
 
     def _minimumBoundingBox(self, wcs):
         """The minimum bounding box is calculated using the nominated radius"""
