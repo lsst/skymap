@@ -50,8 +50,7 @@ def percent(values, p=0.5):
 
 def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None):
     butler = dafPersist.Butler(rootDir)
-    mapper = butler.mapper
-    camera = mapper.camera
+    camera = butler.get("camera")
 
     # draw the CCDs
     ras, decs = [], []
