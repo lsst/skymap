@@ -48,12 +48,13 @@ def percent(values, p=0.5):
     interval = max(values) - m
     return m + p*interval
 
-def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None):
+def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None, showCcds=False):
     butler = dafPersist.Butler(rootDir)
     camera = butler.get("camera")
 
     # draw the CCDs
     ras, decs = [], []
+    bboxesPlotted = []
     for i_v, visit in enumerate(visits):
         print("%r visit=%r" % (i_v, visit))
         for ccd in camera:
@@ -71,6 +72,19 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
                     decs += dec
                     color = ('r', 'b', 'c', 'g', 'm')[i_v%5]
                     pyplot.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color)
+
+                    # add CCD serial numbers
+                    if showCcds:
+                        minPoint = afwGeom.Point2D(min(ra), min(dec))
+                        maxPoint = afwGeom.Point2D(max(ra), max(dec))
+                        # Use doubles in Box2D to check overlap
+                        bboxDouble = afwGeom.Box2D(minPoint, maxPoint)
+                        overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
+                        if all(overlaps):
+                            pyplot.text(percent(ra), percent(dec), str(ccdId), fontsize=6,
+                                        horizontalalignment='center', verticalalignment='center', color=color)
+                            pyplot.fill(ra, dec, fill=False, alpha=0.5, color=color, edgecolor=color)
+                        bboxesPlotted.append(bboxDouble)
                 except:
                     pass
 
@@ -128,7 +142,9 @@ if __name__ == '__main__':
     parser.add_argument("--saveFile", type=str, default=None,
                         help="Filename to write the plot to")
     parser.add_argument("--ccdKey", default="ccd", help="Data ID name of the CCD key")
+    parser.add_argument("--showCcds", action='store_true', default=False,
+                        help="Show ccd serial numbers on output image")
     args = parser.parse_args()
 
     main(args.root, args.tract, visits=args.visits, ccds=args.ccds,
-         ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile)
+         ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds)
