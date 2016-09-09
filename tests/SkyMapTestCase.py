@@ -1,4 +1,3 @@
-from builtins import zip
 #!/usr/bin/env python
 
 #
@@ -22,23 +21,24 @@ from builtins import zip
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
-import os
-import sys
-import math
-import pickle
-import unittest
+from builtins import zip
 import itertools
+import math
+import os
+import pickle
+import sys
+import unittest
 
 import numpy
 
-import lsst.utils.tests as utilsTests
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
+import lsst.utils.tests
+
 from lsst.skymap import skyMapRegistry
 
 
-class SkyMapTestCase(unittest.TestCase):
+class SkyMapTestCase(lsst.utils.tests.TestCase):
     """An abstract base class for testing a SkyMap.
 
     To use, subclass and set the following class variables:
@@ -72,7 +72,7 @@ class SkyMapTestCase(unittest.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
-        for tractOverlap in (0.0, 0.01, 0.1): # degrees
+        for tractOverlap in (0.0, 0.01, 0.1):  # degrees
             config = self.getConfig()
             config.tractOverlap = tractOverlap
             skyMap = self.getSkyMap(config)
@@ -128,8 +128,8 @@ class SkyMapTestCase(unittest.TestCase):
 
         # compare a few patches
         numPatches = original.getNumPatches()
-        for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
-            for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
+        for xInd in (0, 1, numPatches[0]//2, numPatches[0]-2, numPatches[0]-1):
+            for yInd in (0, 1, numPatches[1]//2, numPatches[1]-2, numPatches[1]-1):
                 patchInfo = original.getPatchInfo((xInd, yInd))
                 unpickledPatchInfo = unpickled.getPatchInfo((xInd, yInd))
                 self.assertEqual(patchInfo, unpickledPatchInfo)
@@ -295,7 +295,7 @@ class SkyMapTestCase(unittest.TestCase):
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
     """
-    bbox = afwGeom.Box2D(bbox) # mak
+    bbox = afwGeom.Box2D(bbox)  # mak
     cornerPosList = (
         bbox.getMin(),
         afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()),

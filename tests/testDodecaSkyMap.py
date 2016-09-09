@@ -25,19 +25,21 @@
 """
 from __future__ import print_function
 import itertools
-import os
-import sys
 import math
+import os
 import pickle
+import sys
 import unittest
 
 import numpy
 
-import lsst.utils.tests as utilsTests
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
+import lsst.utils.tests
+
 from lsst.skymap import DodecaSkyMap, skyMapRegistry
 from SkyMapTestCase import SkyMapTestCase
+
 
 # dodecahedron properties
 _Phi = (1.0 + math.sqrt(5.0)) / 2.0
@@ -45,11 +47,15 @@ _DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
 
 
 class DodecaSkyMapTestCase(SkyMapTestCase):
-    _NumTracts = 12 # Number of tracts to expect
-    _NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) - _DihedralAngle # Tract separation
-    _SkyMapClass = DodecaSkyMap # Class of SkyMap to test
-    _SkyMapName = "dodeca" # Name of SkyMap class to test
-    _numNeighbors = 6 # Number of neighbours
+
+    def setUp(self):
+        s_cls = SkyMapTestCase
+        s_cls._NumTracts = 12  # Number of tracts to expect
+        s_cls._NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) \
+            - _DihedralAngle  # Tract separation
+        s_cls._SkyMapClass = DodecaSkyMap  # Class of SkyMap to test
+        s_cls._SkyMapName = "dodeca"  # Name of SkyMap class to test
+        s_cls._numNeighbors = 6  # Number of neighbours
 
     def testFindTract(self):
         """Test findTract and tractInfo.findPatch
@@ -151,7 +157,7 @@ class DodecaSkyMapTestCase(SkyMapTestCase):
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
     """
-    bbox = afwGeom.Box2D(bbox) # mak
+    bbox = afwGeom.Box2D(bbox)  # mak
     cornerPosList = (
         bbox.getMin(),
         afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()),
@@ -161,22 +167,14 @@ def getCornerCoords(wcs, bbox):
     return [wcs.pixelToSky(cp).toIcrs() for cp in cornerPosList]
 
 
-def suite():
-    """Return a suite containing all the test cases in this module.
-    """
-    utilsTests.init()
-
-    suites = [
-        unittest.makeSuite(DodecaSkyMapTestCase),
-        unittest.makeSuite(utilsTests.MemoryTestCase),
-    ]
-
-    return unittest.TestSuite(suites)
+class MemoryTester(lsst.utils.tests.MemoryTestCase):
+    pass
 
 
-def run(shouldExit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), shouldExit)
+def setup_module(module):
+    lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()
