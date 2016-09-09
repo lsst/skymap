@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from builtins import zip
+from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -38,7 +40,7 @@ import lsst.afw.geom as afwGeom
 
 def reportSkyMapInfo(skyMap):
     paramDict = skyMap.config.toDict()
-    paramNameList = sorted(paramDict.iterkeys())
+    paramNameList = sorted(paramDict.keys())
     print("Sky Map parameters:")
     for paramName in paramNameList:
         param = paramDict[paramName]
@@ -204,7 +206,7 @@ if __name__ == "__main__":
                   }
     parser = argparse.ArgumentParser()
     parser.add_argument("skymap", nargs=1, help="Path to skymap pickle")
-    parser.add_argument("--style", choices=plotStyles.keys(), default="3d", help="Plot style to use")
+    parser.add_argument("--style", choices=list(plotStyles.keys()), default="3d", help="Plot style to use")
     args = parser.parse_args()
 
     with file(args.skymap[0], "r") as f:

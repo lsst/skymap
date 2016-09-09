@@ -1,3 +1,4 @@
+from builtins import zip
 #!/usr/bin/env python
 
 #
@@ -164,7 +165,7 @@ class SkyMapTestCase(unittest.TestCase):
         unpickledSkyMap = pickle.loads(pickleStr)
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
         self.assertEqual(unpickledSkyMap.config, skyMap.config)
-        for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
+        for tractInfo, unpickledTractInfo in zip(skyMap, unpickledSkyMap):
             self.assertUnpickledTractInfo(unpickledTractInfo, tractInfo, skyMap.config.patchBorder)
 
     def testTractSeparation(self):

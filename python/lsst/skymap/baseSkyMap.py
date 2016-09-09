@@ -23,6 +23,7 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
+from builtins import object
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 from . import detail

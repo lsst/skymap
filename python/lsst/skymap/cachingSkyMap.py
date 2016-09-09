@@ -1,3 +1,4 @@
+from builtins import range
 #
 # LSST Data Management System
 # Copyright 2008-2012 LSST Corporation.
@@ -54,7 +55,7 @@ class CachingSkyMap(BaseSkyMap):
 
     def __iter__(self):
         """Iterator over tracts"""
-        for i in xrange(self._numTracts):
+        for i in range(self._numTracts):
             yield self[i]
 
     def __len__(self):

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from builtins import range
+from builtins import object
 import math
 import itertools
 import numpy
@@ -162,7 +164,7 @@ def _computeDodecahedronVertices(faceVecList):
                 vertexVec = faceVecList[i] + faceVecList[j] + faceVecList[k]
                 vertexVec /= numpy.sqrt(numpy.sum(vertexVec**2))
                 vertexDict[key] = vertexVec
-    return vertexDict.values()
+    return list(vertexDict.values())
 
 
 def _computeFullVecList(basisSet):

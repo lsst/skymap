@@ -23,6 +23,8 @@
 #
 """Test EquatSkyMap class
 """
+from builtins import zip
+from builtins import range
 import itertools
 import os
 import sys
@@ -151,7 +153,7 @@ class EquatSkyMapTestCase(unittest.TestCase):
             "decRange",
         ):
             self.assertEqual(getattr(skyMap.config, configName), getattr(unpickledSkyMap.config, configName))
-        for tractInfo, unpickledTractInfo in itertools.izip(skyMap, unpickledSkyMap):
+        for tractInfo, unpickledTractInfo in zip(skyMap, unpickledSkyMap):
             for getterName in (
                 "getBBox",
                 "getCtrCoord",

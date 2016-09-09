@@ -22,6 +22,7 @@
 #
 """Display sky map geometry as a 3d plot
 """
+from builtins import zip
 import math
 import numpy
 

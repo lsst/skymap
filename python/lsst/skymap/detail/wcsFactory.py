@@ -1,3 +1,5 @@
+from builtins import range
+from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -72,6 +74,6 @@ class WcsFactory(object):
             ps.add("CRVAL%1d" % (ip1,), crValDeg[i])
         ps.add("RADECSYS", "ICRS")
         ps.add("EQUINOX", 2000)
-        for k, v in self._cdMatrix.items() + kargs.items():
+        for k, v in list(self._cdMatrix.items()) + list(kargs.items()):
             ps.add(k, v)
         return afwImage.makeWcs(ps)
