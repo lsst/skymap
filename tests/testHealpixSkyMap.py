@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import lsst.utils.tests as utilsTests
 import unittest
 
@@ -8,7 +9,7 @@ try:
     import healpy
 except:
     import sys
-    print >>sys.stderr, "WARNING: not testing HealpixSkyMap because healpy can't be imported."
+    print("WARNING: not testing HealpixSkyMap because healpy can't be imported.", file=sys.stderr)
     sys.exit(0)
 
 

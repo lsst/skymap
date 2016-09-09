@@ -23,6 +23,7 @@
 #
 """Test DodecaSkyMap class
 """
+from __future__ import print_function
 import itertools
 import os
 import sys
@@ -125,19 +126,19 @@ class DodecaSkyMapTestCase(SkyMapTestCase):
                                     nearestCtrCoord = nearestTractInfo.getCtrCoord()
                                     nearestVector = nearestCtrCoord.getVector()
 
-                                    print "tractId0=%s; tractId1=%s; tractId2=%s; nearestTractId=%s" % \
-                                        (tractId0, tractId1, tractId2, nearestTractId)
-                                    print "vector0=%s; vector1=%s; vector2=%s; nearestVector=%s" % \
-                                        (vector0, vector1, vector2, nearestVector)
-                                    print "frac0=%s; frac1=%s; frac2=%s" % (frac0, frac1, frac2)
-                                    print "testVector=", testVector
+                                    print("tractId0=%s; tractId1=%s; tractId2=%s; nearestTractId=%s" %
+                                          (tractId0, tractId1, tractId2, nearestTractId))
+                                    print("vector0=%s; vector1=%s; vector2=%s; nearestVector=%s" %
+                                          (vector0, vector1, vector2, nearestVector))
+                                    print("frac0=%s; frac1=%s; frac2=%s" % (frac0, frac1, frac2))
+                                    print("testVector=", testVector)
 
-                                    print "dist0=%s; dist1=%s; dist2=%s; nearDist=%s" % (
+                                    print("dist0=%s; dist1=%s; dist2=%s; nearDist=%s" % (
                                         testCoord.angularSeparation(ctrCoord0).asDegrees(),
                                         testCoord.angularSeparation(ctrCoord1).asDegrees(),
                                         testCoord.angularSeparation(ctrCoord2).asDegrees(),
                                         testCoord.angularSeparation(nearestCtrCoord).asDegrees(),
-                                    )
+                                    ))
                                     self.fail("Expected nearest tractId=%s; got tractId=%s" %
                                               (expectedTractId, nearestTractId))
 

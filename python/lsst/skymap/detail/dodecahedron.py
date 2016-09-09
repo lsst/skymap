@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import math
 import itertools
 import numpy
@@ -253,8 +254,8 @@ if __name__ == "__main__":
     import lsst.afw.coord as afwCoord
     import lsst.afw.geom as afwGeom
 
-    print "Dodecahedron with vertices on poles"
+    print("Dodecahedron with vertices on poles")
     vertexDodec = Dodecahedron(withFacesOnPoles=False)
     for i in range(12):
         faceVec = vertexDodec.getFaceCtr(i)
-        print "Face %2d: %s" % (i, faceVec)
+        print("Face %2d: %s" % (i, faceVec))

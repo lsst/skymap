@@ -28,7 +28,7 @@ import numpy
 # import when it comes time to using it.
 try:
     import healpy
-except Exception, e:
+except Exception as e:
     class DummyHealpy(object):
         """An object which blows up when we try to read it"""
 

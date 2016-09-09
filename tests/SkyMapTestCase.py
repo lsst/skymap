@@ -180,7 +180,7 @@ class SkyMapTestCase(unittest.TestCase):
                 otherCtrCoord = tractInfo1.getCtrCoord()
                 distList.append(ctrCoord.angularSeparation(otherCtrCoord))
             distList.sort()
-            self.assertEquals(distList[0], 0.0)
+            self.assertEqual(distList[0], 0.0)
             for dist in distList[1:self._numNeighbors]:
                 self.assertAlmostEqual(dist, self._NeighborAngularSeparation)
 
