@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -10,14 +10,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
@@ -45,16 +45,16 @@ for tractOverlap in (0.0, 0.33, 1.0, 3.5):
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)
         ctrSkyPosDeg = ctrCoord.getPosition(afwGeom.degrees)
-        leftCoord   = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPixPos[1]))
-        rightCoord  = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
-        topCoord    = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
+        leftCoord = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPixPos[1]))
+        rightCoord = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
+        topCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
         bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
         xSpan = leftCoord.angularSeparation(rightCoord).asDegrees()
         ySpan = bottomCoord.angularSeparation(topCoord).asDegrees()
         print "%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" % \
-            (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1], \
-            dimensions[0], dimensions[1], numPix, xSpan, ySpan)
-    
+            (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1],
+             dimensions[0], dimensions[1], numPix, xSpan, ySpan)
+
     pixelScaleRad = afwGeom.Angle(skyMap.config.pixelScale, afwGeom.arcseconds).asRadians()
     nomPixelAreaRad2 = pixelScaleRad**2 # nominal area of a pixel in rad^2
     numPixToTileSphere = 4 * math.pi / nomPixelAreaRad2

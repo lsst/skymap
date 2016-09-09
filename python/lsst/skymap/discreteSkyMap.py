@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010, 2012 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -27,6 +27,7 @@ from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
 __all__ = ["DiscreteSkyMap"]
+
 
 class DiscreteSkyMapConfig(CachingSkyMap.ConfigClass):
     """Configuration for the DiscreteSkyMap"""
@@ -66,8 +67,6 @@ class DiscreteSkyMap(CachingSkyMap):
         center = IcrsCoord(self.config.raList[index] * afwGeom.degrees,
                            self.config.decList[index] * afwGeom.degrees)
         radius = self.config.radiusList[index]
-        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
+        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
                                  radius * afwGeom.degrees, self.config.tractOverlap * afwGeom.degrees, wcs)
-
-

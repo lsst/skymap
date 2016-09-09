@@ -32,6 +32,7 @@ import lsst.afw.image as afwImage
 import lsst.daf.persistence as dafPersist
 from lsst.pipe.base.argumentParser import IdValueAction, DataIdContainer
 
+
 def bboxToRaDec(bbox, wcs):
     """Get the corners of a BBox and convert them to lists of RA and Dec."""
     corners = []
@@ -42,11 +43,13 @@ def bboxToRaDec(bbox, wcs):
     ra, dec = zip(*corners)
     return ra, dec
 
+
 def percent(values, p=0.5):
     """Return a value a faction of the way between the min and max values in a list."""
     m = min(values)
     interval = max(values) - m
     return m + p*interval
+
 
 def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None, showCcds=False):
     butler = dafPersist.Butler(rootDir)
@@ -115,8 +118,10 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
     else:
         fig.show()
 
+
 def splitId(argName):
     class SplitIdValueAction(IdValueAction):
+
         def __call__(self, parser, namespace, values, option_string):
             # Hack to use IdValueAction
             keyValues = [argName + "=" + str(values[0])]

@@ -16,9 +16,9 @@ coords = [(10.6750, 41.2667), # M31
           (161.9167, +58.0833), # Lockman
           (185.0, +47.1167), # NGC4258
           (213.7051, +53.0834), # DEEP2-Field1/EGS
-          (242.7875,+54.95), # EliasN1
-          (334.1875,+00.2833), # SA22
-          (352.3125,-00.4333), # DEEP2-Field3
+          (242.7875, +54.95), # EliasN1
+          (334.1875, +00.2833), # SA22
+          (352.3125, -00.4333), # DEEP2-Field3
           (270.0, +66.56), # North Ecliptic Pole
           ]
 
@@ -26,6 +26,7 @@ config = DiscreteSkyMap.ConfigClass()
 config.raList = [c[0] for c in coords]
 config.decList = [c[1] for c in coords]
 config.radiusList = [2] * len(coords)
+
 
 class DiscreteTestCase(SkyMapTestCase):
     _NumTracts = len(coords) # Number of tracts to expect

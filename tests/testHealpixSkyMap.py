@@ -20,13 +20,13 @@ config = HealpixSkyMap.ConfigClass()
 global nside
 nside = 2**config.log2NSide
 
+
 class HealpixTestCase(SkyMapTestCase):
     _NumTracts = healpy.nside2npix(nside) # Number of tracts to expect
     _NeighborAngularSeparation = healpy.max_pixrad(nside) * afwGeom.radians # Expected tract separation
     _SkyMapClass = HealpixSkyMap # Class of SkyMap to test
     _SkyMapName = "healpix" # Name of SkyMap class to test
     _numNeighbors = 1 # Number of neighbours
-
 
 
 def suite():

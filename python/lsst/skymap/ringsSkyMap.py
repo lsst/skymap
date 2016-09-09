@@ -1,7 +1,7 @@
-# 
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010, 2012 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +9,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -29,6 +29,7 @@ from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
 __all__ = ["RingsSkyMap"]
+
 
 class RingsSkyMapConfig(CachingSkyMap.ConfigClass):
     """Configuration for the RingsSkyMap"""
@@ -100,7 +101,7 @@ class RingsSkyMap(CachingSkyMap):
             ra = math.fmod(self.config.raStart + 2*math.pi*tractNum/self._ringNums[ringNum], 2*math.pi)
 
         center = IcrsCoord(ra*afwGeom.radians, dec*afwGeom.radians)
-        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
+        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
                                  0.5*self._ringSize*afwGeom.radians, self.config.tractOverlap*afwGeom.degrees,
                                  wcs)
@@ -132,8 +133,8 @@ class RingsSkyMap(CachingSkyMap):
             return self[-1]
 
         ringNum = int((dec - firstRingStart)/self._ringSize)
-        tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi)/
-                      (2*math.pi/self._ringNums[ringNum]) + 0.5)
+        tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi) /
+                       (2*math.pi/self._ringNums[ringNum]) + 0.5)
 
         index = tractNum + 1 # Allow 1 for south pole
         for i in range(ringNum):
@@ -171,8 +172,8 @@ class RingsSkyMap(CachingSkyMap):
         for r in [ringNum - 1, ringNum, ringNum + 1]:
             if r < 0 or r > self.config.numRings - 1:
                 continue
-            tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi)/
-                          (2*math.pi/self._ringNums[r]) + 0.5)
+            tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi) /
+                           (2*math.pi/self._ringNums[r]) + 0.5)
             # Adjacent tracts will also be checked.
             for t in [tractNum - 1, tractNum, tractNum + 1]:
                 # Wrap over raStart
@@ -191,7 +192,7 @@ class RingsSkyMap(CachingSkyMap):
 
         # Always check tracts at poles
         # Southern cap is 0, Northern cap is the last entry in self
-        for entry in [0,len(self)-1]:
+        for entry in [0, len(self)-1]:
             tract = self[entry]
             if tract.getBBox().contains(afwGeom.Point2I(tract.getWcs().skyToPixel(coord.toIcrs()))):
                 tractList.append(tract)

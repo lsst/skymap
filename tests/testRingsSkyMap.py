@@ -10,6 +10,7 @@ from lsst.skymap.ringsSkyMap import RingsSkyMap
 config = RingsSkyMap.ConfigClass()
 config.numRings = 3
 
+
 class RingsTestCase(SkyMapTestCase):
     _NumTracts = 26 # Number of tracts to expect
     _NeighborAngularSeparation = None # Expected tract separation

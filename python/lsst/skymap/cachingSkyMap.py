@@ -14,13 +14,14 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the LSST License Statement and
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
 from .baseSkyMap import BaseSkyMap
+
 
 class CachingSkyMap(BaseSkyMap):
     """A SkyMap that generates its tracts on request and caches them
@@ -32,6 +33,7 @@ class CachingSkyMap(BaseSkyMap):
     Subclassers should also check that the arguments to the constructor are
     consistent with the below __reduce__ method.
     """
+
     def __init__(self, numTracts, config=None, version=0):
         super(CachingSkyMap, self).__init__(config)
         self._numTracts = numTracts
