@@ -40,7 +40,7 @@ import lsst.afw.geom as afwGeom
 
 def reportSkyMapInfo(skyMap):
     paramDict = skyMap.config.toDict()
-    paramNameList = sorted(paramDict.keys())
+    paramNameList = sorted(paramDict)
     print("Sky Map parameters:")
     for paramName in paramNameList:
         param = paramDict[paramName]
