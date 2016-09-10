@@ -30,13 +30,12 @@ config.radiusList = [2] * len(coords)
 class DiscreteTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        s_cls = skyMapTestCase.SkyMapTestCase
-        s_cls._NumTracts = len(coords)  # Number of tracts to expect
-        s_cls._NeighborAngularSeparation = None  # Expected tract separation
-        s_cls._SkyMapClass = DiscreteSkyMap  # Class of SkyMap to test
-        s_cls._SkyMapConfig = config  # Configuration to use
-        s_cls._SkyMapName = "discrete"  # Name of SkyMap class to test
-        s_cls._numNeighbors = None  # Number of neighbours
+        self._NumTracts = len(coords)  # Number of tracts to expect
+        self._NeighborAngularSeparation = None  # Expected tract separation
+        self._SkyMapClass = DiscreteSkyMap  # Class of SkyMap to test
+        self._SkyMapConfig = config  # Configuration to use
+        self._SkyMapName = "discrete"  # Name of SkyMap class to test
+        self._numNeighbors = None  # Number of neighbours
 
     def testTractSeparation(self):
         self.skipTest("A particular tract separation is not important for DiscreteSkyMap")

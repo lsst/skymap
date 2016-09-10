@@ -45,13 +45,12 @@ _DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
 class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        s_cls = skyMapTestCase.SkyMapTestCase
-        s_cls._NumTracts = 12  # Number of tracts to expect
-        s_cls._NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) \
+        self._NumTracts = 12  # Number of tracts to expect
+        self._NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) \
             - _DihedralAngle  # Tract separation
-        s_cls._SkyMapClass = DodecaSkyMap  # Class of SkyMap to test
-        s_cls._SkyMapName = "dodeca"  # Name of SkyMap class to test
-        s_cls._numNeighbors = 6  # Number of neighbours
+        self._SkyMapClass = DodecaSkyMap  # Class of SkyMap to test
+        self._SkyMapName = "dodeca"  # Name of SkyMap class to test
+        self._numNeighbors = 6  # Number of neighbours
 
     def testFindTract(self):
         """Test findTract and tractInfo.findPatch

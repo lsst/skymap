@@ -13,23 +13,24 @@ except:
 from lsst.skymap.healpixSkyMap import HealpixSkyMap
 
 
-config = HealpixSkyMap.ConfigClass()
-global nside
-nside = 2**config.log2NSide
-
-
 class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
         if not healpy:
             self.skipTest("Missing healpy dependency.")
-        s_cls = skyMapTestCase.SkyMapTestCase
-        s_cls._NumTracts = healpy.nside2npix(nside)  # Number of tracts to expect
-        s_cls._NeighborAngularSeparation = healpy.max_pixrad(
+
+        self.config = HealpixSkyMap.ConfigClass()
+        nside = 2**self.config.log2NSide
+        self._NumTracts = healpy.nside2npix(nside)  # Number of tracts to expect
+        self._NeighborAngularSeparation = healpy.max_pixrad(
             nside) * afwGeom.radians  # Expected tract separation
-        s_cls._SkyMapClass = HealpixSkyMap  # Class of SkyMap to test
-        s_cls._SkyMapName = "healpix"  # Name of SkyMap class to test
-        s_cls._numNeighbors = 1  # Number of neighbours
+        self._SkyMapClass = HealpixSkyMap  # Class of SkyMap to test
+        self._SkyMapName = "healpix"  # Name of SkyMap class to test
+        self._numNeighbors = 1  # Number of neighbours
+
+    def tearDown(self):
+        if hasattr(self, "config"):
+            del self.config
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):

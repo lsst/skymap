@@ -14,13 +14,12 @@ config.numRings = 3
 class RingsTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        s_cls = skyMapTestCase.SkyMapTestCase
-        s_cls._NumTracts = 26  # Number of tracts to expect
-        s_cls._NeighborAngularSeparation = None  # Expected tract separation
-        s_cls._SkyMapClass = RingsSkyMap  # Class of SkyMap to test
-        s_cls._SkyMapConfig = config  # Configuration to use
-        s_cls._SkyMapName = "rings"  # Name of SkyMap class to test
-        s_cls._numNeighbors = None  # Number of neighbours
+        self._NumTracts = 26  # Number of tracts to expect
+        self._NeighborAngularSeparation = None  # Expected tract separation
+        self._SkyMapClass = RingsSkyMap  # Class of SkyMap to test
+        self._SkyMapConfig = config  # Configuration to use
+        self._SkyMapName = "rings"  # Name of SkyMap class to test
+        self._numNeighbors = None  # Number of neighbours
 
     def testTractSeparation(self):
         self.skipTest("A particular tract separation is not important for RingsSkyMap")
