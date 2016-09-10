@@ -175,7 +175,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             distList.sort()
             self.assertEqual(distList[0], 0.0)
             for dist in distList[1:self._numNeighbors]:
-                self.assertAlmostEqual(dist, self._NeighborAngularSeparation)
+                self.assertAnglesNearlyEqual(dist, self._NeighborAngularSeparation)
 
     def testFindPatchList(self):
         """Test findTract.findPatchList
