@@ -71,7 +71,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             skyMap = EquatSkyMap(config)
             for tractInfo in skyMap[0:1]:
                 numPatches = tractInfo.getNumPatches()
-                midXIndex = numPatches[0] / 2
+                midXIndex = numPatches[0]//2
                 minPixelPosList = []
                 maxPixelPosList = []
                 maxYInd = numPatches[1] - 1
@@ -177,8 +177,8 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             # compare a few patches
             numPatches = tractInfo.getNumPatches()
             patchBorder = skyMap.config.patchBorder
-            for xInd in (0, 1, numPatches[0]/2, numPatches[0]-2, numPatches[0]-1):
-                for yInd in (0, 1, numPatches[1]/2, numPatches[1]-2, numPatches[1]-1):
+            for xInd in (0, 1, numPatches[0]//2, numPatches[0]-2, numPatches[0]-1):
+                for yInd in (0, 1, numPatches[1]//2, numPatches[1]-2, numPatches[1]-1):
                     patchInfo = tractInfo.getPatchInfo((xInd, yInd))
                     unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
                     self.assertEqual(patchInfo, unpickledPatchInfo)
