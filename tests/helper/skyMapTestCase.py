@@ -22,16 +22,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 from builtins import zip
-import itertools
-import math
-import os
 import pickle
-import sys
-import unittest
 
-import numpy
-
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
 

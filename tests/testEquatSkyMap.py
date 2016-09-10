@@ -25,11 +25,7 @@
 """
 from builtins import zip
 from builtins import range
-import itertools
-import math
-import os
 import pickle
-import sys
 import unittest
 
 import numpy

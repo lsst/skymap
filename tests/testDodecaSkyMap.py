@@ -24,11 +24,7 @@
 """Test DodecaSkyMap class
 """
 from __future__ import print_function
-import itertools
 import math
-import os
-import pickle
-import sys
 import unittest
 
 import numpy
@@ -37,8 +33,8 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
 
-from lsst.skymap import DodecaSkyMap, skyMapRegistry
-from SkyMapTestCase import SkyMapTestCase
+from lsst.skymap import DodecaSkyMap
+from helper import skyMapTestCase
 
 
 # dodecahedron properties
@@ -46,10 +42,10 @@ _Phi = (1.0 + math.sqrt(5.0)) / 2.0
 _DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
 
 
-class DodecaSkyMapTestCase(SkyMapTestCase):
+class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        s_cls = SkyMapTestCase
+        s_cls = skyMapTestCase.SkyMapTestCase
         s_cls._NumTracts = 12  # Number of tracts to expect
         s_cls._NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) \
             - _DihedralAngle  # Tract separation

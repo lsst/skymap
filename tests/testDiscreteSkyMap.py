@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-import lsst.utils.tests
 import unittest
 
-import lsst.afw.geom as afwGeom
+import lsst.utils.tests
 
 from lsst.skymap.discreteSkyMap import DiscreteSkyMap
-from SkyMapTestCase import SkyMapTestCase
+from helper import skyMapTestCase
 
 
 # These are the PS1 Medium-Deep fields
@@ -28,10 +27,10 @@ config.decList = [c[1] for c in coords]
 config.radiusList = [2] * len(coords)
 
 
-class DiscreteTestCase(SkyMapTestCase):
+class DiscreteTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        s_cls = SkyMapTestCase
+        s_cls = skyMapTestCase.SkyMapTestCase
         s_cls._NumTracts = len(coords)  # Number of tracts to expect
         s_cls._NeighborAngularSeparation = None  # Expected tract separation
         s_cls._SkyMapClass = DiscreteSkyMap  # Class of SkyMap to test

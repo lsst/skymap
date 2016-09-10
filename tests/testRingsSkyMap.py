@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 import unittest
+
 import lsst.utils.tests
 
-import lsst.afw.geom as afwGeom
 from lsst.skymap.ringsSkyMap import RingsSkyMap
-from SkyMapTestCase import SkyMapTestCase
+from helper import skyMapTestCase
 
 
 config = RingsSkyMap.ConfigClass()
 config.numRings = 3
 
 
-class RingsTestCase(SkyMapTestCase):
+class RingsTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        s_cls = SkyMapTestCase
+        s_cls = skyMapTestCase.SkyMapTestCase
         s_cls._NumTracts = 26  # Number of tracts to expect
         s_cls._NeighborAngularSeparation = None  # Expected tract separation
         s_cls._SkyMapClass = RingsSkyMap  # Class of SkyMap to test

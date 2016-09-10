@@ -3,14 +3,12 @@ from __future__ import print_function
 import unittest
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
-from SkyMapTestCase import SkyMapTestCase
+from helper import skyMapTestCase
 
 try:
     import healpy
 except:
-    import sys
-    print("WARNING: not testing HealpixSkyMap because healpy can't be imported.", file=sys.stderr)
-    sys.exit(0)
+    healpy = None
 
 from lsst.skymap.healpixSkyMap import HealpixSkyMap
 
@@ -20,12 +18,12 @@ global nside
 nside = 2**config.log2NSide
 
 
-class HealpixTestCase(SkyMapTestCase):
+class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        if not healpy_installed:
-            unittest.skipTest("Missing healpy dependency.")
-        s_cls = SkyMapTestCase
+        if not healpy:
+            self.skipTest("Missing healpy dependency.")
+        s_cls = skyMapTestCase.SkyMapTestCase
         s_cls._NumTracts = healpy.nside2npix(nside)  # Number of tracts to expect
         s_cls._NeighborAngularSeparation = healpy.max_pixrad(
             nside) * afwGeom.radians  # Expected tract separation
