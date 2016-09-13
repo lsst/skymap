@@ -22,6 +22,7 @@
 #
 """Display sky map geometry as a 3d plot
 """
+from builtins import zip
 import math
 import numpy
 
@@ -44,11 +45,11 @@ for tractInfo in skyMap:
     inX, inY, inZ = zip(*innerPoints)
     lineList = ax.plot(inX, inY, inZ, label="Inner tractInfo %s" % (tractInfo.getId(),))
     color = lineList[0].get_color()
-    
+
     # display center
     centerPoint = numpy.mean(innerPoints[0:-1], axis=0)
     ax.plot([centerPoint[0]], [centerPoint[1]], [centerPoint[2]], ".", color=color)
-    
+
     # display outer edge; scale to be approximately in the same plane as the inner region
     wcs = tractInfo.getWcs()
     bbox = tractInfo.getBBox()

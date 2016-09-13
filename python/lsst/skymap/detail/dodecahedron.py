@@ -1,20 +1,25 @@
 #!/usr/bin/env python
+from __future__ import print_function
+from builtins import range
+from builtins import object
 import math
 import itertools
 import numpy
 
+
 class Dodecahedron(object):
     """A dodecahedron
-    
+
     Contains positions of faces and associated vertices
     """
+
     def __init__(self, withFacesOnPoles=False):
         """Construct a Dodecahedron
-        
+
         @param[in] withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
         """
         self._withFacesOnPoles = bool(withFacesOnPoles)
-        
+
         # Basis cartesian vectors describing the faces of a dodecahedron; the full set of vectors is obtained
         # by choosing both signs of each nonzero component of each vector.
         # The orientation of the resulting dodecahedron, while very convenient
@@ -27,7 +32,7 @@ class Dodecahedron(object):
         )
         unrotFaceVecList = _computeFullVecList(faceBases)
         unrotVertexVecList = _computeDodecahedronVertices(unrotFaceVecList)
-        
+
         if self._withFacesOnPoles:
             # one face is centered on each pole
             vec0, vec1 = _findClosePair(unrotFaceVecList, 0)
@@ -42,14 +47,14 @@ class Dodecahedron(object):
 
     def getFaceCtrList(self):
         """Return a list of face centers
-        
+
         @return a list of face centers (in index order); each a unit vector (numpy array)
         """
         return self.faceVecList[:]
-    
+
     def getFaceCtr(self, ind):
         """Return the center of the specified face
-        
+
         @param[in] ind: face index
         @return face center as a unit vector (numpy array)
         """
@@ -57,13 +62,13 @@ class Dodecahedron(object):
 
     def getVertices(self, ind):
         """Return the vertices for a given face
-        
+
         @param[in] ind: face index
         @return a list of vertices, each a unit vector (numpy array)
         """
         faceVec = self.getFaceCtr(ind)
         vertexList, indList = _findCloseList(self.vertexVecList, faceVec)
-        
+
         # sort vertex list about face vector (direction is random)
         sortedVertexList = [vertexList[0]]
         vertexList = list(vertexList[1:])
@@ -75,27 +80,28 @@ class Dodecahedron(object):
 
     def getFaceInd(self, vec):
         """Return the index of the face containing the cartesian vector
-        
+
         @param[in] vec: cartesian vector (length is ignored)
         @return index of face containing vec
         """
         return numpy.argmax(numpy.dot(self.faceVecList, vec))
-    
+
     def getWithFacesOnPoles(self):
         """Get withFacesOnPoles parameter
         """
         return self._withFacesOnPoles
 
+
 def computeRotationMatrix(angle, axis):
     """Return a 3D rotation matrix for rotation by a specified amount around a specified axis
-    
+
     Inputs:
     - angle: amount of rotation (rad)
     - axis: axis of rotation; one of 0, 1 or 2 for x, y or z
     """
     cosAng = math.cos(angle)
     sinAng = math.sin(angle)
-    rotMat = numpy.zeros((3,3), dtype=float)
+    rotMat = numpy.zeros((3, 3), dtype=float)
     rotMat[axis, axis] = 1
     rotMat[(axis + 1) % 3, (axis + 1) % 3] = cosAng
     rotMat[(axis + 2) % 3, (axis + 1) % 3] = sinAng
@@ -103,9 +109,10 @@ def computeRotationMatrix(angle, axis):
     rotMat[(axis + 2) % 3, (axis + 2) % 3] = cosAng
     return rotMat
 
+
 def _computeCoordTransform(vec0, vec1, vec1NegativeX=False):
     """Compute a rotation matrix that puts vec0 along z and vec1 along +x in the xz plane
-    
+
     Inputs:
     - vec0: vector 0
     - vec1: vector 1
@@ -120,7 +127,7 @@ def _computeCoordTransform(vec0, vec1, vec1NegativeX=False):
     yAng = -math.atan2(vec0RotX[0], vec0RotX[2])
     yRotMat = computeRotationMatrix(yAng, 1)
     xyRotMat = numpy.dot(yRotMat, xRotMat)
-    
+
     # rotate around z by -angle of rotated vec1 from +/-x to y
     vec1RotXY = numpy.dot(xyRotMat, vec1)
     xVal = vec1RotXY[0]
@@ -131,6 +138,7 @@ def _computeCoordTransform(vec0, vec1, vec1NegativeX=False):
     xyzRotMat = numpy.dot(zRotMat, xyRotMat)
     return xyzRotMat
 
+
 def _computeDodecahedronVertices(faceVecList):
     """Given a vector of face positions of a Dodecahedron compute the vertices
     """
@@ -139,16 +147,16 @@ def _computeDodecahedronVertices(faceVecList):
     for i in range(len(faceVecList)):
         closeIndSet = _findCloseIndexSet(faceVecList, i)
         if len(closeIndSet) != 5:
-            raise RuntimeError("Found %s vertices instead of 5 near %s: %s" % \
-                (len(closeIndSet), faceVecList[i], closeIndSet))
+            raise RuntimeError("Found %s vertices instead of 5 near %s: %s" %
+                               (len(closeIndSet), faceVecList[i], closeIndSet))
         closeIndSetList.append(closeIndSet)
     for i, iCloseIndSet in enumerate(closeIndSetList):
         for j in iCloseIndSet:
             jCloseIndSet = closeIndSetList[j]
             sharedCloseIndSet = iCloseIndSet.intersection(jCloseIndSet)
             if len(sharedCloseIndSet) != 2:
-                raise RuntimeError("Found %s vertices instead of 2 near %s and %s: %s" % \
-                    (len(sharedCloseIndSet), faceVecList[i], faceVecList[j], sharedCloseIndSet))
+                raise RuntimeError("Found %s vertices instead of 2 near %s and %s: %s" %
+                                   (len(sharedCloseIndSet), faceVecList[i], faceVecList[j], sharedCloseIndSet))
             for k in sharedCloseIndSet:
                 key = frozenset((i, j, k))
                 if key in vertexDict:
@@ -156,11 +164,12 @@ def _computeDodecahedronVertices(faceVecList):
                 vertexVec = faceVecList[i] + faceVecList[j] + faceVecList[k]
                 vertexVec /= numpy.sqrt(numpy.sum(vertexVec**2))
                 vertexDict[key] = vertexVec
-    return vertexDict.values()
+    return list(vertexDict.values())
+
 
 def _computeFullVecList(basisSet):
     """Given a collection of basis vectors, compute all permutations with both signs of all nonzero values
-    
+
     For example: [(0, 1, 2)] -> [(0, 1, 2), (0, -1, 2), (0, 1, -2), (0, -1, -2)]
     """
     fullSet = []
@@ -179,11 +188,12 @@ def _computeFullVecList(basisSet):
                         )
     return fullSet
 
+
 def _findCloseIndexSet(vecList, ind):
     """Given a list of cartesian vectors, return a set of indices of those closest to one of them
-    
+
     This is intended for regular grids where distances are quantized
-    
+
     Inputs:
     - vecList: list of cartesian vectors
     - ind: index of vector to be nearest
@@ -191,31 +201,33 @@ def _findCloseIndexSet(vecList, ind):
     dotProductList = numpy.round(numpy.dot(vecList, vecList[ind]), 2)
     dotProductList[ind] = -9e99
     minDist = numpy.max(dotProductList)
-    indList = numpy.arange(len(dotProductList))[dotProductList==minDist]
+    indList = numpy.arange(len(dotProductList))[dotProductList == minDist]
     return set(indList)
+
 
 def _findCloseList(vecList, vec):
     """Given a list of cartesian vectors, return all those closest to a specified position
-    
+
     This is intended for regular grids where distances are quantized
-    
+
     Inputs:
     - vecList: list of cartesian vectors
     - vec: vector to be near
-    
+
     @return two items:
     - list of closest vectors
     - list if indices of those vectors
     """
     dotProductList = numpy.round(numpy.dot(vecList, vec), 2)
     minDist = numpy.max(dotProductList)
-    indList = numpy.arange(len(dotProductList))[dotProductList==minDist]
+    indList = numpy.arange(len(dotProductList))[dotProductList == minDist]
     retList = numpy.take(vecList, indList, 0)
     return retList, indList
 
+
 def _findClosePair(vecList, ind=0):
     """Given a list of cartesian vectors and an index, return the vector and one of its closest neighbors
-    
+
     Inputs:
     - vecList: list of cartesian vectors
     - ind: index of first vector
@@ -224,7 +236,8 @@ def _findClosePair(vecList, ind=0):
     otherVecList = vecList[0:ind] + vecList[ind+1:]
     ind1 = numpy.argmax(numpy.dot(otherVecList, vec))
     return vec, otherVecList[ind1]
-    
+
+
 def _sortedVectorList(vecList):
     """Return a list of cartesian vectors sorted by decreasing latitude and increasing longitude
     """
@@ -243,8 +256,8 @@ if __name__ == "__main__":
     import lsst.afw.coord as afwCoord
     import lsst.afw.geom as afwGeom
 
-    print "Dodecahedron with vertices on poles"
+    print("Dodecahedron with vertices on poles")
     vertexDodec = Dodecahedron(withFacesOnPoles=False)
     for i in range(12):
         faceVec = vertexDodec.getFaceCtr(i)
-        print "Face %2d: %s" % (i, faceVec)
+        print("Face %2d: %s" % (i, faceVec))

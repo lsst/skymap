@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from builtins import zip
+from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -35,9 +37,10 @@ import matplotlib.pyplot as plt
 
 import lsst.afw.geom as afwGeom
 
+
 def reportSkyMapInfo(skyMap):
     paramDict = skyMap.config.toDict()
-    paramNameList = sorted(paramDict.iterkeys())
+    paramNameList = sorted(paramDict)
     print("Sky Map parameters:")
     for paramName in paramNameList:
         param = paramDict[paramName]
@@ -55,9 +58,10 @@ def reportSkyMapInfo(skyMap):
         )
         skyPosList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees) for pos in pixelPosList]
         posStrList = ["(%0.3f, %0.3f)" % tuple(skyPos) for skyPos in skyPosList]
-        print("tract %s has corners %s (RA, Dec deg) and %s x %s patches" % \
-            (tractInfo.getId(), ", ".join(posStrList), \
-            tractInfo.getNumPatches()[0], tractInfo.getNumPatches()[1]))
+        print("tract %s has corners %s (RA, Dec deg) and %s x %s patches" %
+              (tractInfo.getId(), ", ".join(posStrList),
+               tractInfo.getNumPatches()[0], tractInfo.getNumPatches()[1]))
+
 
 def plotSkyMap3d(skyMap):
     fig = plt.figure()
@@ -67,8 +71,8 @@ def plotSkyMap3d(skyMap):
     # make sure a complete 1x1x1 cube is shown -- what I really want is to constrain the aspect ratio
     # but that is not yet supported for 3D plots
     for direction in (-1, 1):
-        for point in numpy.diag(direction * numpy.array([1,1,1])):
-            ax.plot([point[0]], [point[1]], [point[2]], 'w')    
+        for point in numpy.diag(direction * numpy.array([1, 1, 1])):
+            ax.plot([point[0]], [point[1]], [point[2]], 'w')
 
     for tractInfo in skyMap:
         # display outer edge; scale to be approximately in the same plane as the inner region
@@ -76,21 +80,21 @@ def plotSkyMap3d(skyMap):
         posBox = afwGeom.Box2D(tractInfo.getBBox())
         xRange = posBox.getMinX(), posBox.getMaxX()
         yRange = posBox.getMinY(), posBox.getMaxY()
-        
+
         numX = min(50, max(1, ((xRange[1] - xRange[0]) // 100)))
         numY = min(50, max(1, ((yRange[1] - yRange[0]) // 100)))
-        
+
         outerPixPosList = \
-              [(x, yRange[0]) for x in numpy.linspace(xRange[0], xRange[1], num=numX, endpoint=False)] \
+            [(x, yRange[0]) for x in numpy.linspace(xRange[0], xRange[1], num=numX, endpoint=False)] \
             + [(xRange[1], y) for y in numpy.linspace(yRange[0], yRange[1], num=numY, endpoint=False)] \
             + [(x, yRange[1]) for x in numpy.linspace(xRange[1], xRange[0], num=numX, endpoint=False)] \
             + [(xRange[0], y) for y in numpy.linspace(yRange[1], yRange[0], num=numY, endpoint=False)]
         outerPixPosList.append(outerPixPosList[0])
-        
+
         outerPoints = [numpy.array(wcs.pixelToSky(p[0], p[1]).getVector()) for p in outerPixPosList]
         outX, outY, outZ = zip(*outerPoints)
         ax.plot(outX, outY, outZ)
-    
+
     plt.show()
 
 
@@ -136,6 +140,7 @@ class DefaultProjector(object):
         x, y = self.project(coord)
         return self.recenter(x, y)
 
+
 class PoleProjector(DefaultProjector):
     """A projection at the north pole"""
     xLabel = "x"
@@ -150,6 +155,7 @@ class PoleProjector(DefaultProjector):
     def recenter(self, x, y):
         """No recentering required."""
         return x, y
+
 
 def makePlotter(Projector=DefaultProjector):
     """Make a function that will plot a SkyMap in 2D
@@ -183,7 +189,7 @@ def makePlotter(Projector=DefaultProjector):
                            (xList, yMax*numpy.ones(num)),
                            (xMin*numpy.ones(num), yList),
                            ):
-                coords = [wcs.pixelToSky(afwGeom.Point2D(x,y)) for x,y in zip(xs,ys)]
+                coords = [wcs.pixelToSky(afwGeom.Point2D(x, y)) for x, y in zip(xs, ys)]
                 bounds = [proj.projectWithRecenter(c) for c in coords]
                 axes.plot([b[0] for b in bounds], [b[1] for b in bounds], color + '-')
 
@@ -200,7 +206,7 @@ if __name__ == "__main__":
                   }
     parser = argparse.ArgumentParser()
     parser.add_argument("skymap", nargs=1, help="Path to skymap pickle")
-    parser.add_argument("--style", choices=plotStyles.keys(), default="3d", help="Plot style to use")
+    parser.add_argument("--style", choices=list(plotStyles.keys()), default="3d", help="Plot style to use")
     args = parser.parse_args()
 
     with file(args.skymap[0], "r") as f:

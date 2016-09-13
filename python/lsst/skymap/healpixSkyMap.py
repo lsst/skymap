@@ -1,7 +1,9 @@
-# 
+from builtins import zip
+from builtins import object
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010, 2012 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +11,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
@@ -28,9 +30,10 @@ import numpy
 # import when it comes time to using it.
 try:
     import healpy
-except Exception, e:
+except Exception as e:
     class DummyHealpy(object):
         """An object which blows up when we try to read it"""
+
         def __getattr__(self, name):
             raise RuntimeError("Was unable to import healpy: %s" % e)
     healpy = DummyHealpy()
@@ -51,6 +54,7 @@ def angToCoord(thetaphi):
     """
     return IcrsCoord(float(thetaphi[1])*afwGeom.radians, float(thetaphi[0] - 0.5*numpy.pi)*afwGeom.radians)
 
+
 def coordToAng(coord):
     """Convert an afw Coord to a healpy ang (theta, phi)
 
@@ -58,12 +62,14 @@ def coordToAng(coord):
     """
     return (coord.getLatitude().asRadians() + 0.5*numpy.pi, coord.getLongitude().asRadians())
 
+
 class HealpixTractInfo(TractInfo):
     """Tract for the HealpixSkyMap"""
+
     def __init__(self, nSide, ident, nest, patchInnerDimensions, patchBorder, ctrCoord, tractOverlap, wcs):
         """Set vertices from nside, ident, nest"""
         theta, phi = healpy.vec2ang(numpy.transpose(healpy.boundaries(nSide, ident, nest=nest)))
-        vertexList = [angToCoord(thetaphi) for thetaphi in zip(theta,phi)]
+        vertexList = [angToCoord(thetaphi) for thetaphi in zip(theta, phi)]
         super(HealpixTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                vertexList, tractOverlap, wcs)
 
@@ -72,8 +78,10 @@ class HealpixSkyMapConfig(CachingSkyMap.ConfigClass):
     """Configuration for the HealpixSkyMap"""
     log2NSide = Field(dtype=int, default=0, doc="Number of sides, expressed in powers of 2")
     nest = Field(dtype=bool, default=False, doc="Use NEST ordering instead of RING?")
+
     def setDefaults(self):
         self.rotation = 45 # HEALPixels are oriented at 45 degrees
+
 
 class HealpixSkyMap(CachingSkyMap):
     """HEALPix-based sky map pixelization.
@@ -103,9 +111,7 @@ class HealpixSkyMap(CachingSkyMap):
     def generateTract(self, index):
         """Get the TractInfo for a particular index"""
         center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
-        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0,0), crValCoord=center)
+        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,
                                 self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
                                 wcs)
-
-

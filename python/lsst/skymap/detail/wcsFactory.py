@@ -1,7 +1,9 @@
-# 
+from builtins import range
+from builtins import object
+#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
-# 
+#
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
 #
@@ -9,14 +11,14 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
-# You should have received a copy of the LSST License Statement and 
-# the GNU General Public License along with this program.  If not, 
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import math
@@ -26,12 +28,14 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 
+
 class WcsFactory(object):
     """A factory for creating Wcs objects for the sky tiles.
     """
+
     def __init__(self, pixelScale, projection, rotation=0*afwGeom.radians):
         """Make a WcsFactory
-        
+
         @param[in] pixelScale: desired scale, as sky/pixel, an afwGeom.Angle
         @param[in] projection: FITS-standard 3-letter name of projection, e.g.:
             TAN (tangent), STG (stereographic), MOL (Mollweide's), AIT (Hammer-Aitoff)
@@ -51,11 +55,11 @@ class WcsFactory(object):
                           "CD2_2": cosTerm,
                           }
         self._ctypes = [("%-5s%3s" % (("RA", "DEC")[i], self._projection)).replace(" ", "-")
-            for i in range(2)]
+                        for i in range(2)]
 
     def makeWcs(self, crPixPos, crValCoord, **kargs):
         """Make a Wcs
-        
+
         @param[in] crPixPos: crPix for WCS, using the LSST standard; an afwGeom.Point2D or pair of floats
         @param[in] crValCoord: crVal for WCS (afwCoord.Coord)
         **kargs: FITS keyword arguments for WCS
@@ -70,6 +74,6 @@ class WcsFactory(object):
             ps.add("CRVAL%1d" % (ip1,), crValDeg[i])
         ps.add("RADECSYS", "ICRS")
         ps.add("EQUINOX", 2000)
-        for k,v in self._cdMatrix.items() + kargs.items():
+        for k, v in list(self._cdMatrix.items()) + list(kargs.items()):
             ps.add(k, v)
         return afwImage.makeWcs(ps)

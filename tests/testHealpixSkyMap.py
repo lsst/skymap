@@ -1,50 +1,46 @@
 #!/usr/bin/env python
-
-import lsst.utils.tests as utilsTests
+from __future__ import print_function
 import unittest
-
+import lsst.afw.geom as afwGeom
+import lsst.utils.tests
+from helper import skyMapTestCase
 
 try:
     import healpy
 except:
-    import sys
-    print >>sys.stderr, "WARNING: not testing HealpixSkyMap because healpy can't be imported."
-    sys.exit(0)
+    healpy = None
 
-
-import lsst.afw.geom as afwGeom
-from SkyMapTestCase import SkyMapTestCase
 from lsst.skymap.healpixSkyMap import HealpixSkyMap
 
-config = HealpixSkyMap.ConfigClass()
-global nside
-nside = 2**config.log2NSide
 
-class HealpixTestCase(SkyMapTestCase):
-    _NumTracts = healpy.nside2npix(nside) # Number of tracts to expect
-    _NeighborAngularSeparation = healpy.max_pixrad(nside) * afwGeom.radians # Expected tract separation
-    _SkyMapClass = HealpixSkyMap # Class of SkyMap to test
-    _SkyMapName = "healpix" # Name of SkyMap class to test
-    _numNeighbors = 1 # Number of neighbours
+class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
 
+    def setUp(self):
+        if not healpy:
+            self.skipTest("Missing healpy dependency.")
 
+        self.config = HealpixSkyMap.ConfigClass()
+        nside = 2**self.config.log2NSide
+        self._NumTracts = healpy.nside2npix(nside)  # Number of tracts to expect
+        self._NeighborAngularSeparation = healpy.max_pixrad(
+            nside) * afwGeom.radians  # Expected tract separation
+        self._SkyMapClass = HealpixSkyMap  # Class of SkyMap to test
+        self._SkyMapName = "healpix"  # Name of SkyMap class to test
+        self._numNeighbors = 1  # Number of neighbours
 
-def suite():
-    """Return a suite containing all the test cases in this module.
-    """
-    utilsTests.init()
-
-    suites = [
-        unittest.makeSuite(HealpixTestCase),
-        unittest.makeSuite(utilsTests.MemoryTestCase),
-    ]
-
-    return unittest.TestSuite(suites)
+    def tearDown(self):
+        if hasattr(self, "config"):
+            del self.config
 
 
-def run(shouldExit=False):
-    """Run the tests"""
-    utilsTests.run(suite(), shouldExit)
+class MemoryTester(lsst.utils.tests.MemoryTestCase):
+    pass
+
+
+def setup_module(module):
+    lsst.utils.tests.init()
+
 
 if __name__ == "__main__":
-    run(True)
+    lsst.utils.tests.init()
+    unittest.main()
