@@ -303,6 +303,15 @@ class TractInfo(object):
     def __getitem__(self, index):
         return self.getPatchInfo(index)
 
+    def contains(self, coord):
+        """Does this tract contain the coordinate?"""
+        try:
+            pixels = self.getWcs().skyToPixel(coord.toIcrs())
+        except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+            # Point must be way off the tract
+            return False
+        return self.getBBox().contains(afwGeom.Point2I(pixels))
+
 
 class ExplicitTractInfo(TractInfo):
     """Information for a tract specified explicitly

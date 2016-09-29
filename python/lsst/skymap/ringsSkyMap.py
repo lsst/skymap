@@ -23,7 +23,6 @@ from builtins import range
 
 import math
 
-import lsst.pex.exceptions as pexExceptions
 from lsst.pex.config import Field
 from lsst.afw.coord import IcrsCoord
 import lsst.afw.geom as afwGeom
@@ -169,17 +168,6 @@ class RingsSkyMap(CachingSkyMap):
         ringNum = int((dec - firstRingStart)/self._ringSize)
 
         tractList = list()
-
-        def coordInTract(tract):
-            """Is the 'icrsCoord' in the tract?"""
-            try:
-                pixels = tract.getWcs().skyToPixel(icrsCoord)
-            except (pexExceptions.DomainError, pexExceptions.RuntimeError):
-                # Point must be way off the tract
-                return False
-            return tract.getBBox().contains(afwGeom.Point2I(pixels))
-
-
         # ringNum denotes the closest ring to the specified coord
         # I will check adjacent rings which may include the specified coord
         for r in [ringNum - 1, ringNum, ringNum + 1]:
@@ -200,14 +188,14 @@ class RingsSkyMap(CachingSkyMap):
                     index += self._ringNums[i]
 
                 tract = self[index]
-                if coordInTract(tract):
+                if tract.contains(icrsCoord):
                     tractList.append(tract)
 
         # Always check tracts at poles
         # Southern cap is 0, Northern cap is the last entry in self
         for entry in [0, len(self)-1]:
             tract = self[entry]
-            if coordInTract(tract):
+            if tract.contains(icrsCoord):
                 tractList.append(tract)
 
         return tractList

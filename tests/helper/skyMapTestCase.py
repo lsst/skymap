@@ -25,6 +25,7 @@ from builtins import zip
 import pickle
 
 import lsst.afw.geom as afwGeom
+import lsst.afw.coord as afwCoord
 import lsst.utils.tests
 
 from lsst.skymap import skyMapRegistry
@@ -252,6 +253,16 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                     coordList=[tractInfo.getVertexList()[2]],
                     knownTractId=tractId,
                 )
+
+    def testTractContains(self):
+        """Test that TractInfo.contains works"""
+        skyMap = self.getSkyMap()
+        for tract in skyMap:
+            coord = tract.getCtrCoord()
+            self.assertTrue(tract.contains(coord))
+            opposite = afwCoord.IcrsCoord(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
+            self.assertFalse(tract.contains(opposite))
+
 
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
