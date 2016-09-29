@@ -189,7 +189,7 @@ class TractInfo(object):
         for coord in coordList:
             try:
                 pixelPos = self.getWcs().skyToPixel(coord.toIcrs())
-            except lsst.pex.exceptions.Exception:
+            except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
                 # the point is so far off the tract that its pixel position cannot be computed
                 continue
             box2D.include(pixelPos)
