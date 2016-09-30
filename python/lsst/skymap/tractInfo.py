@@ -157,11 +157,18 @@ class TractInfo(object):
         @param[in] coord: sky coordinate (afwCoord.Coord)
         @return PatchInfo of patch whose inner bbox contains the specified coord
 
-        @raise LookupError if coord is not in tract
+        @raise LookupError if coord is not in tract or we cannot determine the
+            pixel coordinate (which likely means the coord is off the tract).
 
         @note This routine will be more efficient if coord is ICRS.
         """
-        pixelInd = afwGeom.Point2I(self.getWcs().skyToPixel(coord.toIcrs()))
+        icrsCoord = coord.toIcrs()
+        try:
+            pixel = self.getWcs().skyToPixel(icrsCoord)
+        except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+            # Point must be way off the tract
+            raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
+        pixelInd = afwGeom.Point2I(pixel)
         if not self.getBBox().contains(pixelInd):
             raise LookupError("coord %s is not in tract %s" % (coord, self.getId()))
         patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
@@ -181,9 +188,10 @@ class TractInfo(object):
         """
         box2D = afwGeom.Box2D()
         for coord in coordList:
+            icrsCoord = coord.toIcrs()
             try:
-                pixelPos = self.getWcs().skyToPixel(coord.toIcrs())
-            except lsst.pex.exceptions.Exception:
+                pixelPos = self.getWcs().skyToPixel(icrsCoord)
+            except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
                 # the point is so far off the tract that its pixel position cannot be computed
                 continue
             box2D.include(pixelPos)
@@ -302,6 +310,16 @@ class TractInfo(object):
 
     def __getitem__(self, index):
         return self.getPatchInfo(index)
+
+    def contains(self, coord):
+        """Does this tract contain the coordinate?"""
+        icrsCoord = coord.toIcrs()
+        try:
+            pixels = self.getWcs().skyToPixel(icrsCoord)
+        except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+            # Point must be way off the tract
+            return False
+        return self.getBBox().contains(afwGeom.Point2I(pixels))
 
 
 class ExplicitTractInfo(TractInfo):

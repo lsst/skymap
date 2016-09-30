@@ -188,14 +188,14 @@ class RingsSkyMap(CachingSkyMap):
                     index += self._ringNums[i]
 
                 tract = self[index]
-                if tract.getBBox().contains(afwGeom.Point2I(tract.getWcs().skyToPixel(coord.toIcrs()))):
+                if tract.contains(icrsCoord):
                     tractList.append(tract)
 
         # Always check tracts at poles
         # Southern cap is 0, Northern cap is the last entry in self
         for entry in [0, len(self)-1]:
             tract = self[entry]
-            if tract.getBBox().contains(afwGeom.Point2I(tract.getWcs().skyToPixel(coord.toIcrs()))):
+            if tract.contains(icrsCoord):
                 tractList.append(tract)
 
         return tractList
