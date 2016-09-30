@@ -162,8 +162,9 @@ class TractInfo(object):
 
         @note This routine will be more efficient if coord is ICRS.
         """
+        icrsCoord = coord.toIcrs()
         try:
-            pixel = self.getWcs().skyToPixel(coord.toIcrs())
+            pixel = self.getWcs().skyToPixel(icrsCoord)
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
@@ -187,8 +188,9 @@ class TractInfo(object):
         """
         box2D = afwGeom.Box2D()
         for coord in coordList:
+            icrsCoord = coord.toIcrs()
             try:
-                pixelPos = self.getWcs().skyToPixel(coord.toIcrs())
+                pixelPos = self.getWcs().skyToPixel(icrsCoord)
             except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
                 # the point is so far off the tract that its pixel position cannot be computed
                 continue
@@ -311,8 +313,9 @@ class TractInfo(object):
 
     def contains(self, coord):
         """Does this tract contain the coordinate?"""
+        icrsCoord = coord.toIcrs()
         try:
-            pixels = self.getWcs().skyToPixel(coord.toIcrs())
+            pixels = self.getWcs().skyToPixel(icrsCoord)
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             return False
