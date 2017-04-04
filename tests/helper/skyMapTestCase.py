@@ -263,7 +263,6 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             opposite = afwCoord.IcrsCoord(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
             self.assertFalse(tract.contains(opposite))
 
-
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
 
@@ -292,8 +291,6 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(tract.getId(), knownTractId)
             self.assertEqual(patchList, tract.findPatchList([coord]))
 
-
-##############################################################################################################
 
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
