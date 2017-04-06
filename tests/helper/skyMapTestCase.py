@@ -1,8 +1,6 @@
-#!/usr/bin/env python
-
 #
 # LSST Data Management System
-# Copyright 2008, 2009, 2010, 2012 LSST Corporation.
+# Copyright 2008-2017 LSST Corporation.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -21,6 +19,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+from __future__ import absolute_import, division, print_function
 from builtins import zip
 import pickle
 
@@ -176,7 +175,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             distList.sort()
             self.assertEqual(distList[0], 0.0)
             for dist in distList[1:self._numNeighbors]:
-                self.assertAnglesNearlyEqual(dist, self._NeighborAngularSeparation)
+                self.assertAnglesAlmostEqual(dist, self._NeighborAngularSeparation)
 
     def testFindPatchList(self):
         """Test findTract.findPatchList
@@ -263,7 +262,6 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             opposite = afwCoord.IcrsCoord(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
             self.assertFalse(tract.contains(opposite))
 
-
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
 
@@ -292,8 +290,6 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(tract.getId(), knownTractId)
             self.assertEqual(patchList, tract.findPatchList([coord]))
 
-
-##############################################################################################################
 
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
