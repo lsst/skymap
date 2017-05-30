@@ -26,6 +26,18 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
     def testTractSeparation(self):
         self.skipTest("A particular tract separation is not important for RingsSkyMap")
 
+    def testPoles(self):
+        """Test that findAllTracts behaves at the poles
+
+        Testing fix to DM-10686.
+        """
+        skymap = self.getSkyMap()
+        deg = lsst.afw.geom.degrees
+        for ra in (0, 123, 321, 359.9):
+            tracts = skymap.findAllTracts(lsst.afw.coord.IcrsCoord(ra*deg, 90*deg))
+            self.assertListEqual(tracts, [skymap[len(skymap) - 1]])
+            tracts = skymap.findAllTracts(lsst.afw.coord.IcrsCoord(ra*deg, -90*deg))
+            self.assertListEqual(tracts, [skymap[0]])
 
 class HscRingsTestCase(lsst.utils.tests.TestCase):
     def setUp(self):

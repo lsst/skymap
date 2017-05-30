@@ -158,13 +158,6 @@ class RingsSkyMap(CachingSkyMap):
 
         firstRingStart = self._ringSize*0.5 - 0.5*math.pi
 
-        if dec < firstRingStart:
-            # Southern cap
-            return self[0]
-        elif dec > firstRingStart*-1:
-            # Northern cap
-            return self[-1]
-
         ringNum = int((dec - firstRingStart)/self._ringSize)
 
         tractList = list()
