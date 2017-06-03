@@ -27,6 +27,7 @@ import lsst.afw.geom as afwGeom
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
 
+__all__ = ['EquatSkyMapConfig', 'EquatSkyMap']
 
 class EquatSkyMapConfig(BaseSkyMap.ConfigClass):
     numTracts = pexConfig.Field(
