@@ -23,6 +23,7 @@ from builtins import range
 
 from .baseSkyMap import BaseSkyMap
 
+__all__ = ["CachingSkyMap"]
 
 class CachingSkyMap(BaseSkyMap):
     """A SkyMap that generates its tracts on request and caches them

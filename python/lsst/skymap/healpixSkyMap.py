@@ -44,6 +44,7 @@ import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
 
+__all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
 
 def angToCoord(thetaphi):
     """Convert healpy's ang to an afw Coord

@@ -29,7 +29,7 @@ import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
-__all__ = ["RingsSkyMap"]
+__all__ = ["RingsSkyMapConfig", "RingsSkyMap"]
 
 
 class RingsSkyMapConfig(CachingSkyMap.ConfigClass):

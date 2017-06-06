@@ -30,6 +30,7 @@ from . import detail
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
 
+__all__ = ['DodecaSkyMapConfig', 'DodecaSkyMap']
 
 class DodecaSkyMapConfig(BaseSkyMap.ConfigClass):
     withTractsOnPoles = pexConfig.Field(
