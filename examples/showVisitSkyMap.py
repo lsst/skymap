@@ -64,10 +64,12 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
         print("%r visit=%r" % (i_v, visit))
         for ccd in camera:
             bbox = ccd.getBBox()
-            ccdId = int(ccd.getSerial())
+            ccdId = ccd.getName()
 
             if (ccds is None or ccdId in ccds) and ccd.getType() is cameraGeom.SCIENCE:
-                dataId = {'visit': visit, ccdKey: ccdId}
+                sensor = ccdId.split(' ')[1].replace('S:','')
+                raft = ccdId.split(' ')[0].replace('R:','')
+                dataId = {'visit': visit, 'raft': raft, 'sensor': sensor}
                 try:
                     md = butler.get("calexp_md", dataId)
                     wcs = afwImage.makeWcs(md)
