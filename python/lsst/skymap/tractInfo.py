@@ -72,7 +72,7 @@ class TractInfo(object):
             raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
         self._patchBorder = int(patchBorder)
         self._ctrCoord = ctrCoord
-        self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
+        self._vertexCoordList = tuple(coord.toIcrs() for coord in vertexCoordList)
         self._tractOverlap = tractOverlap
 
         minBBox = self._minimumBoundingBox(wcs)
@@ -146,7 +146,7 @@ class TractInfo(object):
         # because simply subtracting makes an Extent2I
         pixPosOffset = afwGeom.Extent2D(finalBBox.getMinX() - bbox.getMinX(),
                                         finalBBox.getMinY() - bbox.getMinY())
-        wcs.shiftReferencePixel(pixPosOffset)
+        wcs = wcs.copyAtShiftedPixelOrigin(pixPosOffset)
         return finalBBox, wcs
 
     def findPatch(self, coord):
@@ -333,8 +333,12 @@ class ExplicitTractInfo(TractInfo):
         self._radius = radius
         super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
-        # Now we know what the vertices are
-        self._vertexCoordList = [wcs.pixelToSky(afwGeom.Point2D(p)) for p in self.getBBox().getCorners()]
+        # Now we know what the vertices are; compute the vertices;
+        # shrink the box slightly to make sure the vertices are in the tract
+        bboxD = afwGeom.BoxD(self.getBBox())
+        bboxD.grow(-0.001)
+        finalWcs = self.getWcs()
+        self._vertexCoordList = [finalWcs.pixelToSky(p) for p in bboxD.getCorners()]
 
     def _minimumBoundingBox(self, wcs):
         """The minimum bounding box is calculated using the nominated radius"""
