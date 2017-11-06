@@ -263,13 +263,11 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             for tractInfo0 in skyMap:
                 tractId0 = tractInfo0.getId()
                 ctrCoord0 = tractInfo0.getCtrCoord()
-                vector0 = numpy.array(ctrCoord0.getVector())
 
                 for tractInfo1 in self.getNeighborTracts(skyMap, tractId0):
 
                     tractId1 = tractInfo1.getId()
                     ctrCoord1 = tractInfo1.getCtrCoord()
-                    vector1 = numpy.array(ctrCoord1.getVector())
 
                     for deltaFrac in (-0.001, 0.001):
                         # this fuss is because Point3D does not support * float

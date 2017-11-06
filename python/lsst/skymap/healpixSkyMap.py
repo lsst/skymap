@@ -34,7 +34,7 @@ except Exception as e:
     class DummyHealpy(object):
         """An object which blows up when we try to read it"""
 
-        def __getattr__(self, name):
+        def __getattr__(self, name, e=e):
             raise RuntimeError("Was unable to import healpy: %s" % e)
     healpy = DummyHealpy()
 
@@ -45,6 +45,7 @@ from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
 
 __all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
+
 
 def angToCoord(thetaphi):
     """Convert healpy's ang to an afw Coord
@@ -81,7 +82,7 @@ class HealpixSkyMapConfig(CachingSkyMap.ConfigClass):
     nest = Field(dtype=bool, default=False, doc="Use NEST ordering instead of RING?")
 
     def setDefaults(self):
-        self.rotation = 45 # HEALPixels are oriented at 45 degrees
+        self.rotation = 45  # HEALPixels are oriented at 45 degrees
 
 
 class HealpixSkyMap(CachingSkyMap):
@@ -90,8 +91,8 @@ class HealpixSkyMap(CachingSkyMap):
     We put a Tract at the position of each HEALPixel.
     """
     ConfigClass = HealpixSkyMapConfig
-    _version = (1, 0) # for pickle
-    numAngles = 4 # Number of angles for vertices
+    _version = (1, 0)  # for pickle
+    numAngles = 4  # Number of angles for vertices
 
     def __init__(self, config, version=0):
         """Constructor

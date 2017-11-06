@@ -24,7 +24,6 @@ from builtins import object
 import math
 
 import lsst.daf.base as dafBase
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 
@@ -65,7 +64,7 @@ class WcsFactory(object):
         **kargs: FITS keyword arguments for WCS
         """
         ps = dafBase.PropertySet()
-        crPixFits = [ind + 1.0 for ind in crPixPos] # convert pix position to FITS standard
+        crPixFits = [ind + 1.0 for ind in crPixPos]  # convert pix position to FITS standard
         crValDeg = crValCoord.getPosition(afwGeom.degrees)
         for i in range(2):
             ip1 = i + 1

@@ -8,8 +8,6 @@ from lsst.skymap.ringsSkyMap import RingsSkyMap
 from helper import skyMapTestCase
 
 
-
-
 class RingsTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
@@ -51,6 +49,7 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
             config.raStart = raStart
             skyMap = self.getSkyMap(config=config)
             self.assertNotEqual(skyMap, defaultSkyMap)
+
 
 class HscRingsTestCase(lsst.utils.tests.TestCase):
     def setUp(self):

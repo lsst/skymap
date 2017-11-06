@@ -23,9 +23,7 @@ from builtins import object
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import lsst.pex.exceptions
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-import lsst.afw.image as afwImage
 from .patchInfo import PatchInfo
 
 __all__ = ["TractInfo"]
@@ -93,7 +91,6 @@ class TractInfo(object):
         minBBoxD = afwGeom.Box2D()
         halfOverlap = self._tractOverlap / 2.0
         for vertexCoord in self._vertexCoordList:
-            vertexDeg = vertexCoord.getPosition(afwGeom.degrees)
             if self._tractOverlap == 0:
                 minBBoxD.include(wcs.skyToPixel(vertexCoord))
             else:
@@ -125,7 +122,7 @@ class TractInfo(object):
         bboxDim = bbox.getDimensions()
         numPatches = afwGeom.Extent2I(0, 0)
         for i, innerDim in enumerate(self._patchInnerDimensions):
-            num = (bboxDim[i] + innerDim - 1) // innerDim # round up
+            num = (bboxDim[i] + innerDim - 1) // innerDim  # round up
             deltaDim = (innerDim * num) - bboxDim[i]
             if deltaDim > 0:
                 bboxDim[i] = innerDim * num

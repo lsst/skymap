@@ -31,6 +31,7 @@ from .tractInfo import TractInfo
 
 __all__ = ['EquatSkyMapConfig', 'EquatSkyMap']
 
+
 class EquatSkyMapConfig(BaseSkyMap.ConfigClass):
     numTracts = pexConfig.Field(
         doc="number of tracts; warning: TAN projection requires at least 3",
@@ -54,7 +55,7 @@ class EquatSkyMap(BaseSkyMap):
     EquatSkyMap represents an equatorial band of sky divided along declination into overlapping tracts.
     """
     ConfigClass = EquatSkyMapConfig
-    _version = (1, 0) # for pickle
+    _version = (1, 0)  # for pickle
 
     def __init__(self, config=None):
         """Construct a EquatSkyMap
@@ -118,7 +119,7 @@ class EquatSkyMap(BaseSkyMap):
         """
         version = stateDict["version"]
         if version >= (2, 0):
-            raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
+            raise RuntimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
         self.__init__(stateDict["config"])
 
     def getVersion(self):

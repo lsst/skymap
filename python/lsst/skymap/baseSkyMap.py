@@ -97,7 +97,7 @@ class BaseSkyMap(object):
         """
         if config is None:
             config = self.ConfigClass()
-        config.freeze() # just to be sure, e.g. for pickling
+        config.freeze()  # just to be sure, e.g. for pickling
         self.config = config
         self._tractInfoList = []
         self._wcsFactory = detail.WcsFactory(

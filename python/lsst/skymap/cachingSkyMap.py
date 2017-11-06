@@ -25,6 +25,7 @@ from .baseSkyMap import BaseSkyMap
 
 __all__ = ["CachingSkyMap"]
 
+
 class CachingSkyMap(BaseSkyMap):
     """A SkyMap that generates its tracts on request and caches them
 
@@ -40,7 +41,7 @@ class CachingSkyMap(BaseSkyMap):
         super(CachingSkyMap, self).__init__(config)
         self._numTracts = numTracts
         self._tractCache = [None] * self._numTracts
-        self._tractInfo = None # We shouldn't need this; we will generate tracts on demand
+        self._tractInfo = None  # We shouldn't need this; we will generate tracts on demand
         self._version = version
 
     def __reduce__(self):
