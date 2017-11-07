@@ -66,7 +66,7 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
             bbox = ccd.getBBox()
             ccdId = int(ccd.getSerial())
 
-            if (ccds is None or ccdId in ccds) and ccd.getType() is cameraGeom.SCIENCE:
+            if (ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.SCIENCE:
                 dataId = {'visit': visit, ccdKey: ccdId}
                 try:
                     md = butler.get("calexp_md", dataId)
