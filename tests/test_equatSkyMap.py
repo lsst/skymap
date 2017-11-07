@@ -240,12 +240,12 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
                         deltaRa = tractInfo.getCtrCoord().getRa() - prevTract.getCtrCoord().getRa()
                         deltaRa = deltaRa.asDegrees()
                         raError = abs(deltaRa - predDeltaRa) % 180.0
-                        self.assertAlmostEquals(raError, 0.0)
+                        self.assertAlmostEqual(raError, 0.0)
 
                         deltaRa = nextTract.getCtrCoord().getRa() - tractInfo.getCtrCoord().getRa()
                         deltaRa = deltaRa.asDegrees()
                         raError = abs(deltaRa - predDeltaRa) % 180.0
-                        self.assertAlmostEquals(raError, 0.0)
+                        self.assertAlmostEqual(raError, 0.0)
 
     def testFindTract(self):
         """Test the findTract method
