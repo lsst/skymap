@@ -53,15 +53,26 @@ def percent(values, p=0.5):
     return m + p*interval
 
 
-def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None, showCcds=False):
+def get_cmap(n, name='hsv'):
+    """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
+    RGB color; the keyword argument name must be a standard mpl colormap name.
+    """
+    return pyplot.cm.get_cmap(name, n)
+
+
+def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None, showCcds=False):
     butler = dafPersist.Butler(rootDir)
     camera = butler.get("camera")
 
     # draw the CCDs
     ras, decs = [], []
     bboxesPlotted = []
+    print('Number of visits = ', len(visits))
+    cmap = get_cmap(len(visits))
     for i_v, visit in enumerate(visits):
-        print("%r visit=%r" % (i_v, visit))
+        print("%r visit=%r" % (i_v + 1, visit))
+        inLegend = False
+        color = cmap(i_v)
         for ccd in camera:
             bbox = ccd.getBBox()
             ccdId = int(ccd.getSerial())
@@ -75,8 +86,12 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
                     ra, dec = bboxToRaDec(bbox, wcs)
                     ras += ra
                     decs += dec
-                    color = ('r', 'b', 'c', 'g', 'm')[i_v%5]
-                    pyplot.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color)
+                    if not inLegend:
+                        pyplot.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color,
+                                    label=str(visit))
+                        inLegend = True
+                    else:
+                        pyplot.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color)
 
                     # add CCD serial numbers
                     if showCcds:
@@ -97,16 +112,28 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
     xlim = max(ras)+buff, min(ras)-buff
     ylim = min(decs)-buff, max(decs)+buff
 
+    skymap = butler.get("deepCoadd_skyMap")
     # draw the skymap
     if showPatch:
-        skymap = butler.get('deepCoadd_skyMap', {'tract': 0})
-        for tract in skymap:
-            for patch in tract:
-                ra, dec = bboxToRaDec(patch.getInnerBBox(), tract.getWcs())
-                pyplot.fill(ra, dec, fill=False, edgecolor='k', lw=1, linestyle='dashed')
-                if xlim[1] < percent(ra) < xlim[0] and ylim[0] < percent(dec) < ylim[1]:
-                    pyplot.text(percent(ra), percent(dec, 0.9), str(patch.getIndex()),
-                                fontsize=6, horizontalalignment='center', verticalalignment='top')
+        alpha0 = 1.0
+        for i_t, tract in enumerate(tracts):
+            alpha = max(0.1, alpha0 - i_t*1.0/len(tracts))
+            inLegend = False
+            for tractInfo in skymap:
+                if tractInfo.getId() == tract:
+                    for patch in tractInfo:
+                        ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
+                        if not inLegend:
+                            pyplot.fill(ra, dec, fill=False, edgecolor='k', lw=1, linestyle='dashed',
+                                        alpha=alpha, label=str(tract))
+                            inLegend = True
+                        else:
+                            pyplot.fill(ra, dec, fill=False, edgecolor='k', lw=1, linestyle='dashed',
+                                        alpha=alpha)
+                        if xlim[1] < percent(ra) < xlim[0] and ylim[0] < percent(dec) < ylim[1]:
+                            pyplot.text(percent(ra), percent(dec),
+                                        ((str(patch.getIndex()))[1:-1].replace(" ", "")), fontsize=6,
+                                        horizontalalignment='center', verticalalignment='center', alpha=alpha)
 
     # add labels and save
     ax = pyplot.gca()
@@ -114,6 +141,7 @@ def main(rootDir, tract, visits, ccds=None, ccdKey='ccd', showPatch=False, saveF
     ax.set_ylabel("Decl. (deg)")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
+    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), fancybox=True, shadow=True, fontsize=6)
     fig = pyplot.gcf()
     if saveFile is not None:
         fig.savefig(saveFile)
@@ -139,7 +167,8 @@ def splitId(argName):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("root", help="Root directory of data repository")
-    parser.add_argument("tract", type=int, help="Tract to show")
+    parser.add_argument("tracts", nargs=1, action=splitId("tracts"),
+                        help="Tract(s) to show", metavar="TRACT1[^TRACT2[^TRACT3...]")
     parser.add_argument("visits", nargs=1, action=splitId("visits"),
                         help="Visits to show", metavar="VISIT1[^VISIT2[^VISIT3...]")
     parser.add_argument("-c", "--ccds", nargs=1, action=splitId("ccds"), default=None,
@@ -153,5 +182,5 @@ if __name__ == '__main__':
                         help="Show ccd serial numbers on output image")
     args = parser.parse_args()
 
-    main(args.root, args.tract, visits=args.visits, ccds=args.ccds,
+    main(args.root, args.tracts, visits=args.visits, ccds=args.ccds,
          ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds)
