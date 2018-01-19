@@ -333,12 +333,11 @@ class ExplicitTractInfo(TractInfo):
         self._radius = radius
         super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
-        # Now we know what the vertices are; compute the vertices;
-        # shrink the box slightly to make sure the vertices are in the tract
+        # Shrink the box slightly to make sure the vertices are in the tract
         bboxD = afwGeom.BoxD(self.getBBox())
         bboxD.grow(-0.001)
         finalWcs = self.getWcs()
-        self._vertexCoordList = [finalWcs.pixelToSky(p) for p in bboxD.getCorners()]
+        self._vertexCoordList = finalWcs.pixelToSky(bboxD.getCorners())
 
     def _minimumBoundingBox(self, wcs):
         """The minimum bounding box is calculated using the nominated radius"""
