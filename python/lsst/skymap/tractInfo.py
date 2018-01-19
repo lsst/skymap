@@ -70,7 +70,7 @@ class TractInfo(object):
         try:
             assert len(patchInnerDimensions) == 2
             self._patchInnerDimensions = afwGeom.Extent2I(*(int(val) for val in patchInnerDimensions))
-        except:
+        except Exception:
             raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
         self._patchBorder = int(patchBorder)
         self._ctrCoord = ctrCoord
