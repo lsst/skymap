@@ -23,6 +23,8 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
+import struct
+
 from builtins import range
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
@@ -133,3 +135,7 @@ class DodecaSkyMap(BaseSkyMap):
         @return withTractsOnPoles as a bool
         """
         return self._dodecahedron.getWithFacesOnPoles()
+
+    def updateSha1(self, sha1):
+        """Add subclass-specific state or configuration options to the SHA1."""
+        sha1.update(struct.pack("<?", self.config.withTractsOnPoles))

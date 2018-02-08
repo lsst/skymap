@@ -39,6 +39,33 @@ class DiscreteTestCase(skyMapTestCase.SkyMapTestCase):
     def testTractSeparation(self):
         self.skipTest("A particular tract separation is not important for DiscreteSkyMap")
 
+    def testSha1Compare(self):
+        """Test that DiscreteSkyMap's extra state is included in its hash."""
+        defaultSkyMap = self.getSkyMap()
+        for index in (3, 5):
+            config = self.getConfig()
+            # delete one tract
+            del config.raList[index]
+            del config.decList[index]
+            del config.radiusList[index]
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+        for radius in (1.8, 2.3):
+            config = self.getConfig()
+            config.radiusList[5] = radius
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+        for ra in (35.1, 72.6):
+            config = self.getConfig()
+            config.raList[5] = ra
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+        for dec in (-5.2, 1.8):
+            config = self.getConfig()
+            config.decList[5] = dec
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
     pass

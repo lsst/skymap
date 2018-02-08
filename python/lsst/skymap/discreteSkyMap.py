@@ -20,6 +20,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+import struct
+
 from lsst.pex.config import ListField
 from lsst.afw.coord import IcrsCoord
 import lsst.afw.geom as afwGeom
@@ -70,3 +72,10 @@ class DiscreteSkyMap(CachingSkyMap):
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
                                  radius * afwGeom.degrees, self.config.tractOverlap * afwGeom.degrees, wcs)
+
+    def updateSha1(self, sha1):
+        """Add subclass-specific state or configuration options to the SHA1."""
+        fmt = "<{}d".format(len(self.config.radiusList))
+        sha1.update(struct.pack(fmt, *self.config.raList))
+        sha1.update(struct.pack(fmt, *self.config.decList))
+        sha1.update(struct.pack(fmt, *self.config.radiusList))

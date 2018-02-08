@@ -21,7 +21,7 @@ from builtins import object
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-
+import struct
 import numpy
 
 # We want to register the HealpixSkyMap, but want "healpy" to be an
@@ -116,3 +116,7 @@ class HealpixSkyMap(CachingSkyMap):
         return HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,
                                 self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
                                 wcs)
+
+    def updateSha1(self, sha1):
+        """Add subclass-specific state or configuration options to the SHA1."""
+        sha1.update(struct.pack("<i?", self.config.log2NSide, self.config.nest))

@@ -21,6 +21,8 @@ from builtins import range
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import struct
+
 import lsst.pex.config as pexConfig
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
@@ -125,3 +127,7 @@ class EquatSkyMap(BaseSkyMap):
         @return version as a pair of integers
         """
         return self._version
+
+    def updateSha1(self, sha1):
+        """Add subclass-specific state or configuration options to the SHA1."""
+        sha1.update(struct.pack("<i2d", self.config.numTracts, *self.config.decRange))

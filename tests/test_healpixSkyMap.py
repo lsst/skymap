@@ -27,6 +27,20 @@ class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
         self._SkyMapName = "healpix"  # Name of SkyMap class to test
         self._numNeighbors = 1  # Number of neighbours
 
+    def testSha1Compare(self):
+        """Test that HealpixSkyMap's extra state is included in its hash."""
+        defaultSkyMap = self.getSkyMap()
+        for log2NSide in (3, 4):
+            config = self.getConfig()
+            config.log2NSide = log2NSide
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+        for nest in (True,):
+            config = self.getConfig()
+            config.nest = nest
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+
     def tearDown(self):
         if hasattr(self, "config"):
             del self.config

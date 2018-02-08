@@ -23,6 +23,9 @@
 @todo
 - Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
 """
+import hashlib
+import struct
+
 from builtins import object
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
@@ -79,6 +82,7 @@ class BaseSkyMap(object):
     @li define __getstate__ and __setstate__ to allow pickling (the butler saves sky maps using pickle);
         see DodecaSkyMap for an example of how to do this. (Most of that code could be moved
         into this base class, but that would make it harder to handle older versions of pickle data.)
+    @li define updateSha1 to add any subclass-specific state to the hash.
     """
     ConfigClass = BaseSkyMapConfig
 
@@ -97,6 +101,7 @@ class BaseSkyMap(object):
             projection=self.config.projection,
             rotation=afwGeom.Angle(self.config.rotation, afwGeom.degrees),
         )
+        self._sha1 = None
 
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
@@ -160,3 +165,47 @@ class BaseSkyMap(object):
 
     def __len__(self):
         return len(self._tractInfoList)
+
+    def getSha1(self):
+        """Return a SHA1 hash that uniquely identifies this SkyMap instance.
+
+        Returns
+        -------
+        sha1 : bytes
+            A 20-byte hash that uniquely identifies this SkyMap instance.
+
+        Subclasses should almost always override `updateSha1()` instead of
+        this function to add subclass-specific state to the hash.
+        """
+        if self._sha1 is None:
+            sha1 = hashlib.sha1()
+            sha1.update(type(self).__name__.encode('utf-8'))
+            configPacked = struct.pack(
+                "<iiidd3sd",
+                self.config.patchInnerDimensions[0],
+                self.config.patchInnerDimensions[1],
+                self.config.patchBorder,
+                self.config.tractOverlap,
+                self.config.pixelScale,
+                self.config.projection.encode('ascii'),
+                self.config.rotation
+            )
+            sha1.update(configPacked)
+            self.updateSha1(sha1)
+            self._sha1 = sha1.digest()
+        return self._sha1
+
+    def updateSha1(self, sha1):
+        """Add subclass-specific state or configuration options to the SHA1.
+
+        Parameters
+        ----------
+        sha1 : hashlib.sha1
+            A hashlib object on which `update()` can be called to add
+            additional state to the hash.
+
+        This method is conceptually "protected": it should be reimplemented by
+        all subclasses, but called only by the base class implementation of
+        `getSha1()`.
+        """
+        raise NotImplementedError()

@@ -64,6 +64,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
         """
+        defaultSkyMap = self.getSkyMap()
         for tractOverlap in (0.0, 0.01, 0.1):  # degrees
             config = self.getConfig()
             config.tractOverlap = tractOverlap
@@ -71,6 +72,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
             self.assertEqual(len(skyMap), self._NumTracts)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
 
         for patchBorder in (0, 101):
             config = self.getConfig()
@@ -79,6 +81,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             for tractInfo in skyMap:
                 self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
             self.assertEqual(len(skyMap), self._NumTracts)
+            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
 
         for xInnerDim in (1005, 5062):
             for yInnerDim in (2032, 5431):
@@ -88,6 +91,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                 for tractInfo in skyMap:
                     self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
                 self.assertEqual(len(skyMap), self._NumTracts)
+                self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
 
     def assertUnpickledTractInfo(self, unpickled, original, patchBorder):
         """Assert that an unpickled TractInfo is functionally identical to the original
@@ -157,6 +161,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         unpickledSkyMap = pickle.loads(pickleStr)
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
         self.assertEqual(unpickledSkyMap.config, skyMap.config)
+        self.assertEqual(skyMap.getSha1(), unpickledSkyMap.getSha1())
         for tractInfo, unpickledTractInfo in zip(skyMap, unpickledSkyMap):
             self.assertUnpickledTractInfo(unpickledTractInfo, tractInfo, skyMap.config.patchBorder)
 
