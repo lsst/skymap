@@ -45,12 +45,12 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
             config = self.getConfig()
             config.numRings = numRings
             skyMap = self.getSkyMap(config=config)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
         for raStart in (60.0, 75.0):
             config = self.getConfig()
             config.raStart = raStart
             skyMap = self.getSkyMap(config=config)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
 
 class HscRingsTestCase(lsst.utils.tests.TestCase):
     def setUp(self):

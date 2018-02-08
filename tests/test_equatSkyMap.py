@@ -105,15 +105,15 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             skyMap = EquatSkyMap(config)
             self.assertEqual(len(skyMap), numTracts)
             if numTracts == defaultSkyMap.config.numTracts:
-                self.assertEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+                self.assertEqual(skyMap, defaultSkyMap)
             else:
-                self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+                self.assertNotEqual(skyMap, defaultSkyMap)
 
         for decRange in ([-1.3, 0.5], [6.1, 6.8]):
             config = EquatSkyMap.ConfigClass()
             config.decRange = decRange
             skyMap = EquatSkyMap(config)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
 
         for tractOverlap in (0.0, 0.01, 0.1):  # degrees
             config = EquatSkyMap.ConfigClass()
@@ -122,7 +122,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
             self.assertEqual(len(skyMap), skyMap.config.numTracts)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
 
         for patchBorder in (0, 101):
             config = EquatSkyMap.ConfigClass()
@@ -131,7 +131,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             for tractInfo in skyMap:
                 self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
             self.assertEqual(len(skyMap), skyMap.config.numTracts)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
 
         skyMapClass = skyMapRegistry["equat"]
         for xInnerDim in (1005, 5062):
@@ -142,7 +142,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
                 for tractInfo in skyMap:
                     self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
                 self.assertEqual(len(skyMap), skyMap.config.numTracts)
-                self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+                self.assertNotEqual(skyMap, defaultSkyMap)
 
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly
@@ -152,7 +152,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
         unpickledSkyMap = pickle.loads(pickleStr)
         self.assertEqual(skyMap.getVersion(), unpickledSkyMap.getVersion())
         self.assertEqual(len(skyMap), len(unpickledSkyMap))
-        self.assertEqual(skyMap.getSha1(), unpickledSkyMap.getSha1())
+        self.assertEqual(skyMap, unpickledSkyMap)
         for configName in (
             "patchInnerDimensions",
             "patchBorder",

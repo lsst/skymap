@@ -56,7 +56,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
         config = self.getConfig()
         config.withTractsOnPoles = True
         skyMap = self.getSkyMap(config=config)
-        self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+        self.assertNotEqual(skyMap, defaultSkyMap)
 
     def testFindTract(self):
         """Test findTract and tractInfo.findPatch

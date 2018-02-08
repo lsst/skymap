@@ -34,12 +34,12 @@ class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
             config = self.getConfig()
             config.log2NSide = log2NSide
             skyMap = self.getSkyMap(config=config)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
         for nest in (True,):
             config = self.getConfig()
             config.nest = nest
             skyMap = self.getSkyMap(config=config)
-            self.assertNotEqual(skyMap.getSha1(), defaultSkyMap.getSha1())
+            self.assertNotEqual(skyMap, defaultSkyMap)
 
     def tearDown(self):
         if hasattr(self, "config"):

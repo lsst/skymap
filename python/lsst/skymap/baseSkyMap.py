@@ -83,6 +83,10 @@ class BaseSkyMap(object):
         see DodecaSkyMap for an example of how to do this. (Most of that code could be moved
         into this base class, but that would make it harder to handle older versions of pickle data.)
     @li define updateSha1 to add any subclass-specific state to the hash.
+
+    All SkyMap subclasses must be conceptually immutable; they must always
+    refer to the same set of mathematical tracts and patches even if the in-
+    memory representation of those objects changes.
     """
     ConfigClass = BaseSkyMapConfig
 
@@ -165,6 +169,18 @@ class BaseSkyMap(object):
 
     def __len__(self):
         return len(self._tractInfoList)
+
+    def __hash__(self):
+        return hash(self.getSha1())
+
+    def __eq__(self, other):
+        try:
+            return self.getSha1() == other.getSha1()
+        except AttributeError:
+            return NotImplemented
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def getSha1(self):
         """Return a SHA1 hash that uniquely identifies this SkyMap instance.
