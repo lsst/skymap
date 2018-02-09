@@ -21,6 +21,7 @@ from builtins import range
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+import struct
 import math
 
 from lsst.pex.config import Field
@@ -210,3 +211,7 @@ class RingsSkyMap(CachingSkyMap):
                 if patchList and not (tractInfo, patchList) in retList:
                     retList.append((tractInfo, patchList))
         return retList
+
+    def updateSha1(self, sha1):
+        """Add subclass-specific state or configuration options to the SHA1."""
+        sha1.update(struct.pack("<id", self.config.numRings, self.config.raStart))

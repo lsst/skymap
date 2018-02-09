@@ -50,6 +50,14 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
         self._SkyMapName = "dodeca"  # Name of SkyMap class to test
         self._numNeighbors = 6  # Number of neighbours
 
+    def testSha1Compare(self):
+        """Test that DodecaSkyMap's extra state is included in its hash."""
+        defaultSkyMap = self.getSkyMap()
+        config = self.getConfig()
+        config.withTractsOnPoles = True
+        skyMap = self.getSkyMap(config=config)
+        self.assertNotEqual(skyMap, defaultSkyMap)
+
     def testFindTract(self):
         """Test findTract and tractInfo.findPatch
         """

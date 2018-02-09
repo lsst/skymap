@@ -38,6 +38,20 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
             tracts = skymap.findAllTracts(lsst.afw.coord.IcrsCoord(ra*deg, -90*deg))
             self.assertListEqual(tracts, [skymap[0]])
 
+    def testSha1Compare(self):
+        """Test that RingsSkyMap's extra state is included in its hash."""
+        defaultSkyMap = self.getSkyMap()
+        for numRings in (4, 5):
+            config = self.getConfig()
+            config.numRings = numRings
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap, defaultSkyMap)
+        for raStart in (60.0, 75.0):
+            config = self.getConfig()
+            config.raStart = raStart
+            skyMap = self.getSkyMap(config=config)
+            self.assertNotEqual(skyMap, defaultSkyMap)
+
 class HscRingsTestCase(lsst.utils.tests.TestCase):
     def setUp(self):
         # This matches the HSC SSP configuration, on which the problem was discovered
