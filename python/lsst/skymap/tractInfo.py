@@ -23,9 +23,7 @@ from builtins import object
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 import lsst.pex.exceptions
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
-import lsst.afw.image as afwImage
 from .patchInfo import PatchInfo
 
 __all__ = ["TractInfo"]
@@ -70,11 +68,11 @@ class TractInfo(object):
         try:
             assert len(patchInnerDimensions) == 2
             self._patchInnerDimensions = afwGeom.Extent2I(*(int(val) for val in patchInnerDimensions))
-        except:
+        except Exception:
             raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
         self._patchBorder = int(patchBorder)
         self._ctrCoord = ctrCoord
-        self._vertexCoordList = tuple(coord.clone() for coord in vertexCoordList)
+        self._vertexCoordList = tuple(coord.toIcrs() for coord in vertexCoordList)
         self._tractOverlap = tractOverlap
 
         minBBox = self._minimumBoundingBox(wcs)
@@ -93,7 +91,6 @@ class TractInfo(object):
         minBBoxD = afwGeom.Box2D()
         halfOverlap = self._tractOverlap / 2.0
         for vertexCoord in self._vertexCoordList:
-            vertexDeg = vertexCoord.getPosition(afwGeom.degrees)
             if self._tractOverlap == 0:
                 minBBoxD.include(wcs.skyToPixel(vertexCoord))
             else:
@@ -125,7 +122,7 @@ class TractInfo(object):
         bboxDim = bbox.getDimensions()
         numPatches = afwGeom.Extent2I(0, 0)
         for i, innerDim in enumerate(self._patchInnerDimensions):
-            num = (bboxDim[i] + innerDim - 1) // innerDim # round up
+            num = (bboxDim[i] + innerDim - 1) // innerDim  # round up
             deltaDim = (innerDim * num) - bboxDim[i]
             if deltaDim > 0:
                 bboxDim[i] = innerDim * num
@@ -149,7 +146,7 @@ class TractInfo(object):
         # because simply subtracting makes an Extent2I
         pixPosOffset = afwGeom.Extent2D(finalBBox.getMinX() - bbox.getMinX(),
                                         finalBBox.getMinY() - bbox.getMinY())
-        wcs.shiftReferencePixel(pixPosOffset)
+        wcs = wcs.copyAtShiftedPixelOrigin(pixPosOffset)
         return finalBBox, wcs
 
     def findPatch(self, coord):
@@ -336,8 +333,11 @@ class ExplicitTractInfo(TractInfo):
         self._radius = radius
         super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
-        # Now we know what the vertices are
-        self._vertexCoordList = [wcs.pixelToSky(afwGeom.Point2D(p)) for p in self.getBBox().getCorners()]
+        # Shrink the box slightly to make sure the vertices are in the tract
+        bboxD = afwGeom.BoxD(self.getBBox())
+        bboxD.grow(-0.001)
+        finalWcs = self.getWcs()
+        self._vertexCoordList = finalWcs.pixelToSky(bboxD.getCorners())
 
     def _minimumBoundingBox(self, wcs):
         """The minimum bounding box is calculated using the nominated radius"""

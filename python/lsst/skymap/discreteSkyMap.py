@@ -53,7 +53,7 @@ class DiscreteSkyMap(CachingSkyMap):
     We put a square Tract at each of the nominated coordinates.
     """
     ConfigClass = DiscreteSkyMapConfig
-    _version = (1, 0) # for pickle
+    _version = (1, 0)  # for pickle
 
     def __init__(self, config, version=0):
         """Constructor

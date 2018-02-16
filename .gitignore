@@ -2,6 +2,7 @@ _build*
 .sconsign.dblite
 config.log
 .sconf_temp
+.cache
 *.dylib
 *.o
 *.os
@@ -15,6 +16,7 @@ doc/xml
 doc/*.tag
 doc/*.inc
 doc/doxygen.conf
+pytest_session.txt
 tests/.tests
 tests/.cache
 version.py

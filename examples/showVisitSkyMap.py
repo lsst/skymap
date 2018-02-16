@@ -30,7 +30,6 @@ import matplotlib.pyplot as pyplot
 
 import lsst.afw.cameraGeom as cameraGeom
 import lsst.afw.geom as afwGeom
-import lsst.afw.image as afwImage
 import lsst.daf.persistence as dafPersist
 from lsst.pipe.base.argumentParser import IdValueAction, DataIdContainer
 
@@ -81,7 +80,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
                 dataId = {'visit': visit, ccdKey: ccdId}
                 try:
                     md = butler.get("calexp_md", dataId)
-                    wcs = afwImage.makeWcs(md)
+                    wcs = afwGeom.makeSkyWcs(md)
 
                     ra, dec = bboxToRaDec(bbox, wcs)
                     ras += ra

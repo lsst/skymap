@@ -50,7 +50,7 @@ class RingsSkyMap(CachingSkyMap):
     full overlap.
     """
     ConfigClass = RingsSkyMapConfig
-    _version = (1, 0) # for pickle
+    _version = (1, 0)  # for pickle
 
     def __init__(self, config, version=0):
         """Constructor
@@ -60,12 +60,12 @@ class RingsSkyMap(CachingSkyMap):
         """
         # We count rings from south to north
         # Note: pole caps together count for one additional ring
-        self._ringSize = math.pi / (config.numRings + 1) # Size of a ring in Declination (radians)
-        self._ringNums = [] # Number of tracts for each ring
+        self._ringSize = math.pi / (config.numRings + 1)  # Size of a ring in Declination (radians)
+        self._ringNums = []  # Number of tracts for each ring
         for i in range(config.numRings):
             startDec = self._ringSize*(i + 0.5) - 0.5*math.pi
             stopDec = startDec + self._ringSize
-            dec = min(math.fabs(startDec), math.fabs(stopDec)) # Declination for determining division in RA
+            dec = min(math.fabs(startDec), math.fabs(stopDec))  # Declination for determining division in RA
             self._ringNums.append(int(2*math.pi*math.cos(dec)/self._ringSize) + 1)
         numTracts = sum(self._ringNums) + 2
         super(RingsSkyMap, self).__init__(numTracts, config, version)
@@ -80,9 +80,9 @@ class RingsSkyMap(CachingSkyMap):
         north.  The north polar cap has ring number = numRings.  The tract
         number is zero for either of the polar caps.
         """
-        if index == 0: # South polar cap
+        if index == 0:  # South polar cap
             return -1, 0
-        if index == self._numTracts - 1: # North polar cap
+        if index == self._numTracts - 1:  # North polar cap
             return self.config.numRings, 0
         index -= 1
         ring = 0
@@ -94,9 +94,9 @@ class RingsSkyMap(CachingSkyMap):
     def generateTract(self, index):
         """Generate the TractInfo for this index"""
         ringNum, tractNum = self.getRingIndices(index)
-        if ringNum == -1: # South polar cap
+        if ringNum == -1:  # South polar cap
             ra, dec = 0, -0.5*math.pi
-        elif ringNum == self.config.numRings: # North polar cap
+        elif ringNum == self.config.numRings:  # North polar cap
             ra, dec = 0, 0.5*math.pi
         else:
             dec = self._ringSize*(ringNum + 1) - 0.5*math.pi
@@ -138,7 +138,7 @@ class RingsSkyMap(CachingSkyMap):
         tractNum = int(math.fmod(ra - self.config.raStart, 2*math.pi) /
                        (2*math.pi/self._ringNums[ringNum]) + 0.5)
 
-        index = tractNum + 1 # Allow 1 for south pole
+        index = tractNum + 1  # Allow 1 for south pole
         for i in range(ringNum):
             index += self._ringNums[i]
 

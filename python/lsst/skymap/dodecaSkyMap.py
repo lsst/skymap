@@ -34,6 +34,7 @@ from .tractInfo import TractInfo
 
 __all__ = ['DodecaSkyMapConfig', 'DodecaSkyMap']
 
+
 class DodecaSkyMapConfig(BaseSkyMap.ConfigClass):
     withTractsOnPoles = pexConfig.Field(
         doc="if True center a tract on each pole, else put a vertex on each pole",
@@ -44,7 +45,7 @@ class DodecaSkyMapConfig(BaseSkyMap.ConfigClass):
     def setDefaults(self):
         self.tractOverlap = 3.5
         self.patchBorder = 250
-        self.pixelScale = 10.0 / 50.0 # LSST plate scale is 50 um/arcsec and pixel size is 10 um
+        self.pixelScale = 10.0 / 50.0  # LSST plate scale is 50 um/arcsec and pixel size is 10 um
         self.patchInnerDimensions = (4000, 4000)
         self.projection = "STG"
 
@@ -55,7 +56,7 @@ class DodecaSkyMap(BaseSkyMap):
     DodecaSkyMap divides the sky into 12 overlapping Tracts arranged as the faces of a dodecahedron.
     """
     ConfigClass = DodecaSkyMapConfig
-    _version = (1, 0) # for pickle
+    _version = (1, 0)  # for pickle
 
     def __init__(self, config=None):
         """Construct a DodecaSkyMap
@@ -109,7 +110,7 @@ class DodecaSkyMap(BaseSkyMap):
         """
         version = stateDict["version"]
         if version >= (2, 0):
-            raise runtimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
+            raise RuntimeError("Version = %s >= (2,0); cannot unpickle" % (version,))
         self.__init__(stateDict["config"])
 
     def findTract(self, coord):
