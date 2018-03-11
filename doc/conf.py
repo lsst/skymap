@@ -4,10 +4,10 @@ This configuration only affects single-package Sphinx documenation builds.
 """
 
 from documenteer.sphinxconfig.stackconf import build_package_configs
-import skymap
+import lsst.skymap
 
 
 _g = globals()
 _g.update(build_package_configs(
     project_name='skymap',
-    version=skymap.version.__version__))
+    version=lsst.skymap.version.__version__))
