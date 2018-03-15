@@ -116,12 +116,12 @@ class DodecaSkyMap(BaseSkyMap):
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord.
 
-        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @param[in] coord: ICRS sky coordinate (lsst.afw.geom.SpherePoint)
         @return TractInfo for tract whose inner region includes the coord.
 
         @note This routine will be more efficient if coord is ICRS.
         """
-        return self[self._dodecahedron.getFaceInd(coord.toIcrs().getVector())]
+        return self[self._dodecahedron.getFaceInd(coord.getVector())]
 
     def getVersion(self):
         """Return version (e.g. for pickle)

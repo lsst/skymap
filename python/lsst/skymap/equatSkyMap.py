@@ -24,7 +24,6 @@ from builtins import range
 import struct
 
 import lsst.pex.config as pexConfig
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
@@ -73,17 +72,17 @@ class EquatSkyMap(BaseSkyMap):
             begRA = tractWidthRA * id
             endRA = begRA + tractWidthRA
             vertexCoordList = (
-                afwCoord.IcrsCoord(begRA, decRange[0]),
-                afwCoord.IcrsCoord(endRA, decRange[0]),
-                afwCoord.IcrsCoord(endRA, decRange[1]),
-                afwCoord.IcrsCoord(begRA, decRange[1]),
+                afwGeom.SpherePoint(begRA, decRange[0]),
+                afwGeom.SpherePoint(endRA, decRange[0]),
+                afwGeom.SpherePoint(endRA, decRange[1]),
+                afwGeom.SpherePoint(begRA, decRange[1]),
             )
 
             midRA = begRA + tractWidthRA / 2.0
-            ctrCoord = afwCoord.IcrsCoord(midRA, midDec)
+            ctrCoord = afwGeom.SpherePoint(midRA, midDec)
 
             # CRVal must have Dec=0 for symmetry about the equator
-            crValCoord = afwCoord.IcrsCoord(midRA, afwGeom.Angle(0.0))
+            crValCoord = afwGeom.SpherePoint(midRA, afwGeom.Angle(0.0))
 
             # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
             wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=crValCoord)

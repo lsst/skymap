@@ -51,9 +51,9 @@ class TractInfo(object):
         @param[in] id: tract ID
         @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
         @param[in] patchBorder: overlap between adjacent patches (in pixels, one int)
-        @param[in] ctrCoord: sky coordinate of center of inner region of tract, as an afwCoord.Coord;
-            also used as the CRVAL for the WCS.
-        @param[in] vertexCoordList: list of sky coordinates (afwCoord.Coord)
+        @param[in] ctrCoord: ICRS sky coordinate of center of inner region of tract
+            as an lsst.afw.geom.SpherePoint; also used as the CRVAL for the WCS.
+        @param[in] vertexCoordList: list of ICRS sky coordinates (lsst.afw.geom.SpherePoint)
             of vertices that define the boundaries of the inner region
         @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle;
             this defines the minimum distance the tract extends beyond the inner region in all directions
@@ -72,7 +72,7 @@ class TractInfo(object):
             raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
         self._patchBorder = int(patchBorder)
         self._ctrCoord = ctrCoord
-        self._vertexCoordList = tuple(coord.toIcrs() for coord in vertexCoordList)
+        self._vertexCoordList = tuple(vertexCoordList)
         self._tractOverlap = tractOverlap
 
         minBBox = self._minimumBoundingBox(wcs)
@@ -98,8 +98,7 @@ class TractInfo(object):
                 angleIncr = afwGeom.Angle(360.0, afwGeom.degrees) / float(numAngles)
                 for i in range(numAngles):
                     offAngle = angleIncr * i
-                    offCoord = vertexCoord.clone()
-                    offCoord.offset(offAngle, halfOverlap)
+                    offCoord = vertexCoord.offset(offAngle, halfOverlap)
                     pixPos = wcs.skyToPixel(offCoord)
                     minBBoxD.include(pixPos)
         return minBBoxD
@@ -152,7 +151,7 @@ class TractInfo(object):
     def findPatch(self, coord):
         """Find the patch containing the specified coord
 
-        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @param[in] coord: ICRS sky coordinate (lsst.afw.geom.SpherePoint)
         @return PatchInfo of patch whose inner bbox contains the specified coord
 
         @raise LookupError if coord is not in tract or we cannot determine the
@@ -160,9 +159,8 @@ class TractInfo(object):
 
         @note This routine will be more efficient if coord is ICRS.
         """
-        icrsCoord = coord.toIcrs()
         try:
-            pixel = self.getWcs().skyToPixel(icrsCoord)
+            pixel = self.getWcs().skyToPixel(coord)
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
@@ -175,7 +173,7 @@ class TractInfo(object):
     def findPatchList(self, coordList):
         """Find patches containing the specified list of coords
 
-        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @param[in] coordList: list of sky coordinates (lsst.afw.geom.SpherePoint)
         @return list of PatchInfo for patches that contain, or may contain, the specified region.
             The list will be empty if there is no overlap.
 
@@ -186,9 +184,8 @@ class TractInfo(object):
         """
         box2D = afwGeom.Box2D()
         for coord in coordList:
-            icrsCoord = coord.toIcrs()
             try:
-                pixelPos = self.getWcs().skyToPixel(icrsCoord)
+                pixelPos = self.getWcs().skyToPixel(coord)
             except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
                 # the point is so far off the tract that its pixel position cannot be computed
                 continue
@@ -211,7 +208,7 @@ class TractInfo(object):
         return afwGeom.Box2I(self._bbox)
 
     def getCtrCoord(self):
-        """Get sky coordinate of center of tract (as an afwCoord.Coord)
+        """Get ICRS sky coordinate of center of tract (as an lsst.afw.geom.SpherePoint)
         """
         return self._ctrCoord
 
@@ -311,9 +308,8 @@ class TractInfo(object):
 
     def contains(self, coord):
         """Does this tract contain the coordinate?"""
-        icrsCoord = coord.toIcrs()
         try:
-            pixels = self.getWcs().skyToPixel(icrsCoord)
+            pixels = self.getWcs().skyToPixel(coord)
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             return False
@@ -343,8 +339,7 @@ class ExplicitTractInfo(TractInfo):
         """The minimum bounding box is calculated using the nominated radius"""
         bbox = afwGeom.Box2D()
         for i in range(4):
-            coord = self._ctrCoord.clone()
-            coord.offset(i * 90 * afwGeom.degrees, self._radius + self._tractOverlap)
-            pixPos = wcs.skyToPixel(coord)
+            cornerCoord = self._ctrCoord.offset(i * 90 * afwGeom.degrees, self._radius + self._tractOverlap)
+            pixPos = wcs.skyToPixel(cornerCoord)
             bbox.include(pixPos)
         return bbox

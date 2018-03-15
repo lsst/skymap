@@ -50,8 +50,8 @@ for tractOverlap in (0.0, 0.33, 1.0, 3.5):
         rightCoord = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
         topCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
         bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
-        xSpan = leftCoord.angularSeparation(rightCoord).asDegrees()
-        ySpan = bottomCoord.angularSeparation(topCoord).asDegrees()
+        xSpan = leftCoord.separation(rightCoord).asDegrees()
+        ySpan = bottomCoord.separation(topCoord).asDegrees()
         print("%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" %
               (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1],
                dimensions[0], dimensions[1], numPix, xSpan, ySpan))

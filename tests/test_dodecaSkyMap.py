@@ -27,7 +27,6 @@ import unittest
 
 import numpy
 
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
 
@@ -71,7 +70,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
             nbrTractList = []
             for otherTractInfo in skyMap:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
-                dist = ctrCoord0.angularSeparation(otherCtrCoord)
+                dist = ctrCoord0.separation(otherCtrCoord)
                 if abs(dist - self._NeighborAngularSeparation) < afwGeom.Angle(0.1, afwGeom.degrees):
                     nbrTractList.append(otherTractInfo)
             self.assertEqual(len(nbrTractList), 5)
@@ -81,7 +80,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                 ctrCoord1 = tractInfo1.getCtrCoord()
                 vector1 = numpy.array(ctrCoord1.getVector())
                 for tractInfo2 in nbrTractList[tractInfo1.getId():]:
-                    dist = ctrCoord1.angularSeparation(tractInfo2.getCtrCoord())
+                    dist = ctrCoord1.separation(tractInfo2.getCtrCoord())
                     if abs(dist - self._NeighborAngularSeparation) > afwGeom.Angle(0.1, afwGeom.degrees):
                         continue
                     tractId2 = tractInfo2.getId()
@@ -125,7 +124,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                                 vecLen = math.sqrt(numpy.sum(testVector**2))
                                 testVector /= vecLen
                                 lsstVec = afwGeom.Point3D(testVector)
-                                testCoord = afwCoord.IcrsCoord(lsstVec)
+                                testCoord = afwGeom.SpherePoint(lsstVec)
                                 nearestTractInfo = skyMap.findTract(testCoord)
                                 nearestTractId = nearestTractInfo.getId()
 
@@ -141,17 +140,17 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                                     print("testVector=", testVector)
 
                                     print("dist0=%s; dist1=%s; dist2=%s; nearDist=%s" % (
-                                        testCoord.angularSeparation(ctrCoord0).asDegrees(),
-                                        testCoord.angularSeparation(ctrCoord1).asDegrees(),
-                                        testCoord.angularSeparation(ctrCoord2).asDegrees(),
-                                        testCoord.angularSeparation(nearestCtrCoord).asDegrees(),
+                                        testCoord.separation(ctrCoord0).asDegrees(),
+                                        testCoord.separation(ctrCoord1).asDegrees(),
+                                        testCoord.separation(ctrCoord2).asDegrees(),
+                                        testCoord.separation(nearestCtrCoord).asDegrees(),
                                     ))
                                     self.fail("Expected nearest tractId=%s; got tractId=%s" %
                                               (expectedTractId, nearestTractId))
 
                                 patchInfo = nearestTractInfo.findPatch(testCoord)
                                 pixelInd = afwGeom.Point2I(
-                                    nearestTractInfo.getWcs().skyToPixel(testCoord.toIcrs()))
+                                    nearestTractInfo.getWcs().skyToPixel(testCoord))
                                 self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
 
@@ -165,7 +164,7 @@ def getCornerCoords(wcs, bbox):
         bbox.getMax(),
         afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()),
     )
-    return [wcs.pixelToSky(cp).toIcrs() for cp in cornerPosList]
+    return wcs.pixelToSky(cornerPosList)
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):

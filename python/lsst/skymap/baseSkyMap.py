@@ -110,7 +110,7 @@ class BaseSkyMap(object):
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
 
-        @param[in] coord: sky coordinate (afwCoord.Coord)
+        @param[in] coord: ICRS sky coordinate (lsst.afw.geom.SpherePoint)
         @return TractInfo of tract whose center is nearest the specified coord
 
         @warning:
@@ -121,10 +121,9 @@ class BaseSkyMap(object):
         - If coord is equidistant between multiple sky tract centers then one is arbitrarily chosen.
         - The default implementation is not very efficient; subclasses may wish to override.
         """
-        icrsCoord = coord.toIcrs()
         distTractInfoList = []
         for tractInfo in self:
-            angSep = icrsCoord.angularSeparation(tractInfo.getCtrCoord()).asDegrees()
+            angSep = coord.separation(tractInfo.getCtrCoord()).asDegrees()
             distTractInfoList.append((angSep, tractInfo))
         distTractInfoList.sort()
         return distTractInfoList[0][1]
@@ -132,7 +131,7 @@ class BaseSkyMap(object):
     def findTractPatchList(self, coordList):
         """Find tracts and patches that overlap a region
 
-        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @param[in] coordList: list of ICRS sky coordinates (lsst.afw.geom.SpherePoint)
         @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
             or may contain, the specified region. The list will be empty if there is no overlap.
 
@@ -149,7 +148,7 @@ class BaseSkyMap(object):
     def findClosestTractPatchList(self, coordList):
         """Find closest tract and patches that overlap coordinates
 
-        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
+        @param[in] coordList: list of ICRS sky coordinates (lsst.afw.geom.SpherePoint)
         @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
             or may contain, the specified region. The list will be empty if there is no overlap.
         """
