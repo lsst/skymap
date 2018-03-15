@@ -6,7 +6,7 @@ from helper import skyMapTestCase
 
 try:
     import healpy
-except:
+except Exception:
     healpy = None
 
 from lsst.skymap.healpixSkyMap import HealpixSkyMap

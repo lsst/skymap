@@ -57,7 +57,8 @@ for tractOverlap in (0.0, 0.33, 1.0, 3.5):
                dimensions[0], dimensions[1], numPix, xSpan, ySpan))
 
     pixelScaleRad = afwGeom.Angle(skyMap.config.pixelScale, afwGeom.arcseconds).asRadians()
-    nomPixelAreaRad2 = pixelScaleRad**2 # nominal area of a pixel in rad^2
+    nomPixelAreaRad2 = pixelScaleRad**2  # nominal area of a pixel in rad^2
     numPixToTileSphere = 4 * math.pi / nomPixelAreaRad2
-    print("total # pixels = %.1e\npixels to tile sphere = %.1e\nextra storage (tot pix/pix to tile) = %.1f\n" %
-          (totNumPix, numPixToTileSphere, totNumPix / float(numPixToTileSphere)))
+    print("total pixels = %.1e" % (totNumPix,))
+    print("pixels to tile sphere = %.1e" % (numPixToTileSphere,))
+    print("extra storage (tot pix/pix to tile) = %.1f\n" % (totNumPix / numPixToTileSphere,))
