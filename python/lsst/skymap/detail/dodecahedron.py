@@ -3,7 +3,6 @@ from __future__ import print_function
 from builtins import range
 from builtins import object
 import math
-import itertools
 import numpy
 
 
@@ -156,7 +155,8 @@ def _computeDodecahedronVertices(faceVecList):
             sharedCloseIndSet = iCloseIndSet.intersection(jCloseIndSet)
             if len(sharedCloseIndSet) != 2:
                 raise RuntimeError("Found %s vertices instead of 2 near %s and %s: %s" %
-                                   (len(sharedCloseIndSet), faceVecList[i], faceVecList[j], sharedCloseIndSet))
+                                   (len(sharedCloseIndSet), faceVecList[i], faceVecList[j],
+                                    sharedCloseIndSet))
             for k in sharedCloseIndSet:
                 key = frozenset((i, j, k))
                 if key in vertexDict:
@@ -251,10 +251,9 @@ def _sortedVectorList(vecList):
     decoratedList.sort()
     return [d[2] for d in decoratedList]
 
+
 if __name__ == "__main__":
     numpy.set_printoptions(precision=2, suppress=True, linewidth=120)
-    import lsst.afw.coord as afwCoord
-    import lsst.afw.geom as afwGeom
 
     print("Dodecahedron with vertices on poles")
     vertexDodec = Dodecahedron(withFacesOnPoles=False)
