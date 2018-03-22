@@ -339,7 +339,7 @@ class ExplicitTractInfo(TractInfo):
         """The minimum bounding box is calculated using the nominated radius"""
         bbox = afwGeom.Box2D()
         for i in range(4):
-            cornerCoord = self._ctrCoord.offset(i * 90 * afwGeom.degrees, self._radius + self._tractOverlap)
+            cornerCoord = self._ctrCoord.offset(i*90*afwGeom.degrees, self._radius + self._tractOverlap)
             pixPos = wcs.skyToPixel(cornerCoord)
             bbox.include(pixPos)
         return bbox
