@@ -28,7 +28,6 @@ import unittest
 
 import numpy
 
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
 
@@ -274,7 +273,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
                         v0 = [v * (0.5 + deltaFrac) for v in ctrCoord0.getVector()]
                         v1 = [v * (0.5 - deltaFrac) for v in ctrCoord1.getVector()]
                         testVec = afwGeom.Point3D(*(v0[i] + v1[i] for i in range(3)))
-                        testRa = afwCoord.IcrsCoord(testVec).getRa()
+                        testRa = afwGeom.SpherePoint(testVec).getRa()
 
                         if deltaFrac > 0.0:
                             expectedTractId = tractId0
@@ -283,7 +282,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
 
                         for testDecDeg in decList:
                             testDec = afwGeom.Angle(testDecDeg, afwGeom.degrees)
-                            testCoord = afwCoord.IcrsCoord(testRa, testDec)
+                            testCoord = afwGeom.SpherePoint(testRa, testDec)
 
                             nearestTractInfo = skyMap.findTract(testCoord)
                             nearestTractId = nearestTractInfo.getId()
@@ -291,8 +290,7 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
                             self.assertEqual(nearestTractId, expectedTractId)
 
                             patchInfo = nearestTractInfo.findPatch(testCoord)
-                            pixelInd = afwGeom.Point2I(
-                                nearestTractInfo.getWcs().skyToPixel(testCoord.toIcrs()))
+                            pixelInd = afwGeom.Point2I(nearestTractInfo.getWcs().skyToPixel(testCoord))
                             self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
                 # find a point outside the tract and make sure it fails

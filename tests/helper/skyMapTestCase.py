@@ -24,7 +24,6 @@ from builtins import zip
 import pickle
 
 import lsst.afw.geom as afwGeom
-import lsst.afw.coord as afwCoord
 import lsst.utils.tests
 
 from lsst.skymap import skyMapRegistry
@@ -176,7 +175,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             distList = []
             for tractInfo1 in skyMap:
                 otherCtrCoord = tractInfo1.getCtrCoord()
-                distList.append(ctrCoord.angularSeparation(otherCtrCoord))
+                distList.append(ctrCoord.separation(otherCtrCoord))
             distList.sort()
             self.assertEqual(distList[0], 0.0)
             for dist in distList[1:self._numNeighbors]:
@@ -264,7 +263,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         for tract in skyMap:
             coord = tract.getCtrCoord()
             self.assertTrue(tract.contains(coord))
-            opposite = afwCoord.IcrsCoord(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
+            opposite = afwGeom.SpherePoint(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
             self.assertFalse(tract.contains(opposite))
 
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
@@ -306,4 +305,4 @@ def getCornerCoords(wcs, bbox):
         bbox.getMax(),
         afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()),
     )
-    return [wcs.pixelToSky(cp).toIcrs() for cp in cornerPosList]
+    return wcs.pixelToSky(cornerPosList)

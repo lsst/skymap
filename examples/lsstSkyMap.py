@@ -50,14 +50,15 @@ for tractOverlap in (0.0, 0.33, 1.0, 3.5):
         rightCoord = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
         topCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
         bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
-        xSpan = leftCoord.angularSeparation(rightCoord).asDegrees()
-        ySpan = bottomCoord.angularSeparation(topCoord).asDegrees()
+        xSpan = leftCoord.separation(rightCoord).asDegrees()
+        ySpan = bottomCoord.separation(topCoord).asDegrees()
         print("%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" %
               (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1],
                dimensions[0], dimensions[1], numPix, xSpan, ySpan))
 
     pixelScaleRad = afwGeom.Angle(skyMap.config.pixelScale, afwGeom.arcseconds).asRadians()
-    nomPixelAreaRad2 = pixelScaleRad**2 # nominal area of a pixel in rad^2
+    nomPixelAreaRad2 = pixelScaleRad**2  # nominal area of a pixel in rad^2
     numPixToTileSphere = 4 * math.pi / nomPixelAreaRad2
-    print("total # pixels = %.1e\npixels to tile sphere = %.1e\nextra storage (tot pix/pix to tile) = %.1f\n" %
-          (totNumPix, numPixToTileSphere, totNumPix / float(numPixToTileSphere)))
+    print("total pixels = %.1e" % (totNumPix,))
+    print("pixels to tile sphere = %.1e" % (numPixToTileSphere,))
+    print("extra storage (tot pix/pix to tile) = %.1f\n" % (totNumPix / numPixToTileSphere,))

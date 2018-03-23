@@ -25,7 +25,6 @@ import struct
 import math
 
 from lsst.pex.config import Field
-from lsst.afw.coord import IcrsCoord
 import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
@@ -102,7 +101,7 @@ class RingsSkyMap(CachingSkyMap):
             dec = self._ringSize*(ringNum + 1) - 0.5*math.pi
             ra = math.fmod(self.config.raStart + 2*math.pi*tractNum/self._ringNums[ringNum], 2*math.pi)
 
-        center = IcrsCoord(ra*afwGeom.radians, dec*afwGeom.radians)
+        center = afwGeom.SpherePoint(ra, dec, afwGeom.radians)
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
                                  0.5*self._ringSize*afwGeom.radians, self.config.tractOverlap*afwGeom.degrees,
@@ -122,9 +121,8 @@ class RingsSkyMap(CachingSkyMap):
         - If coord is equidistant between multiple sky tract centers then one is arbitrarily chosen.
         - The default implementation is not very efficient; subclasses may wish to override.
         """
-        icrsCoord = coord.toIcrs()
-        ra = icrsCoord.getLongitude().asRadians()
-        dec = icrsCoord.getLatitude().asRadians()
+        ra = coord.getLongitude().asRadians()
+        dec = coord.getLatitude().asRadians()
 
         firstRingStart = self._ringSize*0.5 - 0.5*math.pi
         if dec < firstRingStart:
@@ -153,9 +151,8 @@ class RingsSkyMap(CachingSkyMap):
         @note
         - This routine will be more efficient if coord is ICRS.
         """
-        icrsCoord = coord.toIcrs()
-        ra = icrsCoord.getLongitude().asRadians()
-        dec = icrsCoord.getLatitude().asRadians()
+        ra = coord.getLongitude().asRadians()
+        dec = coord.getLatitude().asRadians()
 
         firstRingStart = self._ringSize*0.5 - 0.5*math.pi
 
@@ -182,14 +179,14 @@ class RingsSkyMap(CachingSkyMap):
                     index += self._ringNums[i]
 
                 tract = self[index]
-                if tract.contains(icrsCoord):
+                if tract.contains(coord):
                     tractList.append(tract)
 
         # Always check tracts at poles
         # Southern cap is 0, Northern cap is the last entry in self
         for entry in [0, len(self)-1]:
             tract = self[entry]
-            if tract.contains(icrsCoord):
+            if tract.contains(coord):
                 tractList.append(tract)
 
         return tractList

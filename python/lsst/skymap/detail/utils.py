@@ -21,7 +21,6 @@
 #
 import numpy
 
-import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 
 __all__ = ["coordFromVec"]
@@ -30,7 +29,7 @@ _TinyFloat = numpy.finfo(float).tiny
 
 
 def coordFromVec(vec, defRA=None):
-    """Convert an ICRS cartesian vector to an ICRS Coord
+    """Convert an ICRS cartesian vector to an ICRS lsst.afw.geom.SpherePoint
 
     @param[in] vec: an ICRS catesian vector as a sequence of three floats
     @param[in] defRA: the RA to use if the vector is too near a pole (an afwGeom Angle);
@@ -42,8 +41,8 @@ def coordFromVec(vec, defRA=None):
         if defRA is None:
             raise RuntimeError("At pole and defRA==None")
         if vec[2] > 0:
-            dec = 90.0
+            decDeg = 90.0
         else:
-            dec = -90.0
-        return afwCoord.makeCoord(afwCoord.ICRS, defRA, afwGeom.Angle(dec, afwGeom.degrees))
-    return afwCoord.makeCoord(afwCoord.ICRS, afwGeom.Point3D(*vec))
+            decDeg = -90.0
+        return afwGeom.SpherePoint(defRA, decDeg*afwGeom.degrees)
+    return afwGeom.SpherePoint(afwGeom.Point3D(*vec))

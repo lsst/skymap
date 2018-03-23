@@ -39,7 +39,6 @@ except Exception as e:
     healpy = DummyHealpy()
 
 from lsst.pex.config import Field
-from lsst.afw.coord import IcrsCoord
 import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
@@ -48,17 +47,17 @@ __all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
 
 
 def angToCoord(thetaphi):
-    """Convert healpy's ang to an afw Coord
+    """Convert healpy's ang to an lsst.afw.geom.SpherePoint
 
     The ang is provided as a single object, thetaphi, so the output
     of healpy functions can be directed to this function without
     additional translation.
     """
-    return IcrsCoord(float(thetaphi[1])*afwGeom.radians, float(thetaphi[0] - 0.5*numpy.pi)*afwGeom.radians)
+    return afwGeom.SpherePoint(float(thetaphi[1]), float(thetaphi[0] - 0.5*numpy.pi), afwGeom.radians)
 
 
 def coordToAng(coord):
-    """Convert an afw Coord to a healpy ang (theta, phi)
+    """Convert an lsst.afw.geom.SpherePoint to a healpy ang (theta, phi)
 
     The Healpix convention is that 0 <= theta <= pi, 0 <= phi < 2pi.
     """
@@ -106,7 +105,7 @@ class HealpixSkyMap(CachingSkyMap):
 
     def findTract(self, coord):
         """Find the tract whose inner region includes the coord."""
-        theta, phi = coordToAng(coord.toIcrs())
+        theta, phi = coordToAng(coord)
         index = healpy.ang2pix(self._nside, theta, phi, nest=self.config.nest)
         return self[index]
 

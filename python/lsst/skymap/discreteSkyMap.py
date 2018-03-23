@@ -23,7 +23,6 @@
 import struct
 
 from lsst.pex.config import ListField
-from lsst.afw.coord import IcrsCoord
 import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
@@ -66,8 +65,7 @@ class DiscreteSkyMap(CachingSkyMap):
 
     def generateTract(self, index):
         """Generate the TractInfo for a particular index"""
-        center = IcrsCoord(self.config.raList[index] * afwGeom.degrees,
-                           self.config.decList[index] * afwGeom.degrees)
+        center = afwGeom.SpherePoint(self.config.raList[index], self.config.decList[index], afwGeom.degrees)
         radius = self.config.radiusList[index]
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,

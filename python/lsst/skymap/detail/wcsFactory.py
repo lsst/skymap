@@ -46,7 +46,7 @@ class WcsFactory(object):
         """Make a Wcs
 
         @param[in] crPixPos: crPix for WCS, using the LSST standard; an afwGeom.Point2D or pair of floats
-        @param[in] crValCoord: crVal for WCS (afwCoord.Coord)
+        @param[in] crValCoord: ICRS crVal for WCS (lsst.afw.geom.SpherePoint)
         """
-        return afwGeom.makeSkyWcs(crpix=crPixPos, crval=crValCoord.toIcrs(),
+        return afwGeom.makeSkyWcs(crpix=crPixPos, crval=crValCoord,
                                   cdMatrix=self._cdMatrix, projection=self._projection)

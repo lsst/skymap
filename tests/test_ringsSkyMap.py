@@ -1,7 +1,6 @@
 import unittest
 
 import lsst.utils.tests
-import lsst.afw.coord
 import lsst.afw.geom
 
 from lsst.skymap.ringsSkyMap import RingsSkyMap
@@ -29,11 +28,10 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
         Testing fix to DM-10686.
         """
         skymap = self.getSkyMap()
-        deg = lsst.afw.geom.degrees
         for ra in (0, 123, 321, 359.9):
-            tracts = skymap.findAllTracts(lsst.afw.coord.IcrsCoord(ra*deg, 90*deg))
+            tracts = skymap.findAllTracts(lsst.afw.geom.SpherePoint(ra, 90, lsst.afw.geom.degrees))
             self.assertListEqual(tracts, [skymap[len(skymap) - 1]])
-            tracts = skymap.findAllTracts(lsst.afw.coord.IcrsCoord(ra*deg, -90*deg))
+            tracts = skymap.findAllTracts(lsst.afw.geom.SpherePoint(ra, -90, lsst.afw.geom.degrees))
             self.assertListEqual(tracts, [skymap[0]])
 
     def testSha1Compare(self):
@@ -74,7 +72,7 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
 
         We are only testing function, and not the actual results.
         """
-        coordList = [lsst.afw.coord.IcrsCoord(ra*lsst.afw.geom.degrees, dec*lsst.afw.geom.degrees) for
+        coordList = [lsst.afw.geom.SpherePoint(ra, dec, lsst.afw.geom.degrees) for
                      ra, dec in [(30.18, -3.8), (31.3, -3.8), (31.3, -2.7), (30.18, -2.7)]]
         for coord in coordList:
             self.skymap.findAllTracts(coord)
