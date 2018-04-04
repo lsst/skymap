@@ -84,10 +84,10 @@ def plotSkyMap3d(skyMap):
         numY = min(50, max(1, ((yRange[1] - yRange[0]) // 100)))
 
         outerPixPosList = \
-            [(x, yRange[0]) for x in numpy.linspace(xRange[0], xRange[1], num=numX, endpoint=False)] \
-            + [(xRange[1], y) for y in numpy.linspace(yRange[0], yRange[1], num=numY, endpoint=False)] \
-            + [(x, yRange[1]) for x in numpy.linspace(xRange[1], xRange[0], num=numX, endpoint=False)] \
-            + [(xRange[0], y) for y in numpy.linspace(yRange[1], yRange[0], num=numY, endpoint=False)]
+            [(x1, yRange[0]) for x1 in numpy.linspace(xRange[0], xRange[1], num=numX, endpoint=False)] \
+            + [(xRange[1], y1) for y1 in numpy.linspace(yRange[0], yRange[1], num=numY, endpoint=False)] \
+            + [(x2, yRange[1]) for x2 in numpy.linspace(xRange[1], xRange[0], num=numX, endpoint=False)] \
+            + [(xRange[0], y2) for y2 in numpy.linspace(yRange[1], yRange[0], num=numY, endpoint=False)]
         outerPixPosList.append(outerPixPosList[0])
 
         outerPoints = [numpy.array(wcs.pixelToSky(p[0], p[1]).getVector()) for p in outerPixPosList]
