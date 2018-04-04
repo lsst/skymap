@@ -27,11 +27,10 @@ from builtins import object
 """
 import math
 import numpy
-import sys
 import pickle
 import argparse
 
-from mpl_toolkits.mplot3d import Axes3D # used by fig.gca
+from mpl_toolkits.mplot3d import Axes3D  # noqa F401 used by fig.gca
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -165,7 +164,7 @@ def makePlotter(Projector=DefaultProjector):
     """
 
     def plotSkyMap2d(skyMap):
-        fig = plt.figure()
+        plt.figure()
         plt.clf()
         axes = plt.axes()
 
@@ -177,8 +176,6 @@ def makePlotter(Projector=DefaultProjector):
             xMin, xMax, yMin, yMax = box.getMinX(), box.getMaxX(), box.getMinY(), box.getMaxY()
             num = 50
             color = colorCycle[i % len(colorCycle)]
-            ra0 = center.getLongitude().asRadians()
-            dec0 = center.getLatitude().asRadians()
             proj = Projector(center)
             x, y = proj.project(center)
             axes.plot(x, y, color + 'o')
@@ -199,6 +196,7 @@ def makePlotter(Projector=DefaultProjector):
         plt.show()
     return plotSkyMap2d
 
+
 if __name__ == "__main__":
     plotStyles = {"3d": plotSkyMap3d,
                   "2d": makePlotter(),
@@ -209,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument("--style", choices=list(plotStyles.keys()), default="3d", help="Plot style to use")
     args = parser.parse_args()
 
-    with file(args.skymap[0], "r") as f:
+    with open(args.skymap[0], "r") as f:
         skyMap = pickle.load(f)
         reportSkyMapInfo(skyMap)
         plotStyles[args.style](skyMap)
