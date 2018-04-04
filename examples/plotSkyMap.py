@@ -27,11 +27,10 @@ from builtins import object
 """
 import math
 import numpy
-import sys
 import pickle
 import argparse
 
-from mpl_toolkits.mplot3d import Axes3D # used by fig.gca
+from mpl_toolkits.mplot3d import Axes3D  # noqa F401 used by fig.gca
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -85,10 +84,10 @@ def plotSkyMap3d(skyMap):
         numY = min(50, max(1, ((yRange[1] - yRange[0]) // 100)))
 
         outerPixPosList = \
-            [(x, yRange[0]) for x in numpy.linspace(xRange[0], xRange[1], num=numX, endpoint=False)] \
-            + [(xRange[1], y) for y in numpy.linspace(yRange[0], yRange[1], num=numY, endpoint=False)] \
-            + [(x, yRange[1]) for x in numpy.linspace(xRange[1], xRange[0], num=numX, endpoint=False)] \
-            + [(xRange[0], y) for y in numpy.linspace(yRange[1], yRange[0], num=numY, endpoint=False)]
+            [(x1, yRange[0]) for x1 in numpy.linspace(xRange[0], xRange[1], num=numX, endpoint=False)] \
+            + [(xRange[1], y1) for y1 in numpy.linspace(yRange[0], yRange[1], num=numY, endpoint=False)] \
+            + [(x2, yRange[1]) for x2 in numpy.linspace(xRange[1], xRange[0], num=numX, endpoint=False)] \
+            + [(xRange[0], y2) for y2 in numpy.linspace(yRange[1], yRange[0], num=numY, endpoint=False)]
         outerPixPosList.append(outerPixPosList[0])
 
         outerPoints = [numpy.array(wcs.pixelToSky(p[0], p[1]).getVector()) for p in outerPixPosList]
@@ -165,7 +164,7 @@ def makePlotter(Projector=DefaultProjector):
     """
 
     def plotSkyMap2d(skyMap):
-        fig = plt.figure()
+        plt.figure()
         plt.clf()
         axes = plt.axes()
 
@@ -177,8 +176,6 @@ def makePlotter(Projector=DefaultProjector):
             xMin, xMax, yMin, yMax = box.getMinX(), box.getMaxX(), box.getMinY(), box.getMaxY()
             num = 50
             color = colorCycle[i % len(colorCycle)]
-            ra0 = center.getLongitude().asRadians()
-            dec0 = center.getLatitude().asRadians()
             proj = Projector(center)
             x, y = proj.project(center)
             axes.plot(x, y, color + 'o')
@@ -199,6 +196,7 @@ def makePlotter(Projector=DefaultProjector):
         plt.show()
     return plotSkyMap2d
 
+
 if __name__ == "__main__":
     plotStyles = {"3d": plotSkyMap3d,
                   "2d": makePlotter(),
@@ -209,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument("--style", choices=list(plotStyles.keys()), default="3d", help="Plot style to use")
     args = parser.parse_args()
 
-    with file(args.skymap[0], "r") as f:
+    with open(args.skymap[0], "r") as f:
         skyMap = pickle.load(f)
         reportSkyMapInfo(skyMap)
         plotStyles[args.style](skyMap)

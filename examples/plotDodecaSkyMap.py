@@ -26,7 +26,7 @@ from builtins import zip
 import math
 import numpy
 
-from mpl_toolkits.mplot3d import Axes3D # used by fig.gca
+from mpl_toolkits.mplot3d import Axes3D  # noqa F401 used by fig.gca
 import matplotlib.pyplot as plt
 
 import lsst.afw.geom as afwGeom
@@ -40,7 +40,7 @@ ax = fig.gca(projection='3d')
 for tractInfo in skyMap:
     # display inner region
     vertexList = list(tractInfo.getVertexList())
-    vertexList.append(vertexList[0]) # to close region
+    vertexList.append(vertexList[0])  # to close region
     innerPoints = [tuple(coord.getVector()) for coord in vertexList]
     inX, inY, inZ = zip(*innerPoints)
     lineList = ax.plot(inX, inY, inZ, label="Inner tractInfo %s" % (tractInfo.getId(),))

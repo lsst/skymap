@@ -104,7 +104,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
                                         horizontalalignment='center', verticalalignment='center', color=color)
                             pyplot.fill(ra, dec, fill=False, alpha=0.5, color=color, edgecolor=color)
                         bboxesPlotted.append(bboxDouble)
-                except:
+                except Exception:
                     pass
 
     buff = 0.1
@@ -162,6 +162,7 @@ def splitId(argName):
             setattr(namespace, argName,
                     list({int(dataId[argName]) for dataId in getattr(namespace, argName).idList}))
     return SplitIdValueAction
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
