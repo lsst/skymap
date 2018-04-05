@@ -186,7 +186,7 @@ def makePlotter(Projector=DefaultProjector):
                            (xList, yMax*numpy.ones(num)),
                            (xMin*numpy.ones(num), yList),
                            ):
-                coords = [wcs.pixelToSky(afwGeom.Point2D(x, y)) for x, y in zip(xs, ys)]
+                coords = [wcs.pixelToSky(afwGeom.Point2D(x1, y1)) for x1, y1 in zip(xs, ys)]
                 bounds = [proj.projectWithRecenter(c) for c in coords]
                 axes.plot([b[0] for b in bounds], [b[1] for b in bounds], color + '-')
 
