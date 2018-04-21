@@ -223,3 +223,23 @@ class BaseSkyMap:
         `getSha1()`.
         """
         raise NotImplementedError()
+
+    def register(self, name, registry):
+        """Add SkyMap, Tract, and Patch DataUnits to the given Gen3 Butler Registry.
+        """
+        registry.addDataUnitEntry("SkyMap", {"skymap": name, "sha1": self.getSha1()})
+        for tractInfo in self:
+            registry.addDataUnitEntry(
+                "Tract",
+                {"skymap": name, "tract": tractInfo.getId(),
+                 "region": tractInfo.getPolygon().encode()}
+            )
+            numX, numY = tractInfo.getNumPatches()
+            for patchInfo in tractInfo:
+                cellX, cellY = patchInfo.getIndex()
+                registry.addDataUnitEntry(
+                    "Patch",
+                    {"skymap": name, "tract": tractInfo.getId(),
+                     "patch": cellX*numY + cellY, "cell_x": cellX, "cell_y": cellY,
+                     "region": patchInfo.getPolygon(tractInfo.getWcs()).encode()}
+                )
