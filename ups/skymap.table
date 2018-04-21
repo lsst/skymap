@@ -1,6 +1,7 @@
 setupRequired(numpy)
 setupRequired(sphgeom)
 setupRequired(afw)
+setupRequired(sphgeom)
 setupOptional(healpy)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
