@@ -21,7 +21,6 @@
 #
 """Test EquatSkyMap class
 """
-from builtins import zip
 import pickle
 import unittest
 

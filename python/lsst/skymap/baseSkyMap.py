@@ -26,7 +26,6 @@
 import hashlib
 import struct
 
-from builtins import object
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 from . import detail
@@ -72,7 +71,7 @@ class BaseSkyMapConfig(pexConfig.Config):
     )
 
 
-class BaseSkyMap(object):
+class BaseSkyMap:
     """A collection of overlapping Tracts that map part or all of the sky.
 
     See TractInfo for more information.

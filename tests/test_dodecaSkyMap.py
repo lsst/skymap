@@ -21,7 +21,6 @@
 #
 """Test DodecaSkyMap class
 """
-from __future__ import print_function
 import math
 import unittest
 

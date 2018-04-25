@@ -1,6 +1,3 @@
-from __future__ import division
-from builtins import range
-from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -29,7 +26,7 @@ from .patchInfo import PatchInfo
 __all__ = ["TractInfo"]
 
 
-class TractInfo(object):
+class TractInfo:
     """Information about a tract in a SkyMap sky pixelization
 
     The tract is subdivided into rectangular patches. Each patch has the following properties:

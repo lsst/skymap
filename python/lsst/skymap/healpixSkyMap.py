@@ -1,5 +1,3 @@
-from builtins import zip
-from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010, 2012 LSST Corporation.
@@ -31,7 +29,7 @@ import numpy
 try:
     import healpy
 except Exception as e:
-    class DummyHealpy(object):
+    class DummyHealpy:
         """An object which blows up when we try to read it"""
 
         def __getattr__(self, name, e=e):

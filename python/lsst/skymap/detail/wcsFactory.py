@@ -1,4 +1,3 @@
-from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -23,7 +22,7 @@ from builtins import object
 import lsst.afw.geom as afwGeom
 
 
-class WcsFactory(object):
+class WcsFactory:
     """A factory for creating Wcs objects for the sky tiles.
     """
 
