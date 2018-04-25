@@ -147,6 +147,14 @@ class TractInfo:
         wcs = wcs.copyAtShiftedPixelOrigin(pixPosOffset)
         return finalBBox, wcs
 
+    def getSequentialPatchIndex(self, patchInfo):
+        """Return a single integer that uniquely identifies the given patch
+        within this tract.
+        """
+        x, y = patchInfo.getIndex()
+        nx, ny = self.getNumPatches()
+        return nx*y + x
+
     def findPatch(self, coord):
         """Find the patch containing the specified coord
 

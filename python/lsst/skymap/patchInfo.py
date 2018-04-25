@@ -46,7 +46,7 @@ class PatchInfo:
             raise RuntimeError("outerBBox=%s does not contain innerBBox=%s" % (outerBBox, innerBBox))
 
     def getIndex(self):
-        """Get patch index
+        """Return patch index: a tuple of (x, y)
         """
         return self._index
 
