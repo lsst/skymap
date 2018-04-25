@@ -22,7 +22,6 @@
 """Test EquatSkyMap class
 """
 from builtins import zip
-from builtins import range
 import pickle
 import unittest
 
@@ -269,10 +268,9 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
                     ctrCoord1 = tractInfo1.getCtrCoord()
 
                     for deltaFrac in (-0.001, 0.001):
-                        # this fuss is because Point3D does not support * float
-                        v0 = [v * (0.5 + deltaFrac) for v in ctrCoord0.getVector()]
-                        v1 = [v * (0.5 - deltaFrac) for v in ctrCoord1.getVector()]
-                        testVec = afwGeom.Point3D(*(v0[i] + v1[i] for i in range(3)))
+                        v0 = ctrCoord0.getVector() * (0.5 + deltaFrac)
+                        v1 = ctrCoord1.getVector() * (0.5 - deltaFrac)
+                        testVec = v0 + v1
                         testRa = afwGeom.SpherePoint(testVec).getRa()
 
                         if deltaFrac > 0.0:

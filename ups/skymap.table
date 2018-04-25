@@ -1,4 +1,5 @@
 setupRequired(numpy)
+setupRequired(sphgeom)
 setupRequired(afw)
 setupOptional(healpy)
 

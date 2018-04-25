@@ -27,6 +27,7 @@ import unittest
 
 import numpy
 
+import lsst.sphgeom
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
 
@@ -123,8 +124,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                                 testVector = (vector0 * frac0) + (vector1 * frac1) + (vector2 * frac2)
                                 vecLen = math.sqrt(numpy.sum(testVector**2))
                                 testVector /= vecLen
-                                lsstVec = afwGeom.Point3D(testVector)
-                                testCoord = afwGeom.SpherePoint(lsstVec)
+                                testCoord = afwGeom.SpherePoint(lsst.sphgeom.Vector3d(*testVector))
                                 nearestTractInfo = skyMap.findTract(testCoord)
                                 nearestTractId = nearestTractInfo.getId()
 
