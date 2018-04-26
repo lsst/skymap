@@ -1,4 +1,3 @@
-from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -23,7 +22,7 @@ from builtins import object
 __all__ = ["PatchInfo"]
 
 
-class PatchInfo(object):
+class PatchInfo:
     """Information about a patch within a tract of a sky map
 
     See TractInfo for more information.

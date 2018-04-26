@@ -21,6 +21,7 @@
 #
 import numpy
 
+import lsst.sphgeom
 import lsst.afw.geom as afwGeom
 
 __all__ = ["coordFromVec"]
@@ -45,4 +46,4 @@ def coordFromVec(vec, defRA=None):
         else:
             decDeg = -90.0
         return afwGeom.SpherePoint(defRA, decDeg*afwGeom.degrees)
-    return afwGeom.SpherePoint(afwGeom.Point3D(*vec))
+    return afwGeom.SpherePoint(lsst.sphgeom.Vector3d(*vec))

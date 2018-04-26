@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from builtins import range
-from builtins import object
 import math
 import numpy
 
 
-class Dodecahedron(object):
+class Dodecahedron:
     """A dodecahedron
 
     Contains positions of faces and associated vertices

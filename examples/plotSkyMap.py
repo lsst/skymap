@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from builtins import zip
-from builtins import object
 #
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
@@ -97,7 +94,7 @@ def plotSkyMap3d(skyMap):
     plt.show()
 
 
-class DefaultProjector(object):
+class DefaultProjector:
     """Default projector for plotting a SkyMap in 2D
 
     Coordinates may be projected and optionally recentered. The recentering

@@ -25,7 +25,6 @@
 """
 import struct
 
-from builtins import range
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 from . import detail

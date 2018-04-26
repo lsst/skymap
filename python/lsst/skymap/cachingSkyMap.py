@@ -1,4 +1,3 @@
-from builtins import range
 #
 # LSST Data Management System
 # Copyright 2008-2012 LSST Corporation.
