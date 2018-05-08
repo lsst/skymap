@@ -61,7 +61,6 @@ class TractInfo:
 
         @warning
         - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
-        - vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         self._id = id
         try:
@@ -283,7 +282,6 @@ class TractInfo:
         """Get list of sky coordinates of vertices that define the boundary of the inner region
 
         @warning: this is not a deep copy
-        @warning vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         return self._vertexCoordList
 
