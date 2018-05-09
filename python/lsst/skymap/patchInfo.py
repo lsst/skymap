@@ -19,6 +19,10 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
+from lsst.sphgeom import ConvexPolygon, UnitVector3d
+from lsst.afw.geom import Point2D
+
 __all__ = ["PatchInfo"]
 
 
@@ -42,7 +46,7 @@ class PatchInfo:
             raise RuntimeError("outerBBox=%s does not contain innerBBox=%s" % (outerBBox, innerBBox))
 
     def getIndex(self):
-        """Get patch index
+        """Return patch index: a tuple of (x, y)
         """
         return self._index
 
@@ -55,6 +59,15 @@ class PatchInfo:
         """Get outer bounding box
         """
         return self._outerBBox
+
+    def getPolygon(self, tractWcs):
+        """Return a patch out bbox as a sphgeom.ConvexPolygon.
+        """
+        bbox = self.getOuterBBox()
+        corners = [Point2D(c) for c in bbox.getCorners()]
+        vertices = tractWcs.pixelToSky(corners)
+        points = [UnitVector3d(*sp.getVector()) for sp in vertices]
+        return ConvexPolygon(points)
 
     def __eq__(self, rhs):
         """Support ==

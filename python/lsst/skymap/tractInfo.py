@@ -21,6 +21,8 @@
 #
 import lsst.pex.exceptions
 import lsst.afw.geom as afwGeom
+from lsst.sphgeom import ConvexPolygon, UnitVector3d
+
 from .patchInfo import PatchInfo
 
 __all__ = ["TractInfo"]
@@ -144,6 +146,14 @@ class TractInfo:
                                         finalBBox.getMinY() - bbox.getMinY())
         wcs = wcs.copyAtShiftedPixelOrigin(pixPosOffset)
         return finalBBox, wcs
+
+    def getSequentialPatchIndex(self, patchInfo):
+        """Return a single integer that uniquely identifies the given patch
+        within this tract.
+        """
+        x, y = patchInfo.getIndex()
+        nx, ny = self.getNumPatches()
+        return nx*y + x
 
     def findPatch(self, coord):
         """Find the patch containing the specified coord
@@ -276,6 +286,12 @@ class TractInfo:
         @warning vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         return self._vertexCoordList
+
+    def getPolygon(self):
+        """Return the tract region as a sphgeom.ConvexPolygon.
+        """
+        points = [UnitVector3d(*sp.getVector()) for sp in self.getVertexList()]
+        return ConvexPolygon(points)
 
     def getWcs(self):
         """Get WCS of tract
