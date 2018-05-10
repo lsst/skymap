@@ -21,7 +21,6 @@
 #
 """Test EquatSkyMap class
 """
-import pickle
 import unittest
 
 import numpy
@@ -29,10 +28,19 @@ import numpy
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
 
-from lsst.skymap import EquatSkyMap, skyMapRegistry
+from lsst.skymap import EquatSkyMap
+from helper import skyMapTestCase
 
 
-class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
+class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
+    def setUp(self):
+        self.setAttributes(
+            SkyMapClass=EquatSkyMap,
+            name="equat",
+            numTracts=4,
+            neighborAngularSeparation=90*afwGeom.degrees,
+            numNeighbors=2,
+        )
 
     def getNeighborTracts(self, skyMap, tractId):
         """Return previous and next tractInfo
@@ -92,10 +100,10 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
                 self.assertTrue(minDecList[0] <= minDec)
                 self.assertTrue(maxDecList[0] >= maxDec)
 
-    def testBasicAttributes(self):
+    def testMoreBasicAttributes(self):
         """Confirm that constructor attributes are available.
         """
-        defaultSkyMap = EquatSkyMap()
+        defaultSkyMap = self.getSkyMap()
         for numTracts in (1, 2, 4, 25):
             config = EquatSkyMap.ConfigClass()
             config.numTracts = numTracts
@@ -112,140 +120,8 @@ class EquatSkyMapTestCase(lsst.utils.tests.TestCase):
             skyMap = EquatSkyMap(config)
             self.assertNotEqual(skyMap, defaultSkyMap)
 
-        for tractOverlap in (0.0, 0.01, 0.1):  # degrees
-            config = EquatSkyMap.ConfigClass()
-            config.tractOverlap = tractOverlap
-            skyMap = EquatSkyMap(config)
-            for tractInfo in skyMap:
-                self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
-            self.assertEqual(len(skyMap), skyMap.config.numTracts)
-            self.assertNotEqual(skyMap, defaultSkyMap)
-
-        for patchBorder in (0, 101):
-            config = EquatSkyMap.ConfigClass()
-            config.patchBorder = patchBorder
-            skyMap = EquatSkyMap(config)
-            for tractInfo in skyMap:
-                self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
-            self.assertEqual(len(skyMap), skyMap.config.numTracts)
-            self.assertNotEqual(skyMap, defaultSkyMap)
-
-        skyMapClass = skyMapRegistry["equat"]
-        for xInnerDim in (1005, 5062):
-            for yInnerDim in (2032, 5431):
-                config = skyMapClass.ConfigClass()
-                config.patchInnerDimensions = (xInnerDim, yInnerDim)
-                skyMap = EquatSkyMap(config)
-                for tractInfo in skyMap:
-                    self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
-                self.assertEqual(len(skyMap), skyMap.config.numTracts)
-                self.assertNotEqual(skyMap, defaultSkyMap)
-
-    def testPickle(self):
-        """Test that pickling and unpickling restores the original exactly
-        """
-        skyMap = EquatSkyMap()
-        pickleStr = pickle.dumps(skyMap)
-        unpickledSkyMap = pickle.loads(pickleStr)
-        self.assertEqual(skyMap.getVersion(), unpickledSkyMap.getVersion())
-        self.assertEqual(len(skyMap), len(unpickledSkyMap))
-        self.assertEqual(skyMap, unpickledSkyMap)
-        for configName in (
-            "patchInnerDimensions",
-            "patchBorder",
-            "projection",
-            "pixelScale",
-            "tractOverlap",
-            "numTracts",
-            "decRange",
-        ):
-            self.assertEqual(getattr(skyMap.config, configName), getattr(unpickledSkyMap.config, configName))
-        for tractInfo, unpickledTractInfo in zip(skyMap, unpickledSkyMap):
-            for getterName in (
-                "getBBox",
-                "getCtrCoord",
-                "getId",
-                "getNumPatches",
-                "getPatchBorder",
-                "getPatchInnerDimensions",
-                "getTractOverlap",
-                "getVertexList",
-                "getWcs",
-            ):
-                self.assertEqual(getattr(tractInfo, getterName)(), getattr(unpickledTractInfo, getterName)())
-
-            # test WCS at a few locations
-            wcs = tractInfo.getWcs()
-            unpickledWcs = unpickledTractInfo.getWcs()
-            for x in (-1000.0, 0.0, 1000.0):
-                for y in (-532.5, 0.5, 532.5):
-                    pixelPos = afwGeom.Point2D(x, y)
-                    skyPos = wcs.pixelToSky(pixelPos)
-                    unpickledSkyPos = unpickledWcs.pixelToSky(pixelPos)
-                    self.assertEqual(skyPos, unpickledSkyPos)
-
-            # compare a few patches
-            numPatches = tractInfo.getNumPatches()
-            patchBorder = skyMap.config.patchBorder
-            for xInd in (0, 1, numPatches[0]//2, numPatches[0]-2, numPatches[0]-1):
-                for yInd in (0, 1, numPatches[1]//2, numPatches[1]-2, numPatches[1]-1):
-                    patchInfo = tractInfo.getPatchInfo((xInd, yInd))
-                    unpickledPatchInfo = unpickledTractInfo.getPatchInfo((xInd, yInd))
-                    self.assertEqual(patchInfo, unpickledPatchInfo)
-
-                    # check inner and outer bbox (nothing to do with pickle,
-                    # but a convenient place for the test)
-                    innerBBox = patchInfo.getInnerBBox()
-                    outerBBox = patchInfo.getOuterBBox()
-
-                    if xInd == 0:
-                        self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
-                    else:
-                        self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
-                    if yInd == 0:
-                        self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
-                    else:
-                        self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
-
-                    if xInd == numPatches[0] - 1:
-                        self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
-                    else:
-                        self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
-                    if yInd == numPatches[1] - 1:
-                        self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
-                    else:
-                        self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
-
-    def testTractSeparation(self):
-        """Confirm that each sky tract has the proper distance to other tracts
-        """
-        for numTracts in (2, 4, 25):
-            for minDec in (-45, -2.5, 32):
-                for deltaDec in (2, 17):
-                    maxDec = minDec + deltaDec
-                    config = EquatSkyMap.ConfigClass()
-                    config.numTracts = numTracts
-                    config.decRange = (minDec, maxDec)
-                    skyMap = EquatSkyMap(config)
-                    predDeltaRa = 360.0 / numTracts
-
-                    for tractId, tractInfo in enumerate(skyMap):
-                        self.assertEqual(tractInfo.getId(), tractId)
-
-                        prevTract, nextTract = self.getNeighborTracts(skyMap, tractId)
-
-                        deltaRa = tractInfo.getCtrCoord().getRa() - prevTract.getCtrCoord().getRa()
-                        deltaRa = deltaRa.asDegrees()
-                        raError = abs(deltaRa - predDeltaRa) % 180.0
-                        self.assertAlmostEqual(raError, 0.0)
-
-                        deltaRa = nextTract.getCtrCoord().getRa() - tractInfo.getCtrCoord().getRa()
-                        deltaRa = deltaRa.asDegrees()
-                        raError = abs(deltaRa - predDeltaRa) % 180.0
-                        self.assertAlmostEqual(raError, 0.0)
-
     def testFindTract(self):
-        """Test the findTract method
+        """Test the SkyMap.findTract method
         """
         for numTracts in (2, 4):
             config = EquatSkyMap.ConfigClass()
