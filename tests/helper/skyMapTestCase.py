@@ -19,6 +19,7 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import itertools
 import pickle
 
 import lsst.afw.geom as afwGeom
@@ -264,6 +265,38 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             opposite = afwGeom.SpherePoint(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
             self.assertFalse(tract.contains(opposite))
 
+    def testTractInfoGetPolygon(self):
+        skyMap = self.getSkyMap()
+        for tractInfo in skyMap:
+            centerCoord = tractInfo.getCtrCoord()
+            self.assertPolygonOk(polygon=tractInfo.getInnerSkyPolygon(),
+                                 vertexList=tractInfo.getVertexList(),
+                                 centerCoord=centerCoord)
+            self.assertBBoxPolygonOk(polygon=tractInfo.getOuterSkyPolygon(),
+                                     bbox=tractInfo.getBBox(), wcs=tractInfo.getWcs())
+
+    def testPatchInfoGetPolygon(self):
+        skyMap = self.getSkyMap()
+        numPatches = skyMap[0].getNumPatches()
+
+        def getIndices(numItems):
+            """Return up to 3 indices for testing"""
+            if numItems > 2:
+                return (0, 1, numItems-1)
+            elif numItems > 1:
+                return (0, 1)
+            return (0,)
+
+        for tractInfo in skyMap:
+            wcs = tractInfo.getWcs()
+            for patchInd in itertools.product(getIndices(numPatches[0]), getIndices(numPatches[1])):
+                with self.subTest(patchInd=patchInd):
+                    patchInfo = tractInfo.getPatchInfo(patchInd)
+                    self.assertBBoxPolygonOk(polygon=patchInfo.getInnerSkyPolygon(tractWcs=wcs),
+                                             bbox=patchInfo.getInnerBBox(), wcs=wcs)
+                    self.assertBBoxPolygonOk(polygon=patchInfo.getOuterSkyPolygon(tractWcs=wcs),
+                                             bbox=patchInfo.getOuterBBox(), wcs=wcs)
+
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
 
@@ -292,15 +325,49 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(tract.getId(), knownTractId)
             self.assertEqual(patchList, tract.findPatchList([coord]))
 
+    def assertBBoxPolygonOk(self, polygon, bbox, wcs):
+        """Assert that an on-sky polygon from a pixel bbox
+        covers the expected region.
+
+        Parameters
+        ----------
+        polygon : `lsst.sphgeom.ConvexPolygon`
+            On-sky polygon
+        vertexList : `iterable` of `lsst.afw.geom.SpherePoint`
+            Vertices of polygon
+        centerCoord : `lsst.afw.geom.SpherePoint`
+            A coord approximately in the center of the region
+        """
+        bboxd = afwGeom.Box2D(bbox)
+        centerPixel = bboxd.getCenter()
+        centerCoord = wcs.pixelToSky(centerPixel)
+        skyCorners = getCornerCoords(wcs=wcs, bbox=bbox)
+        self.assertPolygonOk(polygon=polygon, vertexList=skyCorners, centerCoord=centerCoord)
+
+    def assertPolygonOk(self, polygon, vertexList, centerCoord):
+        """Assert that an on-sky polygon from covers the expected region.
+
+        Parameters
+        ----------
+        polygon : `lsst.sphgeom.ConvexPolygon`
+            On-sky polygon
+        vertexList : `iterable` of `lsst.afw.geom.SpherePoint`
+            Vertices of polygon
+        centerCoord : `lsst.afw.geom.SpherePoint`
+            A coord approximately in the center of the region
+        """
+        shiftAngle = 0.01*afwGeom.arcseconds
+        self.assertTrue(polygon.contains(centerCoord.getVector()))
+        for vertex in vertexList:
+            bearingToCenter = vertex.bearingTo(centerCoord)
+            cornerShiftedIn = vertex.offset(bearing=bearingToCenter, amount=shiftAngle)
+            cornerShiftedOut = vertex.offset(bearing=bearingToCenter, amount=-shiftAngle)
+            self.assertTrue(polygon.contains(cornerShiftedIn.getVector()))
+            self.assertFalse(polygon.contains(cornerShiftedOut.getVector()))
+
 
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
     """
-    bbox = afwGeom.Box2D(bbox)  # mak
-    cornerPosList = (
-        bbox.getMin(),
-        afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()),
-        bbox.getMax(),
-        afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()),
-    )
+    cornerPosList = afwGeom.Box2D(bbox).getCorners()
     return wcs.pixelToSky(cornerPosList)
