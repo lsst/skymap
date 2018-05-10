@@ -21,9 +21,9 @@
 #
 import lsst.pex.exceptions
 import lsst.afw.geom as afwGeom
-from lsst.sphgeom import ConvexPolygon, UnitVector3d
+from lsst.sphgeom import ConvexPolygon
 
-from .patchInfo import PatchInfo
+from .patchInfo import PatchInfo, makeSkyPolygonFromBBox
 
 __all__ = ["TractInfo"]
 
@@ -287,11 +287,16 @@ class TractInfo:
         """
         return self._vertexCoordList
 
-    def getPolygon(self):
-        """Return the tract region as a sphgeom.ConvexPolygon.
+    def getInnerSkyPolygon(self):
+        """Get inner on-sky region as a sphgeom.ConvexPolygon.
         """
-        points = [UnitVector3d(*sp.getVector()) for sp in self.getVertexList()]
-        return ConvexPolygon(points)
+        skyUnitVectors = [sp.getVector() for sp in self.getVertexList()]
+        return ConvexPolygon.convexHull(skyUnitVectors)
+
+    def getOuterSkyPolygon(self):
+        """Get outer on-sky region as a sphgeom.ConvexPolygon
+        """
+        return makeSkyPolygonFromBBox(bbox=self.getBBox(), wcs=self.getWcs())
 
     def getWcs(self):
         """Get WCS of tract
