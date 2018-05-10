@@ -42,12 +42,13 @@ _DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
 class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        self._NumTracts = 12  # Number of tracts to expect
-        self._NeighborAngularSeparation = afwGeom.Angle(180.0, afwGeom.degrees) \
-            - _DihedralAngle  # Tract separation
-        self._SkyMapClass = DodecaSkyMap  # Class of SkyMap to test
-        self._SkyMapName = "dodeca"  # Name of SkyMap class to test
-        self._numNeighbors = 6  # Number of neighbours
+        self.setAttributes(
+            SkyMapClass=DodecaSkyMap,
+            name="dodeca",
+            numNeighbors=6,
+            numTracts=12,
+            neighborAngularSeparation=180*afwGeom.degrees - _DihedralAngle,
+        )
 
     def testSha1Compare(self):
         """Test that DodecaSkyMap's extra state is included in its hash."""
@@ -71,7 +72,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
             for otherTractInfo in skyMap:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.separation(otherCtrCoord)
-                if abs(dist - self._NeighborAngularSeparation) < afwGeom.Angle(0.1, afwGeom.degrees):
+                if abs(dist - self.neighborAngularSeparation) < afwGeom.Angle(0.1, afwGeom.degrees):
                     nbrTractList.append(otherTractInfo)
             self.assertEqual(len(nbrTractList), 5)
 
@@ -81,7 +82,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                 vector1 = numpy.array(ctrCoord1.getVector())
                 for tractInfo2 in nbrTractList[tractInfo1.getId():]:
                     dist = ctrCoord1.separation(tractInfo2.getCtrCoord())
-                    if abs(dist - self._NeighborAngularSeparation) > afwGeom.Angle(0.1, afwGeom.degrees):
+                    if abs(dist - self.neighborAngularSeparation) > afwGeom.Angle(0.1, afwGeom.degrees):
                         continue
                     tractId2 = tractInfo2.getId()
                     ctrCoord2 = tractInfo2.getCtrCoord()

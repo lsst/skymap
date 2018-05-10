@@ -17,14 +17,16 @@ class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
         if not healpy:
             self.skipTest("Missing healpy dependency.")
 
-        self.config = HealpixSkyMap.ConfigClass()
-        nside = 2**self.config.log2NSide
-        self._NumTracts = healpy.nside2npix(nside)  # Number of tracts to expect
-        self._NeighborAngularSeparation = healpy.max_pixrad(
-            nside) * afwGeom.radians  # Expected tract separation
-        self._SkyMapClass = HealpixSkyMap  # Class of SkyMap to test
-        self._SkyMapName = "healpix"  # Name of SkyMap class to test
-        self._numNeighbors = 1  # Number of neighbours
+        config = HealpixSkyMap.ConfigClass()
+        nside = 2**config.log2NSide
+        self.setAttributes(
+            SkyMapClass=HealpixSkyMap,
+            name="healpix",
+            config=config,
+            numTracts=healpy.nside2npix(nside),
+            numNeighbors=1,
+            neighborAngularSeparation=healpy.max_pixrad(nside) * afwGeom.radians,
+        )
 
     def testSha1Compare(self):
         """Test that HealpixSkyMap's extra state is included in its hash."""
