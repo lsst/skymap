@@ -20,10 +20,30 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from lsst.sphgeom import ConvexPolygon, UnitVector3d
-from lsst.afw.geom import Point2D
+from lsst.sphgeom import ConvexPolygon
+from lsst.afw.geom import Box2D
 
-__all__ = ["PatchInfo"]
+__all__ = ["PatchInfo", "makeSkyPolygonFromBBox"]
+
+
+def makeSkyPolygonFromBBox(bbox, wcs):
+    """Make an on-sky polygon from a bbox and a SkyWcs
+
+    Parameters
+    ----------
+    bbox : `lsst.afw.geom.Box2I` or `lsst.afw.geom.Box2D`
+        Bounding box of region, in pixel coordinates
+    wcs : `lsst.afw.geom.SkyWcs`
+        Celestial WCS
+
+    Returns
+    -------
+    polygon : `lsst.sphgeom.ConvexPolygon`
+        On-sky region
+    """
+    pixelPoints = Box2D(bbox).getCorners()
+    skyPoints = wcs.pixelToSky(pixelPoints)
+    return ConvexPolygon.convexHull([sp.getVector() for sp in skyPoints])
 
 
 class PatchInfo:
@@ -60,14 +80,15 @@ class PatchInfo:
         """
         return self._outerBBox
 
-    def getPolygon(self, tractWcs):
-        """Return a patch out bbox as a sphgeom.ConvexPolygon.
+    def getInnerSkyPolygon(self, tractWcs):
+        """Get the inner on-sky region as an sphgeom.ConvexPolygon.
         """
-        bbox = self.getOuterBBox()
-        corners = [Point2D(c) for c in bbox.getCorners()]
-        vertices = tractWcs.pixelToSky(corners)
-        points = [UnitVector3d(*sp.getVector()) for sp in vertices]
-        return ConvexPolygon(points)
+        return makeSkyPolygonFromBBox(bbox=self.getInnerBBox(), wcs=tractWcs)
+
+    def getOuterSkyPolygon(self, tractWcs):
+        """Get the outer on-sky region as a sphgeom.ConvexPolygon.
+        """
+        return makeSkyPolygonFromBBox(bbox=self.getOuterBBox(), wcs=tractWcs)
 
     def __eq__(self, rhs):
         """Support ==

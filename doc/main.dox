@@ -23,7 +23,7 @@ but there is no border on patch edges that lie against tract boundaries.
 
 Imaging data is saved as one FITS file per patch. To access a patch the butler requires the tract ID
 and patch index. \ref baseSkyMap.BaseSkyMap.findTract "BaseSkyMap.findTract(coord)" finds a tract
-and returns its \ref tractInfo.TractInfo "TractInfo", given a \ref afw::coord::Coord "coord".
+and returns its \ref tractInfo.TractInfo "TractInfo", given a \ref afw::geom::SpherePoint "coord".
 \ref tractInfo.TractInfo.findPatch "TractInfo.findPatch(coord)" finds a patch and returns its
 \ref patchInfo.PatchInfo "PatchInfo".
 

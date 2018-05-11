@@ -121,11 +121,12 @@ class BaseSkyMap:
         - The default implementation is not very efficient; subclasses may wish to override.
         """
         distTractInfoList = []
-        for tractInfo in self:
+        for i, tractInfo in enumerate(self):
             angSep = coord.separation(tractInfo.getCtrCoord()).asDegrees()
-            distTractInfoList.append((angSep, tractInfo))
+            # include index in order to disambiguate identical angSep values
+            distTractInfoList.append((angSep, i, tractInfo))
         distTractInfoList.sort()
-        return distTractInfoList[0][1]
+        return distTractInfoList[0][2]
 
     def findTractPatchList(self, coordList):
         """Find tracts and patches that overlap a region

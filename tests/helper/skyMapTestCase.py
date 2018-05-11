@@ -19,7 +19,10 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import itertools
 import pickle
+
+import numpy as np
 
 import lsst.afw.geom as afwGeom
 import lsst.utils.tests
@@ -30,33 +33,63 @@ from lsst.skymap import skyMapRegistry
 class SkyMapTestCase(lsst.utils.tests.TestCase):
     """An abstract base class for testing a SkyMap.
 
-    To use, subclass and set the following class variables:
-    _SkyMapClass: the particular SkyMap subclass to test
-    _SkyMapConfig: a SkyMapConfig instance to use in the test, or None to use _SkyMapClass.ConfigClass()
-    _SkyMapName: the name of the particular SkyMap class in the registry
-    _NumTracts: the number of tracts to expect (for the default configuration)
-    _NeighborAngularSeparation: Expected angular separation between tracts
-    _numNeighbors: Number of neighbors that should be within the expected angular separation
+    To use, subclass and call `setAttributes` from `setUp`
     """
-    _SkyMapConfig = None
+    def setAttributes(self, *,
+                      SkyMapClass,
+                      name,
+                      numTracts,
+                      config=None,
+                      neighborAngularSeparation=None,
+                      numNeighbors=None):
+        """Initialize the test (call from setUp in the subclass)
+
+        Parameters
+        ----------
+        SkyMapClass : subclass of `lsst.skymap.BaseSkyMap`
+            Class of sky map to test
+        name : `str`
+            Name of sky map in sky map registry
+        numTracts : `int`
+            Number of tracts in the default configuration
+        config : subclass of `lsst.skymap.SkyMapConfig`, optional
+            Default configuration used by `getSkyMap`;
+            if None use SkyMapClass.ConfigClass()
+        neighborAngularSeparation : `lsst.afw.geom.Angle`, optional
+            Expected angular separation between tracts;
+            if None then angular separation is not tested unless your
+            subclass of SkyMapTestCaseoverrides `testTractSeparation`.
+        numNeighbors : `int` or `None`
+            Number of neighbors that should be within
+            ``neighborAngularSeparation``;
+            Required if ``neighborAngularSeparation`` is not None;
+            ignored otherwise.
+        """
+        self.SkyMapClass = SkyMapClass
+        self.config = config
+        self.name = name
+        self.numTracts = numTracts
+        self.neighborAngularSeparation = neighborAngularSeparation
+        self.numNeighbors = numNeighbors
+        np.random.seed(47)
 
     def getSkyMap(self, config=None):
         """Provide an instance of the skymap"""
         if config is None:
             config = self.getConfig()
-        return self._SkyMapClass(config=config)
+        return self.SkyMapClass(config=config)
 
     def getConfig(self):
         """Provide an instance of the configuration class"""
-        if self._SkyMapConfig is None:
-            return self._SkyMapClass.ConfigClass()
-        # Want to return a copy of self._SkyMapConfig, so it can be modified.
+        if self.config is None:
+            return self.SkyMapClass.ConfigClass()
+        # Want to return a copy of self.config, so it can be modified.
         # However, there is no Config.copy() method, so this is more complicated than desirable.
-        return pickle.loads(pickle.dumps(self._SkyMapConfig))
+        return pickle.loads(pickle.dumps(self.config))
 
     def testRegistry(self):
         """Confirm that the skymap can be retrieved from the registry"""
-        self.assertEqual(skyMapRegistry[self._SkyMapName], self._SkyMapClass)
+        self.assertEqual(skyMapRegistry[self.name], self.SkyMapClass)
 
     def testBasicAttributes(self):
         """Confirm that constructor attributes are available
@@ -68,7 +101,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             skyMap = self.getSkyMap(config)
             for tractInfo in skyMap:
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
-            self.assertEqual(len(skyMap), self._NumTracts)
+            self.assertEqual(len(skyMap), self.numTracts)
             self.assertNotEqual(skyMap, defaultSkyMap)
 
         for patchBorder in (0, 101):
@@ -77,7 +110,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             skyMap = self.getSkyMap(config)
             for tractInfo in skyMap:
                 self.assertEqual(tractInfo.getPatchBorder(), patchBorder)
-            self.assertEqual(len(skyMap), self._NumTracts)
+            self.assertEqual(len(skyMap), self.numTracts)
             self.assertNotEqual(skyMap, defaultSkyMap)
 
         for xInnerDim in (1005, 5062):
@@ -87,7 +120,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                 skyMap = self.getSkyMap(config)
                 for tractInfo in skyMap:
                     self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
-                self.assertEqual(len(skyMap), self._NumTracts)
+                self.assertEqual(len(skyMap), self.numTracts)
                 self.assertNotEqual(skyMap, defaultSkyMap)
 
     def assertUnpickledTractInfo(self, unpickled, original, patchBorder):
@@ -165,6 +198,9 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
     def testTractSeparation(self):
         """Confirm that each sky tract has the proper distance to other tracts
         """
+        if self.neighborAngularSeparation is None:
+            self.skipTest("Not testing angular separation for %s: neighborAngularSeparation is None" %
+                          (self.SkyMapClass.__name__,))
         skyMap = self.getSkyMap()
         for tractId, tractInfo in enumerate(skyMap):
             self.assertEqual(tractInfo.getId(), tractId)
@@ -176,14 +212,15 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                 distList.append(ctrCoord.separation(otherCtrCoord))
             distList.sort()
             self.assertEqual(distList[0], 0.0)
-            for dist in distList[1:self._numNeighbors]:
-                self.assertAnglesAlmostEqual(dist, self._NeighborAngularSeparation)
+            for dist in distList[1:self.numNeighbors]:
+                self.assertAnglesAlmostEqual(dist, self.neighborAngularSeparation)
 
     def testFindPatchList(self):
-        """Test findTract.findPatchList
+        """Test TractInfo.findPatchList
         """
         skyMap = self.getSkyMap()
-        for tractId in (0, 5):
+        # pick two arbitrary tracts
+        for tractId in np.random.choice(len(skyMap), 2):
             tractInfo = skyMap[tractId]
             wcs = tractInfo.getWcs()
             numPatches = tractInfo.getNumPatches()
@@ -231,7 +268,8 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         Note that findPatchList is being tested elsewhere.
         """
         skyMap = self.getSkyMap()
-        for tractId in (1, 3, 7):
+        # pick 3 arbitrary tracts
+        for tractId in np.random.choice(len(skyMap), 3):
             tractInfo = skyMap[tractId]
             self.assertTractPatchListOk(
                 skyMap=skyMap,
@@ -264,6 +302,38 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             opposite = afwGeom.SpherePoint(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
             self.assertFalse(tract.contains(opposite))
 
+    def testTractInfoGetPolygon(self):
+        skyMap = self.getSkyMap()
+        for tractInfo in skyMap:
+            centerCoord = tractInfo.getCtrCoord()
+            self.assertPolygonOk(polygon=tractInfo.getInnerSkyPolygon(),
+                                 vertexList=tractInfo.getVertexList(),
+                                 centerCoord=centerCoord)
+            self.assertBBoxPolygonOk(polygon=tractInfo.getOuterSkyPolygon(),
+                                     bbox=tractInfo.getBBox(), wcs=tractInfo.getWcs())
+
+    def testPatchInfoGetPolygon(self):
+        skyMap = self.getSkyMap()
+        numPatches = skyMap[0].getNumPatches()
+
+        def getIndices(numItems):
+            """Return up to 3 indices for testing"""
+            if numItems > 2:
+                return (0, 1, numItems-1)
+            elif numItems > 1:
+                return (0, 1)
+            return (0,)
+
+        for tractInfo in skyMap:
+            wcs = tractInfo.getWcs()
+            for patchInd in itertools.product(getIndices(numPatches[0]), getIndices(numPatches[1])):
+                with self.subTest(patchInd=patchInd):
+                    patchInfo = tractInfo.getPatchInfo(patchInd)
+                    self.assertBBoxPolygonOk(polygon=patchInfo.getInnerSkyPolygon(tractWcs=wcs),
+                                             bbox=patchInfo.getInnerBBox(), wcs=wcs)
+                    self.assertBBoxPolygonOk(polygon=patchInfo.getOuterSkyPolygon(tractWcs=wcs),
+                                             bbox=patchInfo.getOuterBBox(), wcs=wcs)
+
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
 
@@ -292,15 +362,49 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(tract.getId(), knownTractId)
             self.assertEqual(patchList, tract.findPatchList([coord]))
 
+    def assertBBoxPolygonOk(self, polygon, bbox, wcs):
+        """Assert that an on-sky polygon from a pixel bbox
+        covers the expected region.
+
+        Parameters
+        ----------
+        polygon : `lsst.sphgeom.ConvexPolygon`
+            On-sky polygon
+        vertexList : `iterable` of `lsst.afw.geom.SpherePoint`
+            Vertices of polygon
+        centerCoord : `lsst.afw.geom.SpherePoint`
+            A coord approximately in the center of the region
+        """
+        bboxd = afwGeom.Box2D(bbox)
+        centerPixel = bboxd.getCenter()
+        centerCoord = wcs.pixelToSky(centerPixel)
+        skyCorners = getCornerCoords(wcs=wcs, bbox=bbox)
+        self.assertPolygonOk(polygon=polygon, vertexList=skyCorners, centerCoord=centerCoord)
+
+    def assertPolygonOk(self, polygon, vertexList, centerCoord):
+        """Assert that an on-sky polygon from covers the expected region.
+
+        Parameters
+        ----------
+        polygon : `lsst.sphgeom.ConvexPolygon`
+            On-sky polygon
+        vertexList : `iterable` of `lsst.afw.geom.SpherePoint`
+            Vertices of polygon
+        centerCoord : `lsst.afw.geom.SpherePoint`
+            A coord approximately in the center of the region
+        """
+        shiftAngle = 0.01*afwGeom.arcseconds
+        self.assertTrue(polygon.contains(centerCoord.getVector()))
+        for vertex in vertexList:
+            bearingToCenter = vertex.bearingTo(centerCoord)
+            cornerShiftedIn = vertex.offset(bearing=bearingToCenter, amount=shiftAngle)
+            cornerShiftedOut = vertex.offset(bearing=bearingToCenter, amount=-shiftAngle)
+            self.assertTrue(polygon.contains(cornerShiftedIn.getVector()))
+            self.assertFalse(polygon.contains(cornerShiftedOut.getVector()))
+
 
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
     """
-    bbox = afwGeom.Box2D(bbox)  # mak
-    cornerPosList = (
-        bbox.getMin(),
-        afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()),
-        bbox.getMax(),
-        afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()),
-    )
+    cornerPosList = afwGeom.Box2D(bbox).getCorners()
     return wcs.pixelToSky(cornerPosList)

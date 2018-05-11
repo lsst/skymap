@@ -21,9 +21,9 @@
 #
 import lsst.pex.exceptions
 import lsst.afw.geom as afwGeom
-from lsst.sphgeom import ConvexPolygon, UnitVector3d
+from lsst.sphgeom import ConvexPolygon
 
-from .patchInfo import PatchInfo
+from .patchInfo import PatchInfo, makeSkyPolygonFromBBox
 
 __all__ = ["TractInfo"]
 
@@ -61,7 +61,6 @@ class TractInfo:
 
         @warning
         - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
-        - vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         self._id = id
         try:
@@ -241,7 +240,8 @@ class TractInfo:
     def getPatchInfo(self, index):
         """Return information for the specified patch
 
-        @param[in] index: index of patch, as a pair of ints
+        @param[in] index: index of patch, as a pair of ints;
+            negative values are not supported
         @return patch info, an instance of PatchInfo
 
         @raise IndexError if index is out of range
@@ -283,15 +283,19 @@ class TractInfo:
         """Get list of sky coordinates of vertices that define the boundary of the inner region
 
         @warning: this is not a deep copy
-        @warning vertexCoordList will likely become a geom SphericalConvexPolygon someday.
         """
         return self._vertexCoordList
 
-    def getPolygon(self):
-        """Return the tract region as a sphgeom.ConvexPolygon.
+    def getInnerSkyPolygon(self):
+        """Get inner on-sky region as a sphgeom.ConvexPolygon.
         """
-        points = [UnitVector3d(*sp.getVector()) for sp in self.getVertexList()]
-        return ConvexPolygon(points)
+        skyUnitVectors = [sp.getVector() for sp in self.getVertexList()]
+        return ConvexPolygon.convexHull(skyUnitVectors)
+
+    def getOuterSkyPolygon(self):
+        """Get outer on-sky region as a sphgeom.ConvexPolygon
+        """
+        return makeSkyPolygonFromBBox(bbox=self.getBBox(), wcs=self.getWcs())
 
     def getWcs(self):
         """Get WCS of tract

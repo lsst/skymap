@@ -12,15 +12,14 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
     def setUp(self):
         config = RingsSkyMap.ConfigClass()
         config.numRings = 3
-        self._NumTracts = 26  # Number of tracts to expect
-        self._NeighborAngularSeparation = None  # Expected tract separation
-        self._SkyMapClass = RingsSkyMap  # Class of SkyMap to test
-        self._SkyMapConfig = config  # Configuration to use
-        self._SkyMapName = "rings"  # Name of SkyMap class to test
-        self._numNeighbors = None  # Number of neighbours
-
-    def testTractSeparation(self):
-        self.skipTest("A particular tract separation is not important for RingsSkyMap")
+        self.setAttributes(
+            SkyMapClass=RingsSkyMap,
+            name="rings",
+            config=config,
+            numTracts=26,
+            neighborAngularSeparation=None,  # no uniform tract separation
+            numNeighbors=None,    # ignored because neighborAngularSeparation=None
+        )
 
     def testPoles(self):
         """Test that findAllTracts behaves at the poles
