@@ -240,7 +240,8 @@ class TractInfo:
     def getPatchInfo(self, index):
         """Return information for the specified patch
 
-        @param[in] index: index of patch, as a pair of ints
+        @param[in] index: index of patch, as a pair of ints;
+            negative values are not supported
         @return patch info, an instance of PatchInfo
 
         @raise IndexError if index is out of range
