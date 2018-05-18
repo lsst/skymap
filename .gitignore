@@ -3,6 +3,7 @@ _build*
 config.log
 .sconf_temp
 .cache
+.pytest_cache
 *.dylib
 *.o
 *.os
