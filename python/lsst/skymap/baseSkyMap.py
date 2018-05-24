@@ -233,7 +233,7 @@ class BaseSkyMap:
             registry.addDataUnitEntry(
                 "Tract",
                 {"skymap": name, "tract": tractInfo.getId(),
-                 "region": tractInfo.getPolygon().encode()}
+                 "region": tractInfo.getOuterSkyPolygon().encode()}
             )
             for patchInfo in tractInfo:
                 cellX, cellY = patchInfo.getIndex()
@@ -242,5 +242,5 @@ class BaseSkyMap:
                     {"skymap": name, "tract": tractInfo.getId(),
                      "patch": tractInfo.getSequentialPatchIndex(patchInfo),
                      "cell_x": cellX, "cell_y": cellY,
-                     "region": patchInfo.getPolygon(tractInfo.getWcs()).encode()}
+                     "region": patchInfo.getOuterSkyPolygon(tractInfo.getWcs()).encode()}
                 )
