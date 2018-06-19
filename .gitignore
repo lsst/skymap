@@ -4,6 +4,7 @@ config.log
 .sconf_temp
 .cache
 .pytest_cache
+.coverage
 *.dylib
 *.o
 *.os
