@@ -30,6 +30,31 @@ import lsst.utils.tests
 from lsst.skymap import skyMapRegistry
 
 
+def checkDm14809(testcase, skymap):
+    """Test that DM-14809 has been fixed
+
+    The observed behaviour was:
+
+        skyMap.findTract(skyMap[9712].getCtrCoord()).getId() != 9712
+
+    and
+
+        skyMap[1].getCtrCoord() == skyMap[11].getCtrCoord()
+
+    In order to be thorough, we generalise these over the entire skymap.
+    """
+    # Check that the tract found for central coordinate of a tract is that tract
+    expect = [tract.getId() for tract in skymap]
+    got = [skymap.findTract(tract.getCtrCoord()).getId() for tract in skymap]
+    testcase.assertListEqual(got, expect)
+
+    # Check that the tract central coordinates are unique
+    # Round to integer arcminutes so differences are relatively immune to small numerical inaccuracies
+    centers = set([(int(coord.getRa().asArcminutes()), int(coord.getDec().asArcminutes())) for
+                   coord in (tract.getCtrCoord() for tract in skymap)])
+    testcase.assertEqual(len(centers), len(skymap))
+
+
 class SkyMapTestCase(lsst.utils.tests.TestCase):
     """An abstract base class for testing a SkyMap.
 
@@ -333,6 +358,17 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                                              bbox=patchInfo.getInnerBBox(), wcs=wcs)
                     self.assertBBoxPolygonOk(polygon=patchInfo.getOuterSkyPolygon(tractWcs=wcs),
                                              bbox=patchInfo.getOuterBBox(), wcs=wcs)
+
+    def testDm14809(self):
+        """Generic version of test that DM-14809 has been fixed"""
+        checkDm14809(self, self.getSkyMap())
+
+    def testNumbering(self):
+        """Check the numbering of tracts matches the indexing"""
+        skymap = self.getSkyMap()
+        expect = list(range(len(skymap)))
+        got = [tt.getId() for tt in skymap]
+        self.assertEqual(got, expect)
 
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
         """Assert that findTractPatchList produces the correct results
