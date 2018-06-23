@@ -47,6 +47,19 @@ class RingsSkyMap(CachingSkyMap):
     division is made at the Declination closest to zero so as to ensure
     full overlap.
 
+    Rings are numbered in the rings from south to north. The south pole cap is
+    ``tract=0``, then the tract at ``raStart`` in the southernmost ring is
+    ``tract=1``. Numbering continues (in the positive RA direction) around that
+    ring and then continues in the same fashion with the next ring north, and
+    so on until all reaching the north pole cap, which is
+    ``tract=len(skymap) - 1``.
+
+    However, ``version=0`` had a bug in the numbering of the tracts: the first
+    and last tracts in the first (southernmost) ring were identical, and the
+    first tract in the last (northernmost) ring was missing. When using
+    ``version=0``, these tracts remain missing in order to preserve the
+    numbering scheme.
+
     Parameters
     ----------
     config : `lsst.skymap.RingsSkyMapConfig`
@@ -63,9 +76,9 @@ class RingsSkyMap(CachingSkyMap):
 
     def __init__(self, config, version=1):
         """Constructor"""
-        # We count rings from south to north
-        # Note: pole caps together count for one additional ring
         assert version in (0, 1), "Unrecognised version: %s" % (version,)
+        # We count rings from south to north
+        # Note: pole caps together count for one additional ring when calculating the ring size
         self._ringSize = math.pi / (config.numRings + 1)  # Size of a ring in Declination (radians)
         self._ringNums = []  # Number of tracts for each ring
         for i in range(config.numRings):
@@ -181,9 +194,7 @@ class RingsSkyMap(CachingSkyMap):
         - if tracts do not cover the whole sky then the returned tract may not include the coord
 
         @note
-        - This routine will be more efficient if coord is ICRS.
         - If coord is equidistant between multiple sky tract centers then one is arbitrarily chosen.
-        - The default implementation is not very efficient; subclasses may wish to override.
         """
         ringNum = self._decToRingNum(coord.getLatitude())
         if ringNum == -1:
