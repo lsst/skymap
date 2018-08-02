@@ -94,7 +94,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
                         minPoint = afwGeom.Point2D(min(ra), min(dec))
                         maxPoint = afwGeom.Point2D(max(ra), max(dec))
                         # Use doubles in Box2D to check overlap
-                        bboxDouble = afwGeom.Box2D(minPoint, maxPoint)
+                        bboxDouble = afwGeom.Box2D(minPoint, maxPoint, invert=False)
                         overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
                         if all(overlaps):
                             pyplot.text(percent(ra), percent(dec), str(ccdId), fontsize=6,

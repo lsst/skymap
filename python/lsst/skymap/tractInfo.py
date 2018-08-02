@@ -125,7 +125,7 @@ class TractInfo:
                 bboxDim[i] = innerDim * num
                 bboxMin[i] -= deltaDim // 2
             numPatches[i] = num
-        bbox = afwGeom.Box2I(bboxMin, bboxDim)
+        bbox = afwGeom.Box2I(bboxMin, bboxDimi, invert=False)
         return bbox, numPatches
 
     def _finalOrientation(self, bbox, wcs):
@@ -138,7 +138,7 @@ class TractInfo:
         @param wcs    Current Wcs
         @return revised bounding box, revised Wcs
         """
-        finalBBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), bbox.getDimensions())
+        finalBBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), bbox.getDimensions(), invert=False)
         # shift the WCS by the same amount as the bbox; extra code is required
         # because simply subtracting makes an Extent2I
         pixPosOffset = afwGeom.Extent2D(finalBBox.getMinX() - bbox.getMinX(),
@@ -251,7 +251,7 @@ class TractInfo:
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
                              (index, self._numPatches[0]-1, self._numPatches[1]-1))
         innerMin = afwGeom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
-        innerBBox = afwGeom.Box2I(innerMin, self._patchInnerDimensions)
+        innerBBox = afwGeom.Box2I(innerMin, self._patchInnerDimensions, invert=False)
         if not self._bbox.contains(innerBBox):
             raise RuntimeError(
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" %
@@ -347,7 +347,7 @@ class ExplicitTractInfo(TractInfo):
         super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
         # Shrink the box slightly to make sure the vertices are in the tract
-        bboxD = afwGeom.BoxD(self.getBBox())
+        bboxD = afwGeom.Box2D(self.getBBox())
         bboxD.grow(-0.001)
         finalWcs = self.getWcs()
         self._vertexCoordList = finalWcs.pixelToSky(bboxD.getCorners())
