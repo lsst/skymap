@@ -228,7 +228,7 @@ class BaseSkyMap:
     def register(self, name, registry):
         """Add SkyMap, Tract, and Patch DataUnits to the given Gen3 Butler Registry.
         """
-        registry.addDataUnitEntry("SkyMap", {"skymap": name, "sha1": self.getSha1()})
+        registry.addDataUnitEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
         for tractInfo in self:
             registry.addDataUnitEntry(
                 "Tract",
