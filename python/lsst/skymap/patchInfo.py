@@ -20,10 +20,10 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ["PatchInfo", "makeSkyPolygonFromBBox"]
+
 from lsst.sphgeom import ConvexPolygon
 from lsst.afw.geom import Box2D
-
-__all__ = ["PatchInfo", "makeSkyPolygonFromBBox"]
 
 
 def makeSkyPolygonFromBBox(bbox, wcs):
@@ -31,7 +31,7 @@ def makeSkyPolygonFromBBox(bbox, wcs):
 
     Parameters
     ----------
-    bbox : `lsst.afw.geom.Box2I` or `lsst.afw.geom.Box2D`
+    bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
         Bounding box of region, in pixel coordinates
     wcs : `lsst.afw.geom.SkyWcs`
         Celestial WCS
@@ -47,18 +47,21 @@ def makeSkyPolygonFromBBox(bbox, wcs):
 
 
 class PatchInfo:
-    """Information about a patch within a tract of a sky map
+    """Information about a patch within a tract of a sky map.
 
-    See TractInfo for more information.
+    See `TractInfo` for more information.
+
+    Parameters
+    ----------
+    index : `tuple` of `int`
+        x,y index of patch (a pair of ints)
+    innerBBox : `lsst.geom.Box2I`
+        inner bounding box
+    outerBBox : `lsst.geom.Box2I`
+        inner bounding box
     """
 
     def __init__(self, index, innerBBox, outerBBox):
-        """Construct a PatchInfo
-
-        @param[in] index: x,y index of patch (a pair of ints)
-        @param[in] innerBBox: inner bounding box (an afwGeom.Box2I)
-        @param[in] outerBBox: inner bounding box (an afwGeom.Box2I)
-        """
         self._index = index
         self._innerBBox = innerBBox
         self._outerBBox = outerBBox
@@ -67,48 +70,65 @@ class PatchInfo:
 
     def getIndex(self):
         """Return patch index: a tuple of (x, y)
+
+        Returns
+        -------
+        result : `tuple` of `int`
+            Patch index (x, y).
         """
         return self._index
 
     def getInnerBBox(self):
-        """Get inner bounding box
+        """Get inner bounding box.
+
+        Returns
+        -------
+        bbox : `lsst.geom.Box2I`
+            The inner bounding Box.
         """
         return self._innerBBox
 
     def getOuterBBox(self):
-        """Get outer bounding box
+        """Get outer bounding box.
+
+        Returns
+        -------
+        bbox : `lsst.geom.Box2I`
+            The outer bounding Box.
         """
         return self._outerBBox
 
     def getInnerSkyPolygon(self, tractWcs):
-        """Get the inner on-sky region as an sphgeom.ConvexPolygon.
+        """Get the inner on-sky region.
+
+        Returns
+        -------
+        result : `lsst.sphgeom.ConvexPolygon`
+            The inner sky region.
         """
         return makeSkyPolygonFromBBox(bbox=self.getInnerBBox(), wcs=tractWcs)
 
     def getOuterSkyPolygon(self, tractWcs):
-        """Get the outer on-sky region as a sphgeom.ConvexPolygon.
+        """Get the outer on-sky region.
+
+        Returns
+        -------
+        result : `lsst.sphgeom.ConvexPolygon`
+            The outer sky region.
         """
         return makeSkyPolygonFromBBox(bbox=self.getOuterBBox(), wcs=tractWcs)
 
     def __eq__(self, rhs):
-        """Support ==
-        """
         return (self.getIndex() == rhs.getIndex()) \
             and (self.getInnerBBox() == rhs.getInnerBBox()) \
             and (self.getOuterBBox() == rhs.getOuterBBox())
 
     def __ne__(self, rhs):
-        """Support !=
-        """
         return not self.__eq__(rhs)
 
     def __str__(self):
-        """Return a brief string representation
-        """
         return "PatchInfo(index=%s)" % (self.getIndex(),)
 
     def __repr__(self):
-        """Return a detailed string representation
-        """
         return "PatchInfo(index=%s, innerBBox=%s, outerBBox=%s)" % \
             (self.getIndex(), self.getInnerBBox(), self.getOuterBBox())

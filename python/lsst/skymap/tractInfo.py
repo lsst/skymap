@@ -19,6 +19,9 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
+__all__ = ["TractInfo"]
+
 import numbers
 
 import lsst.pex.exceptions
@@ -27,43 +30,59 @@ from lsst.sphgeom import ConvexPolygon
 
 from .patchInfo import PatchInfo, makeSkyPolygonFromBBox
 
-__all__ = ["TractInfo"]
-
 
 class TractInfo:
     """Information about a tract in a SkyMap sky pixelization
 
-    The tract is subdivided into rectangular patches. Each patch has the following properties:
-    - An inner region defined by an inner bounding. The inner regions of the patches exactly tile the tract,
-      and all inner regions have the same dimensions. The tract is made larger as required to make this work.
-    - An outer region defined by an outer bounding box. The outer region extends beyond the inner region
-      by patchBorder pixels in all directions, except there is no border at the edges of the tract.
-      Thus patches overlap each other but never extend off the tract. If you do not want any overlap
-      between adjacent patches then set patchBorder to 0.
+    Parameters
+    ----------
+    id : `int`
+        tract ID
+    patchInnerDimensions : `tuple` of `int`
+        Dimensions of inner region of patches (x,y pixels).
+    patchBorder : `int`
+        Overlap between adjacent patches (in pixels)
+    ctrCoord : `lsst.geom.SpherePoint`
+        ICRS sky coordinate of center of inner region of tract; also used as
+        the CRVAL for the WCS.
+    vertexCoordList : `list` of `lsst.geom.SpherePoint`
+        Vertices that define the boundaries of the inner region.
+    tractOverlap : `lsst.geom.Angle`
+        Minimum overlap between adjacent sky tracts; this defines the minimum
+        distance the tract extends beyond the inner region in all directions.
+    wcs : `lsst.afw.image.SkyWcs`
+        WCS for tract. The reference pixel will be shifted as required so that
+        the lower left-hand pixel (index 0,0) has pixel position 0.0, 0.0.
+
+    Notes
+    -----
+    The tract is subdivided into rectangular patches. Each patch has the
+    following properties:
+
+    - An inner region defined by an inner bounding box. The inner regions of
+      the patches exactly tile the tract, and all inner regions have the same
+      dimensions. The tract is made larger as required to make this work.
+
+    - An outer region defined by an outer bounding box. The outer region
+      extends beyond the inner region by patchBorder pixels in all directions,
+      except there is no border at the edges of the tract.
+      Thus patches overlap each other but never extend off the tract.
+      If you do not want any overlap between adjacent patches then set
+      patchBorder to 0.
+
     - An index that consists of a pair of integers:
-        0 <= x index < numPatches[0]
-        0 <= y index < numPatches[1]
+
+      * 0 <= x index < numPatches[0]
+
+      * 0 <= y index < numPatches[1]
+
       Patch 0,0 is at the minimum corner of the tract bounding box.
+
+    - It is not enforced that ctrCoord is the center of vertexCoordList, but
+      SkyMap relies on it.
     """
 
     def __init__(self, id, patchInnerDimensions, patchBorder, ctrCoord, vertexCoordList, tractOverlap, wcs):
-        """Construct a TractInfo
-
-        @param[in] id: tract ID
-        @param[in] patchInnerDimensions: dimensions of inner region of patches (x,y pixels)
-        @param[in] patchBorder: overlap between adjacent patches (in pixels, one int)
-        @param[in] ctrCoord: ICRS sky coordinate of center of inner region of tract
-            as an lsst.afw.geom.SpherePoint; also used as the CRVAL for the WCS.
-        @param[in] vertexCoordList: list of ICRS sky coordinates (lsst.afw.geom.SpherePoint)
-            of vertices that define the boundaries of the inner region
-        @param[in] tractOverlap: minimum overlap between adjacent sky tracts; an afwGeom.Angle;
-            this defines the minimum distance the tract extends beyond the inner region in all directions
-        @param[in,out] wcs: an afwImage.Wcs; the reference pixel will be shifted as required
-            so that the lower left-hand pixel (index 0,0) has pixel position 0.0, 0.0
-
-        @warning
-        - It is not enforced that ctrCoord is the center of vertexCoordList, but SkyMap relies on it
-        """
         self._id = id
         try:
             assert len(patchInnerDimensions) == 2
@@ -80,7 +99,7 @@ class TractInfo:
         self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
 
     def _minimumBoundingBox(self, wcs):
-        """Calculate the minimum bounding box for the tract, given the WCS
+        """Calculate the minimum bounding box for the tract, given the WCS.
 
         The bounding box is created in the frame of the supplied WCS,
         so that it's OK if the coordinates are negative.
@@ -112,9 +131,18 @@ class TractInfo:
         bounding box, and the number of patches in each dimension
         (as an Extent2I).
 
-        @param minBBox     Minimum bounding box for tract
-        @param wcs         Wcs object
-        @return final bounding box, number of patches
+        Parameters
+        ----------
+        minBBox : `lsst.geom.Box2I`
+            Minimum bounding box for tract
+        wcs : `lsst.afw.geom.SkyWcs`
+            Wcs object
+
+        Returns
+        -------
+        bbox : `lsst.geom.Box2I
+            final bounding box, number of patches
+        numPatches : `int`
         """
         bbox = afwGeom.Box2I(minBBox)
         bboxMin = bbox.getMin()
@@ -136,9 +164,19 @@ class TractInfo:
         We offset everything so the lower-left corner is at 0,0
         and compute the final Wcs.
 
-        @param bbox   Current bounding box
-        @param wcs    Current Wcs
-        @return revised bounding box, revised Wcs
+        Parameters
+        ----------
+        bbox : `lsst.geom.Box2I`
+            Current bounding box.
+        wcs : `lsst.afw.geom.SkyWcs
+            Current Wcs.
+
+        Returns
+        -------
+        finalBBox : `lsst.geom.Box2I`
+            Revised bounding box.
+        wcs : `lsst.afw.geom.SkyWcs`
+            Revised Wcs.
         """
         finalBBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), bbox.getDimensions())
         # shift the WCS by the same amount as the bbox; extra code is required
@@ -163,15 +201,23 @@ class TractInfo:
         return (x, y)
 
     def findPatch(self, coord):
-        """Find the patch containing the specified coord
+        """Find the patch containing the specified coord.
 
-        @param[in] coord: ICRS sky coordinate (lsst.afw.geom.SpherePoint)
-        @return PatchInfo of patch whose inner bbox contains the specified coord
+        Parameters
+        ----------
+        coord : `lsst.geom.SpherePoint`
+            ICRS sky coordinate to search for.
 
-        @raise LookupError if coord is not in tract or we cannot determine the
+        Returns
+        -------
+        result : `lsst.skymap.PatchInfo`
+            PatchInfo of patch whose inner bbox contains the specified coord
+
+        Raises
+        ------
+        LookupError
+            If coord is not in tract or we cannot determine the
             pixel coordinate (which likely means the coord is off the tract).
-
-        @note This routine will be more efficient if coord is ICRS.
         """
         try:
             pixel = self.getWcs().skyToPixel(coord)
@@ -185,16 +231,29 @@ class TractInfo:
         return self.getPatchInfo(patchInd)
 
     def findPatchList(self, coordList):
-        """Find patches containing the specified list of coords
+        """Find patches containing the specified list of coords.
 
-        @param[in] coordList: list of sky coordinates (lsst.afw.geom.SpherePoint)
-        @return list of PatchInfo for patches that contain, or may contain, the specified region.
-            The list will be empty if there is no overlap.
+        Parameters
+        ----------
+        coordList : `list` of `lsst.geom.SpherePoint`
+            ICRS sky coordinates to search for.
 
-        @warning:
-        * This may give incorrect answers on regions that are larger than a tract
-        * This uses a naive algorithm that may find some patches that do not overlap the region
-            (especially if the region is not a rectangle aligned along patch x,y).
+        Returns
+        -------
+        result : `list` of `lsst.skymap.PatchInfo`
+            List of PatchInfo for patches that contain, or may contain, the
+            specified region. The list will be empty if there is no overlap.
+
+        Notes
+        -----
+        **Warning:**
+
+        - This may give incorrect answers on regions that are larger than a
+          tract.
+
+        - This uses a naive algorithm that may find some patches that do not
+          overlap the region (especially if the region is not a rectangle
+          aligned along patch x,y).
         """
         box2D = afwGeom.Box2D()
         for coord in coordList:
@@ -222,7 +281,8 @@ class TractInfo:
         return afwGeom.Box2I(self._bbox)
 
     def getCtrCoord(self):
-        """Get ICRS sky coordinate of center of tract (as an lsst.afw.geom.SpherePoint)
+        """Get ICRS sky coordinate of center of tract
+        (as an lsst.geom.SpherePoint)
         """
         return self._ctrCoord
 
@@ -232,28 +292,37 @@ class TractInfo:
         return self._id
 
     def getNumPatches(self):
-        """Get the number of patches in x, y
+        """Get the number of patches in x, y.
 
-        @return the number of patches in x, y
+        Returns
+        -------
+        result : `tuple` of `int`
+            The number of patches in x, y
         """
         return self._numPatches
 
     def getPatchBorder(self):
-        """Get batch border
-
-        @return patch border (pixels)
-        """
         return self._patchBorder
 
     def getPatchInfo(self, index):
-        """Return information for the specified patch
+        """Return information for the specified patch.
 
-        @param[in] index: index of patch, as a pair of ints,
+        Parameters
+        ----------
+        index : `tuple` of `int`
+            Index of patch, as a pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
-        @return patch info, an instance of PatchInfo
 
-        @raise IndexError if index is out of range
+        Returns
+        -------
+        result : `lsst.skymap.PatchInfo`
+            The patch info for that index.
+
+        Raises
+        ------
+        IndexError
+            If index is out of range.
         """
         if isinstance(index, numbers.Number):
             index = self.getPatchIndexPair(index)
@@ -278,22 +347,21 @@ class TractInfo:
 
     def getPatchInnerDimensions(self):
         """Get dimensions of inner region of the patches (all are the same)
-
-        @return dimensions of inner region of the patches (as an afwGeom Extent2I)
         """
         return self._patchInnerDimensions
 
     def getTractOverlap(self):
-        """Get minimum overlap of adjacent sky tracts
-
-        @return minimum overlap between adjacent sky tracts, as an afwGeom Angle
+        """Get minimum overlap of adjacent sky tracts.
         """
         return self._tractOverlap
 
     def getVertexList(self):
-        """Get list of sky coordinates of vertices that define the boundary of the inner region
+        """Get list of ICRS sky coordinates of vertices that define the
+        boundary of the inner region.
 
-        @warning: this is not a deep copy
+        Notes
+        -----
+        **warning:** this is not a deep copy.
         """
         return self._vertexCoordList
 
@@ -309,9 +377,12 @@ class TractInfo:
         return makeSkyPolygonFromBBox(bbox=self.getBBox(), wcs=self.getWcs())
 
     def getWcs(self):
-        """Get WCS of tract
+        """Get WCS of tract.
 
-        @warning: this is not a deep copy
+        Returns
+        -------
+        wcs : `lsst.afw.geom.SkyWcs`
+            The WCS of this tract
         """
         return self._wcs
 
@@ -345,7 +416,7 @@ class TractInfo:
 
 
 class ExplicitTractInfo(TractInfo):
-    """Information for a tract specified explicitly
+    """Information for a tract specified explicitly.
 
     A tract is placed at the explicitly defined coordinates, with the nominated
     radius.  The tracts are square (i.e., the radius is really a half-size).
@@ -364,7 +435,9 @@ class ExplicitTractInfo(TractInfo):
         self._vertexCoordList = finalWcs.pixelToSky(bboxD.getCorners())
 
     def _minimumBoundingBox(self, wcs):
-        """The minimum bounding box is calculated using the nominated radius"""
+        """Calculate the minimum bounding box for the tract, given the WCS, and
+        the nominated radius.
+        """
         bbox = afwGeom.Box2D()
         for i in range(4):
             cornerCoord = self._ctrCoord.offset(i*90*afwGeom.degrees, self._radius + self._tractOverlap)

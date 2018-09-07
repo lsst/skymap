@@ -19,14 +19,15 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
+__all__ = ["skyMapRegistry"]
+
 from lsst.pex.config import makeRegistry
 from .dodecaSkyMap import DodecaSkyMap
 from .equatSkyMap import EquatSkyMap
 from .discreteSkyMap import DiscreteSkyMap
 from .ringsSkyMap import RingsSkyMap
 from .healpixSkyMap import HealpixSkyMap
-
-__all__ = ["skyMapRegistry"]
 
 skyMapRegistry = makeRegistry(
     """A registry of sky maps
