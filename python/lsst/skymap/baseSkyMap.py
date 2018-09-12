@@ -27,6 +27,7 @@ import hashlib
 import struct
 
 import lsst.pex.config as pexConfig
+from lsst.geom import SpherePoint
 import lsst.afw.geom as afwGeom
 from . import detail
 
@@ -230,10 +231,14 @@ class BaseSkyMap:
         """
         registry.addDataUnitEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
         for tractInfo in self:
+            region = tractInfo.getOuterSkyPolygon()
+            centroid = SpherePoint(region.getCentroid())
             registry.addDataUnitEntry(
                 "Tract",
                 {"skymap": name, "tract": tractInfo.getId(),
-                 "region": tractInfo.getOuterSkyPolygon()}
+                 "region": region,
+                 "ra": centroid.getRa().asDegrees(),
+                 "dec": centroid.getDec().asDegrees()}
             )
             for patchInfo in tractInfo:
                 cellX, cellY = patchInfo.getIndex()
