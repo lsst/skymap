@@ -27,7 +27,7 @@ import hashlib
 import struct
 
 import lsst.pex.config as pexConfig
-import lsst.afw.geom as afwGeom
+from lsst.geom import SpherePoint, Angle, arcseconds, degrees
 from . import detail
 
 __all__ = ["BaseSkyMap"]
@@ -100,9 +100,9 @@ class BaseSkyMap:
         self.config = config
         self._tractInfoList = []
         self._wcsFactory = detail.WcsFactory(
-            pixelScale=afwGeom.Angle(self.config.pixelScale, afwGeom.arcseconds),
+            pixelScale=Angle(self.config.pixelScale, arcseconds),
             projection=self.config.projection,
-            rotation=afwGeom.Angle(self.config.rotation, afwGeom.degrees),
+            rotation=Angle(self.config.rotation, degrees),
         )
         self._sha1 = None
 
@@ -230,10 +230,14 @@ class BaseSkyMap:
         """
         registry.addDataUnitEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
         for tractInfo in self:
+            region = tractInfo.getOuterSkyPolygon()
+            centroid = SpherePoint(region.getCentroid())
             registry.addDataUnitEntry(
                 "Tract",
                 {"skymap": name, "tract": tractInfo.getId(),
-                 "region": tractInfo.getOuterSkyPolygon()}
+                 "region": region,
+                 "ra": centroid.getRa().asDegrees(),
+                 "dec": centroid.getDec().asDegrees()}
             )
             for patchInfo in tractInfo:
                 cellX, cellY = patchInfo.getIndex()
