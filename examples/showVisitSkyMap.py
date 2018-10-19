@@ -71,7 +71,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
         color = cmap(i_v)
         for ccd in camera:
             bbox = ccd.getBBox()
-            ccdId = int(ccd.getSerial())
+            ccdId = int(ccd.getId())
 
             if (ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.SCIENCE:
                 dataId = {'visit': visit, ccdKey: ccdId}
