@@ -226,13 +226,14 @@ class BaseSkyMap:
         raise NotImplementedError()
 
     def register(self, name, registry):
-        """Add SkyMap, Tract, and Patch DataUnits to the given Gen3 Butler Registry.
+        """Add SkyMap, Tract, and Patch Dimension entries to the given Gen3
+        Butler Registry.
         """
-        registry.addDataUnitEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
+        registry.addDimensionEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
         for tractInfo in self:
             region = tractInfo.getOuterSkyPolygon()
             centroid = SpherePoint(region.getCentroid())
-            registry.addDataUnitEntry(
+            registry.addDimensionEntry(
                 "Tract",
                 {"skymap": name, "tract": tractInfo.getId(),
                  "region": region,
@@ -241,7 +242,7 @@ class BaseSkyMap:
             )
             for patchInfo in tractInfo:
                 cellX, cellY = patchInfo.getIndex()
-                registry.addDataUnitEntry(
+                registry.addDimensionEntry(
                     "Patch",
                     {"skymap": name, "tract": tractInfo.getId(),
                      "patch": tractInfo.getSequentialPatchIndex(patchInfo),
