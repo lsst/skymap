@@ -19,6 +19,8 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+import numbers
+
 import lsst.pex.exceptions
 import lsst.afw.geom as afwGeom
 from lsst.sphgeom import ConvexPolygon
@@ -154,6 +156,12 @@ class TractInfo:
         nx, ny = self.getNumPatches()
         return nx*y + x
 
+    def getPatchIndexPair(self, sequentialIndex):
+        nx, ny = self.getNumPatches()
+        x = sequentialIndex % nx
+        y = (sequentialIndex - x) / nx
+        return (x, y)
+
     def findPatch(self, coord):
         """Find the patch containing the specified coord
 
@@ -240,12 +248,15 @@ class TractInfo:
     def getPatchInfo(self, index):
         """Return information for the specified patch
 
-        @param[in] index: index of patch, as a pair of ints;
-            negative values are not supported
+        @param[in] index: index of patch, as a pair of ints,
+            or a sequential index as returned by getSequentialPatchIndex;
+            negative values are not supported.
         @return patch info, an instance of PatchInfo
 
         @raise IndexError if index is out of range
         """
+        if isinstance(index, numbers.Number):
+            index = self.getPatchIndexPair(index)
         if (not 0 <= index[0] < self._numPatches[0]) \
                 or (not 0 <= index[1] < self._numPatches[1]):
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
