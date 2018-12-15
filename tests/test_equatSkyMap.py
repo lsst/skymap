@@ -64,6 +64,22 @@ class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
         skyMap = EquatSkyMap(config)
         self.assertEqual(skyMap.config.projection, "CEA")
 
+    def test_gettingPatchInfo(self):
+        skyMap = EquatSkyMap(EquatSkyMap.ConfigClass())
+        tract = skyMap[0]
+        # Look up patchInfo with a coordinate pair
+        patchIndex = (3, 5)
+        pairPatchInfo = tract.getPatchInfo(patchIndex)
+        # Fetch the sequential index
+        sequentialPatchIndex = tract.getSequentialPatchIndex(pairPatchInfo)
+        # Turn the sequential index back into a pair
+        returnedPatchIndex = tract.getPatchIndexPair(sequentialPatchIndex)
+        # Test that the different indexes match
+        self.assertEqual(patchIndex, returnedPatchIndex)
+        # verify patch info can be retrieved with both indexes
+        sequentialPatchInfo = tract.getPatchInfo(sequentialPatchIndex)
+        self.assertEqual(pairPatchInfo, sequentialPatchInfo)
+
     def testSymmetry(self):
         """Verify that the projection is symmetrical about the equator
         """
