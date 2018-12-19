@@ -2,7 +2,7 @@ import unittest
 import math
 
 import lsst.utils.tests
-import lsst.afw.geom
+import lsst.geom
 
 from lsst.skymap.ringsSkyMap import RingsSkyMap
 from helper import skyMapTestCase
@@ -29,9 +29,9 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
         """
         skymap = self.getSkyMap()
         for ra in (0, 123, 321, 359.9):
-            tracts = skymap.findAllTracts(lsst.afw.geom.SpherePoint(ra, 90, lsst.afw.geom.degrees))
+            tracts = skymap.findAllTracts(lsst.geom.SpherePoint(ra, 90, lsst.geom.degrees))
             self.assertListEqual(tracts, [skymap[len(skymap) - 1]])
-            tracts = skymap.findAllTracts(lsst.afw.geom.SpherePoint(ra, -90, lsst.afw.geom.degrees))
+            tracts = skymap.findAllTracts(lsst.geom.SpherePoint(ra, -90, lsst.geom.degrees))
             self.assertListEqual(tracts, [skymap[0]])
 
     def testSha1Compare(self):
@@ -91,7 +91,7 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
 
         We are only testing function, and not the actual results.
         """
-        coordList = [lsst.afw.geom.SpherePoint(ra, dec, lsst.afw.geom.degrees) for
+        coordList = [lsst.geom.SpherePoint(ra, dec, lsst.geom.degrees) for
                      ra, dec in [(30.18, -3.8), (31.3, -3.8), (31.3, -2.7), (30.18, -2.7)]]
         for coord in coordList:
             self.skymap.findAllTracts(coord)
@@ -118,7 +118,7 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
         centerRa = center.getRa().asDegrees()
         centerDec = center.getDec().asDegrees()
         for devRa in [-deviation, deviation]:
-            coord = lsst.afw.geom.SpherePoint(centerRa + devRa, centerDec, lsst.afw.geom.degrees)
+            coord = lsst.geom.SpherePoint(centerRa + devRa, centerDec, lsst.geom.degrees)
             foundTractId = self.skymap.findTract(coord).getId()
             self.assertEqual(tractId, foundTractId)
 
@@ -131,8 +131,8 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
         ringSize = math.pi/(self.skymap.config.numRings + 1)
         firstRingStart = ringSize*0.5 - 0.5*math.pi
         dec = ringNum*ringSize + firstRingStart
-        return lsst.afw.geom.SpherePoint(self.skymap.config.raStart*lsst.afw.geom.degrees,
-                                         dec*lsst.afw.geom.radians)
+        return lsst.geom.SpherePoint(self.skymap.config.raStart*lsst.geom.degrees,
+                                     dec*lsst.geom.radians)
 
 
 class Version0HscRingsTestCase(HscRingsTestCase):
@@ -171,13 +171,13 @@ class Version0HscRingsTestCase(HscRingsTestCase):
                          self.skymap[self.skymap._ringNums[0] + 1].getCtrCoord())  # This is the duplicate
 
         # Check that some particular tracts we know and love haven't moved
-        degrees = lsst.afw.geom.degrees
+        degrees = lsst.geom.degrees
         # 9712 is at RA=0, and was identified as problematic in DM-14809
         self.assertEqual(self.skymap[9712].getCtrCoord(),
-                         lsst.afw.geom.SpherePoint(0.0*degrees, 0.7438016528925696*degrees))
+                         lsst.geom.SpherePoint(0.0*degrees, 0.7438016528925696*degrees))
         # The Cosmos field
         self.assertEqual(self.skymap[9813].getCtrCoord(),
-                         lsst.afw.geom.SpherePoint(150.2479338842975*degrees, 2.2314049586776834*degrees))
+                         lsst.geom.SpherePoint(150.2479338842975*degrees, 2.2314049586776834*degrees))
 
         # Check that the first tract in the last ring does NOT exist (due to the bug)
         coord = self.getFirstTractLastRingCoord()

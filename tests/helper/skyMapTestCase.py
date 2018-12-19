@@ -80,7 +80,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         config : subclass of `lsst.skymap.SkyMapConfig`, optional
             Default configuration used by `getSkyMap`;
             if None use SkyMapClass.ConfigClass()
-        neighborAngularSeparation : `lsst.afw.geom.Angle`, optional
+        neighborAngularSeparation : `lsst.geom.Angle`, optional
             Expected angular separation between tracts;
             if None then angular separation is not tested unless your
             subclass of SkyMapTestCaseoverrides `testTractSeparation`.
@@ -406,9 +406,9 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         ----------
         polygon : `lsst.sphgeom.ConvexPolygon`
             On-sky polygon
-        vertexList : `iterable` of `lsst.afw.geom.SpherePoint`
+        vertexList : `iterable` of `lsst.geom.SpherePoint`
             Vertices of polygon
-        centerCoord : `lsst.afw.geom.SpherePoint`
+        centerCoord : `lsst.geom.SpherePoint`
             A coord approximately in the center of the region
         """
         bboxd = afwGeom.Box2D(bbox)
@@ -424,9 +424,9 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         ----------
         polygon : `lsst.sphgeom.ConvexPolygon`
             On-sky polygon
-        vertexList : `iterable` of `lsst.afw.geom.SpherePoint`
+        vertexList : `iterable` of `lsst.geom.SpherePoint`
             Vertices of polygon
-        centerCoord : `lsst.afw.geom.SpherePoint`
+        centerCoord : `lsst.geom.SpherePoint`
             A coord approximately in the center of the region
         """
         shiftAngle = 0.01*afwGeom.arcseconds

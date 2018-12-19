@@ -20,6 +20,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ["DiscreteSkyMap"]
+
 import struct
 
 from lsst.pex.config import ListField
@@ -27,11 +29,10 @@ import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
-__all__ = ["DiscreteSkyMap"]
-
 
 class DiscreteSkyMapConfig(CachingSkyMap.ConfigClass):
     """Configuration for the DiscreteSkyMap"""
+
     raList = ListField(dtype=float, default=[], doc="Right Ascensions of tracts (ICRS, degrees)")
     decList = ListField(dtype=float, default=[], doc="Declinations of tracts (ICRS, degrees)")
     radiusList = ListField(dtype=float, default=[], doc="Radii of tracts (degrees)")
@@ -50,21 +51,24 @@ class DiscreteSkyMap(CachingSkyMap):
     """Discrete sky map pixelization.
 
     We put a square Tract at each of the nominated coordinates.
+
+    Parameters
+    ----------
+    config : `lsst.skyMap.BaseSkyMapConfig`
+        The configuration for this SkyMap; if None use the default config.
+    version : `int` or `tuple` of `int` (optional)
+        Software version of this class, to retain compatibility with old
+        instances.
     """
     ConfigClass = DiscreteSkyMapConfig
     _version = (1, 0)  # for pickle
 
     def __init__(self, config, version=0):
-        """Constructor
-
-        @param[in] config: an instance of self.ConfigClass; if None the default config is used
-        @param[in] version: software version of this class, to retain compatibility with old instances
-        """
         numTracts = len(config.radiusList)
         super(DiscreteSkyMap, self).__init__(numTracts, config, version)
 
     def generateTract(self, index):
-        """Generate the TractInfo for a particular index"""
+        """Generate TractInfo for the specified tract index."""
         center = afwGeom.SpherePoint(self.config.raList[index], self.config.decList[index], afwGeom.degrees)
         radius = self.config.radiusList[index]
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)

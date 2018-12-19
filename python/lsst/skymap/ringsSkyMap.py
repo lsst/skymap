@@ -20,6 +20,8 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
+__all__ = ["RingsSkyMapConfig", "RingsSkyMap"]
+
 import struct
 import math
 
@@ -27,8 +29,6 @@ from lsst.pex.config import Field
 import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
-
-__all__ = ["RingsSkyMapConfig", "RingsSkyMap"]
 
 
 class RingsSkyMapConfig(CachingSkyMap.ConfigClass):
@@ -63,7 +63,7 @@ class RingsSkyMap(CachingSkyMap):
     Parameters
     ----------
     config : `lsst.skymap.RingsSkyMapConfig`
-        Configuration for this skymap.
+        The configuration for this SkyMap.
     version : `int`, optional
         Software version of this class, to retain compatibility with old
         verisons. ``version=0`` covers the period from first implementation
@@ -75,7 +75,6 @@ class RingsSkyMap(CachingSkyMap):
     _version = (1, 0)  # for pickle
 
     def __init__(self, config, version=1):
-        """Constructor"""
         assert version in (0, 1), "Unrecognised version: %s" % (version,)
         # We count rings from south to north
         # Note: pole caps together count for one additional ring when calculating the ring size
@@ -91,7 +90,7 @@ class RingsSkyMap(CachingSkyMap):
         self._raStart = self.config.raStart*afwGeom.degrees
 
     def getRingIndices(self, index):
-        """Calculate ring indices given a numerical index of a tract
+        """Calculate ring indices given a numerical index of a tract.
 
         The ring indices are the ring number and the tract number within
         the ring.
@@ -122,7 +121,7 @@ class RingsSkyMap(CachingSkyMap):
         return ring, tractNum
 
     def generateTract(self, index):
-        """Generate the TractInfo for this index"""
+        """Generate TractInfo for the specified tract index."""
         ringNum, tractNum = self.getRingIndices(index)
         if ringNum == -1:  # South polar cap
             ra, dec = 0, -0.5*math.pi
@@ -140,11 +139,11 @@ class RingsSkyMap(CachingSkyMap):
                                  wcs)
 
     def _decToRingNum(self, dec):
-        """Calculate ring number from Declination
+        """Calculate ring number from Declination.
 
         Parameters
         ----------
-        dec : `lsst.afw.geom.Angle`
+        dec : `lsst.geom.Angle`
             Declination.
 
         Returns
@@ -163,11 +162,11 @@ class RingsSkyMap(CachingSkyMap):
         return int((dec.asRadians() - firstRingStart)/self._ringSize)
 
     def _raToTractNum(self, ra, ringNum):
-        """Calculate tract number from the Right Ascension
+        """Calculate tract number from the Right Ascension.
 
         Parameters
         ----------
-        ra : `lsst.afw.geom.Angle`
+        ra : `lsst.geom.Angle`
             Right Ascension.
         ringNum : `int`
             Ring number (from ``_decToRingNum``).
@@ -185,17 +184,6 @@ class RingsSkyMap(CachingSkyMap):
         return 0 if tractNum == self._ringNums[ringNum] else tractNum  # Allow wraparound
 
     def findTract(self, coord):
-        """Find the tract whose center is nearest the specified coord.
-
-        @param[in] coord: sky coordinate (afwCoord.Coord)
-        @return TractInfo of tract whose center is nearest the specified coord
-
-        @warning:
-        - if tracts do not cover the whole sky then the returned tract may not include the coord
-
-        @note
-        - If coord is equidistant between multiple sky tract centers then one is arbitrarily chosen.
-        """
         ringNum = self._decToRingNum(coord.getLatitude())
         if ringNum == -1:
             # Southern cap
@@ -216,11 +204,15 @@ class RingsSkyMap(CachingSkyMap):
     def findAllTracts(self, coord):
         """Find all tracts which include the specified coord.
 
-        @param[in] coord: sky coordinate (afwCoord.Coord)
-        @return List of TractInfo of tracts which include the specified coord
+        Parameters
+        ----------
+        coord : `lsst.geom.SpherePoint`
+            ICRS sky coordinate to search for.
 
-        @note
-        - This routine will be more efficient if coord is ICRS.
+        Returns
+        -------
+        tractList : `list` of `TractInfo`
+            The tracts which include the specified coord.
         """
         ringNum = self._decToRingNum(coord.getLatitude())
 
@@ -261,15 +253,6 @@ class RingsSkyMap(CachingSkyMap):
         return tractList
 
     def findTractPatchList(self, coordList):
-        """Find tracts and patches that overlap a region
-
-        @param[in] coordList: list of sky coordinates (afwCoord.Coord)
-        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
-            or may contain, the specified region. The list will be empty if there is no overlap.
-
-        @warning this uses a naive algorithm that may find some tracts and patches that do not overlap
-            the region (especially if the region is not a rectangle aligned along patch x,y).
-        """
         retList = []
         for coord in coordList:
             for tractInfo in self.findAllTracts(coord):

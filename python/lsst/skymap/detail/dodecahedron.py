@@ -1,19 +1,20 @@
 #!/usr/bin/env python
+
+__all__ = ['Dodecahedron']
+
 import math
 import numpy
 
 
 class Dodecahedron:
-    """A dodecahedron
+    """A dodecahedron with  positions of faces and associated vertices.
 
-    Contains positions of faces and associated vertices
+    Parameters
+    ----------
+    withFacesOnPoles : `bool`
+        If True center a face on each pole, else put a vertex on each pole.
     """
-
     def __init__(self, withFacesOnPoles=False):
-        """Construct a Dodecahedron
-
-        @param[in] withFacesOnPoles: if True center a face on each pole, else put a vertex on each pole
-        """
         self._withFacesOnPoles = bool(withFacesOnPoles)
 
         # Basis cartesian vectors describing the faces of a dodecahedron; the full set of vectors is obtained
@@ -42,25 +43,42 @@ class Dodecahedron:
         self.faceVecList = _sortedVectorList(unsortedFaceList)
 
     def getFaceCtrList(self):
-        """Return a list of face centers
+        """Return a list of face centers.
 
-        @return a list of face centers (in index order); each a unit vector (numpy array)
+        Returns
+        -------
+        results : `list` of `numpy.ndarray`
+            A list of face centers (in index order); each a unit vector.
         """
         return self.faceVecList[:]
 
     def getFaceCtr(self, ind):
-        """Return the center of the specified face
+        """Return the center of the specified face.
 
-        @param[in] ind: face index
-        @return face center as a unit vector (numpy array)
+        Parameters
+        ----------
+        ind : `int`
+            Index of the face to look up.
+
+        Returns
+        -------
+        results : `np.ndarray`
+            Face center as a unit vector.
         """
         return self.faceVecList[ind][:]
 
     def getVertices(self, ind):
-        """Return the vertices for a given face
+        """Return the vertices for a given face.
 
-        @param[in] ind: face index
-        @return a list of vertices, each a unit vector (numpy array)
+        Parameters
+        ----------
+        ind : `int`
+            Face index.
+
+        Returns
+        -------
+        sortedVertexList : `list` of `numpy.ndarray`
+            A list of vertices, each a unit vector.
         """
         faceVec = self.getFaceCtr(ind)
         vertexList, indList = _findCloseList(self.vertexVecList, faceVec)
@@ -75,25 +93,34 @@ class Dodecahedron:
         return sortedVertexList
 
     def getFaceInd(self, vec):
-        """Return the index of the face containing the cartesian vector
+        """Return the index of the face containing the cartesian vector.
 
-        @param[in] vec: cartesian vector (length is ignored)
-        @return index of face containing vec
+        Parameters
+        ----------
+        vec : `numpy.ndarray`
+            Cartesian vector (length is ignored).
+
+        Returns
+        -------
+        results : `numpy.ndarray`
+            Index of face containing vec.
         """
         return numpy.argmax(numpy.dot(self.faceVecList, vec))
 
     def getWithFacesOnPoles(self):
-        """Get withFacesOnPoles parameter
-        """
         return self._withFacesOnPoles
 
 
 def computeRotationMatrix(angle, axis):
-    """Return a 3D rotation matrix for rotation by a specified amount around a specified axis
+    """Return a 3D rotation matrix for rotation by a specified amount around a
+    specified axis.
 
-    Inputs:
-    - angle: amount of rotation (rad)
-    - axis: axis of rotation; one of 0, 1 or 2 for x, y or z
+    Parameters
+    ----------
+    angle : `float`
+        Amount of rotation (rad).
+    axis : `int`
+        Axis of rotation; one of 0, 1 or 2 for x, y or z.
     """
     cosAng = math.cos(angle)
     sinAng = math.sin(angle)
@@ -107,12 +134,17 @@ def computeRotationMatrix(angle, axis):
 
 
 def _computeCoordTransform(vec0, vec1, vec1NegativeX=False):
-    """Compute a rotation matrix that puts vec0 along z and vec1 along +x in the xz plane
+    """Compute a rotation matrix that puts vec0 along z and vec1 along +x in
+    the xz plane.
 
-    Inputs:
-    - vec0: vector 0
-    - vec1: vector 1
-    - vec1NegativeX: if True then vec1 is rotated to face negative x
+    Parameters
+    ----------
+    vec0 : `numpy.ndarray`
+        vector 0
+    vec1 : `numpy.ndarray`
+        vector 1
+    vec1NegativeX : `bool`
+        If True then vec1 is rotated to face negative x.
     """
     # rotate around x by angle of vec0 from z to y
     xAng = math.atan2(vec0[1], vec0[2])
@@ -136,7 +168,7 @@ def _computeCoordTransform(vec0, vec1, vec1NegativeX=False):
 
 
 def _computeDodecahedronVertices(faceVecList):
-    """Given a vector of face positions of a Dodecahedron compute the vertices
+    """Given a vector of face positions of a Dodecahedron compute the vertices.
     """
     closeIndSetList = []
     vertexDict = {}
@@ -165,9 +197,12 @@ def _computeDodecahedronVertices(faceVecList):
 
 
 def _computeFullVecList(basisSet):
-    """Given a collection of basis vectors, compute all permutations with both signs of all nonzero values
+    """Given a collection of basis vectors, compute all permutations with both
+    signs of all nonzero values.
 
-    For example: [(0, 1, 2)] -> [(0, 1, 2), (0, -1, 2), (0, 1, -2), (0, -1, -2)]
+    For example::
+
+        [(0, 1, 2)] -> [(0, 1, 2), (0, -1, 2), (0, 1, -2), (0, -1, -2)]
     """
     fullSet = []
     for basisVec in basisSet:
@@ -187,13 +222,17 @@ def _computeFullVecList(basisSet):
 
 
 def _findCloseIndexSet(vecList, ind):
-    """Given a list of cartesian vectors, return a set of indices of those closest to one of them
+    """Given a list of cartesian vectors, return a set of indices of those
+    closest to one of them.
 
-    This is intended for regular grids where distances are quantized
+    This is intended for regular grids where distances are quantized.
 
-    Inputs:
-    - vecList: list of cartesian vectors
-    - ind: index of vector to be nearest
+    Parameters
+    ----------
+    vecList : `list`
+        List of cartesian vectors.
+    ind : `int`
+        Index of vector to be nearest.
     """
     dotProductList = numpy.round(numpy.dot(vecList, vecList[ind]), 2)
     dotProductList[ind] = -9e99
@@ -203,17 +242,24 @@ def _findCloseIndexSet(vecList, ind):
 
 
 def _findCloseList(vecList, vec):
-    """Given a list of cartesian vectors, return all those closest to a specified position
+    """Given a list of cartesian vectors, return all those closest to a
+    specified position
 
     This is intended for regular grids where distances are quantized
 
-    Inputs:
-    - vecList: list of cartesian vectors
-    - vec: vector to be near
+    Parameters
+    ----------
+    vecList : `list`
+        List of cartesian vectors.
+    vec : `iterable` of `float`
+        Vector to be near.
 
-    @return two items:
-    - list of closest vectors
-    - list if indices of those vectors
+    Returns
+    -------
+    retList : `list`
+        List of closest vectors.
+    indList : `list`
+        List if indices of those vectors.
     """
     dotProductList = numpy.round(numpy.dot(vecList, vec), 2)
     minDist = numpy.max(dotProductList)
@@ -223,11 +269,15 @@ def _findCloseList(vecList, vec):
 
 
 def _findClosePair(vecList, ind=0):
-    """Given a list of cartesian vectors and an index, return the vector and one of its closest neighbors
+    """Given a list of cartesian vectors and an index, return the vector and
+    one of its closest neighbors.
 
-    Inputs:
-    - vecList: list of cartesian vectors
-    - ind: index of first vector
+    Parameters
+    ----------
+    vecList : `list` of `numpy.ndarray`
+        List of cartesian vectors.
+    ind : `int`
+        Index of first vector.
     """
     vec = vecList[ind]
     otherVecList = vecList[0:ind] + vecList[ind+1:]
@@ -236,7 +286,8 @@ def _findClosePair(vecList, ind=0):
 
 
 def _sortedVectorList(vecList):
-    """Return a list of cartesian vectors sorted by decreasing latitude and increasing longitude
+    """Return a list of cartesian vectors sorted by decreasing latitude and
+    increasing longitude.
     """
     def vecToSort(vec):
         ang = round(math.atan2(vec[1], vec[0]), 2)

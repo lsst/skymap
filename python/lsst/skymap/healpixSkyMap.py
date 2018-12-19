@@ -19,6 +19,9 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
+__all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
+
 import struct
 import numpy
 
@@ -41,11 +44,9 @@ import lsst.afw.geom as afwGeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
 
-__all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
-
 
 def angToCoord(thetaphi):
-    """Convert healpy's ang to an lsst.afw.geom.SpherePoint
+    """Convert healpy's ang to an lsst.geom.SpherePoint
 
     The ang is provided as a single object, thetaphi, so the output
     of healpy functions can be directed to this function without
@@ -55,7 +56,7 @@ def angToCoord(thetaphi):
 
 
 def coordToAng(coord):
-    """Convert an lsst.afw.geom.SpherePoint to a healpy ang (theta, phi)
+    """Convert an lsst.geom.SpherePoint to a healpy ang (theta, phi)
 
     The Healpix convention is that 0 <= theta <= pi, 0 <= phi < 2pi.
     """
@@ -86,29 +87,44 @@ class HealpixSkyMap(CachingSkyMap):
     """HEALPix-based sky map pixelization.
 
     We put a Tract at the position of each HEALPixel.
+
+
+    Parameters
+    ----------
+    config : `lsst.skymap.BaseSkyMapConfig`
+        The configuration for this SkyMap.
+    version : `int` or `tuple` of `int` (optional)
+        Software version of this class, to retain compatibility with old
+        instances.
     """
     ConfigClass = HealpixSkyMapConfig
     _version = (1, 0)  # for pickle
     numAngles = 4  # Number of angles for vertices
 
     def __init__(self, config, version=0):
-        """Constructor
-
-        @param[in] config: an instance of self.ConfigClass; if None the default config is used
-        @param[in] version: software version of this class, to retain compatibility with old instances
-        """
         self._nside = 1 << config.log2NSide
         numTracts = healpy.nside2npix(self._nside)
         super(HealpixSkyMap, self).__init__(numTracts, config, version)
 
     def findTract(self, coord):
-        """Find the tract whose inner region includes the coord."""
+        """Find the tract whose inner region includes the coord.
+
+        Parameters
+        ----------
+        coord : `lsst.geom.SpherePoint`
+            ICRS sky coordinate to search for.
+
+        Returns
+        -------
+        tractInfo : `TractInfo`
+            Info for tract whose inner region includes the coord.
+        """
         theta, phi = coordToAng(coord)
         index = healpy.ang2pix(self._nside, theta, phi, nest=self.config.nest)
         return self[index]
 
     def generateTract(self, index):
-        """Get the TractInfo for a particular index"""
+        """Generate TractInfo for the specified tract index."""
         center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
         wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
         return HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,

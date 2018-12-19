@@ -19,14 +19,15 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
+__all__ = ['EquatSkyMapConfig', 'EquatSkyMap']
+
 import struct
 
 import lsst.pex.config as pexConfig
 import lsst.afw.geom as afwGeom
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
-
-__all__ = ['EquatSkyMapConfig', 'EquatSkyMap']
 
 
 class EquatSkyMapConfig(BaseSkyMap.ConfigClass):
@@ -49,16 +50,18 @@ class EquatSkyMapConfig(BaseSkyMap.ConfigClass):
 class EquatSkyMap(BaseSkyMap):
     """Equatorial sky map pixelization, e.g. for SDSS stripe 82 image data.
 
-    EquatSkyMap represents an equatorial band of sky divided along declination into overlapping tracts.
+    EquatSkyMap represents an equatorial band of sky divided along declination
+    into overlapping tracts.
+
+    Parameters
+    ----------
+    config : `lsst.skymap.BaseSkyMapConfig` (optional)
+        The configuration for this SkyMap; if None use the default config.
     """
     ConfigClass = EquatSkyMapConfig
     _version = (1, 0)  # for pickle
 
     def __init__(self, config=None):
-        """Construct a EquatSkyMap
-
-        @param[in] config: an instance of self.ConfigClass; if None the default config is used
-        """
         BaseSkyMap.__init__(self, config)
 
         decRange = tuple(afwGeom.Angle(dr, afwGeom.degrees) for dr in self.config.decRange)
@@ -96,11 +99,14 @@ class EquatSkyMap(BaseSkyMap):
             ))
 
     def __getstate__(self):
-        """Support pickle
+        """Support pickle.
 
-        @return a dict containing:
-        - version: a pair of ints
-        - config: the config
+        Returns
+        -------
+        stateDict : `dict`
+            a dict containing:
+            - version: a pair of ints
+            - config: the config
         """
         return dict(
             version=self._version,
@@ -110,9 +116,12 @@ class EquatSkyMap(BaseSkyMap):
     def __setstate__(self, stateDict):
         """Support unpickle
 
-        @param[in] stateDict: a dict containing:
-        - version: a pair of ints
-        - config: the config
+        Parameters
+        ----------
+        stateDict : `dict`
+            a dict containing:
+            - version: a pair of ints
+            - config: the config
         """
         version = stateDict["version"]
         if version >= (2, 0):
@@ -120,9 +129,12 @@ class EquatSkyMap(BaseSkyMap):
         self.__init__(stateDict["config"])
 
     def getVersion(self):
-        """Return version (e.g. for pickle)
+        """Return version (e.g. for pickle).
 
-        @return version as a pair of integers
+        Returns
+        -------
+        result : `tuple` of `int`
+            Version as a pair of integers.
         """
         return self._version
 

@@ -1,4 +1,3 @@
-#
 # LSST Data Management System
 # Copyright 2008, 2009, 2010 LSST Corporation.
 #
@@ -19,18 +18,20 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
 """
-@todo
-- Consider tweaking pixel scale so the average scale is as specified, rather than the scale at the center
+todo: Consider tweaking pixel scale so the average scale is as specified,
+rather than the scale at the center.
 """
+
+__all__ = ["BaseSkyMapConfig", "BaseSkyMap"]
+
 import hashlib
 import struct
 
 import lsst.pex.config as pexConfig
 from lsst.geom import SpherePoint, Angle, arcseconds, degrees
 from . import detail
-
-__all__ = ["BaseSkyMap"]
 
 
 class BaseSkyMapConfig(pexConfig.Config):
@@ -56,11 +57,10 @@ class BaseSkyMapConfig(pexConfig.Config):
         default=0.333
     )
     projection = pexConfig.Field(
-        doc="""one of the FITS WCS projection codes, such as:
-          - STG: stereographic projection
-          - MOL: Molleweide's projection
-          - TAN: tangent-plane projection
-        """,
+        doc="one of the FITS WCS projection codes, such as:"
+        "- STG: stereographic projection"
+        "- MOL: Molleweide's projection"
+        "- TAN: tangent-plane projection",
         dtype=str,
         default="STG",
     )
@@ -76,24 +76,30 @@ class BaseSkyMap:
 
     See TractInfo for more information.
 
+    Parameters
+    ----------
+    config : `BaseSkyMapConfig` or None (optional)
+        The configuration for this SkyMap; if None use the default config.
+
+    Notes
+    -----
     BaseSkyMap is an abstract base class. Subclasses must do the following:
-    @li define __init__ and have it construct the TractInfo objects and put them in _tractInfoList
-    @li define __getstate__ and __setstate__ to allow pickling (the butler saves sky maps using pickle);
-        see DodecaSkyMap for an example of how to do this. (Most of that code could be moved
-        into this base class, but that would make it harder to handle older versions of pickle data.)
-    @li define updateSha1 to add any subclass-specific state to the hash.
+    define ``__init__`` and have it construct the TractInfo objects and put
+    them in ``__tractInfoList__`` define ``__getstate__`` and ``__setstate__``
+    to allow pickling (the butler saves sky maps using pickle);
+    see DodecaSkyMap for an example of how to do this. (Most of that code could
+    be moved into this base class, but that would make it harder to handle
+    older versions of pickle data.) define updateSha1 to add any
+    subclass-specific state to the hash.
 
     All SkyMap subclasses must be conceptually immutable; they must always
     refer to the same set of mathematical tracts and patches even if the in-
     memory representation of those objects changes.
     """
+
     ConfigClass = BaseSkyMapConfig
 
     def __init__(self, config=None):
-        """Construct a BaseSkyMap
-
-        @param[in] config: an instance of self.ConfigClass; if None the default config is used
-        """
         if config is None:
             config = self.ConfigClass()
         config.freeze()  # just to be sure, e.g. for pickling
@@ -109,16 +115,27 @@ class BaseSkyMap:
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
 
-        @param[in] coord: ICRS sky coordinate (lsst.afw.geom.SpherePoint)
-        @return TractInfo of tract whose center is nearest the specified coord
+        Parameters
+        ----------
+        coord : `lsst.geom.SpherePoint`
+            ICRS sky coordinate to search for.
 
-        @warning:
-        - if tracts do not cover the whole sky then the returned tract may not include the coord
+        Returns
+        -------
+        result : `TractInfo`
+            TractInfo of tract whose center is nearest the specified coord.
 
-        @note
-        - This routine will be more efficient if coord is ICRS.
-        - If coord is equidistant between multiple sky tract centers then one is arbitrarily chosen.
-        - The default implementation is not very efficient; subclasses may wish to override.
+        Notes
+        -----
+        - If coord is equidistant between multiple sky tract centers then one
+          is arbitrarily chosen.
+
+        - The default implementation is not very efficient; subclasses may wish
+          to override.
+
+        **Warning:**
+        If tracts do not cover the whole sky then the returned tract may not
+        include the coord.
         """
         distTractInfoList = []
         for i, tractInfo in enumerate(self):
@@ -129,14 +146,25 @@ class BaseSkyMap:
         return distTractInfoList[0][2]
 
     def findTractPatchList(self, coordList):
-        """Find tracts and patches that overlap a region
+        """Find tracts and patches that overlap a region.
 
-        @param[in] coordList: list of ICRS sky coordinates (lsst.afw.geom.SpherePoint)
-        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
-            or may contain, the specified region. The list will be empty if there is no overlap.
+        Parameters
+        ----------
+        coordList : `list` of `lsst.geom.SpherePoint`
+            List of ICRS sky coordinates to search for.
 
-        @warning this uses a naive algorithm that may find some tracts and patches that do not overlap
-            the region (especially if the region is not a rectangle aligned along patch x,y).
+        Returns
+        -------
+        reList : `list` of (`TractInfo`, `list` of `PatchInfo`)
+            For tracts and patches that contain, or may contain, the specified
+            region. The list will be empty if there is no overlap.
+
+        Notes
+        -----
+        **warning:**
+            This uses a naive algorithm that may find some tracts and patches
+            that do not overlap the region (especially if the region is not a
+            rectangle aligned along patch x, y).
         """
         retList = []
         for tractInfo in self:
@@ -146,11 +174,19 @@ class BaseSkyMap:
         return retList
 
     def findClosestTractPatchList(self, coordList):
-        """Find closest tract and patches that overlap coordinates
+        """Find closest tract and patches that overlap coordinates.
 
-        @param[in] coordList: list of ICRS sky coordinates (lsst.afw.geom.SpherePoint)
-        @return list of (TractInfo, list of PatchInfo) for tracts and patches that contain,
-            or may contain, the specified region. The list will be empty if there is no overlap.
+        Parameters
+        ----------
+        coordList : `lsst.geom.SpherePoint`
+            List of ICRS sky coordinates to search for.
+
+        Returns
+        -------
+        retList : `list`
+            list of (TractInfo, list of PatchInfo) for tracts and patches
+            that contain, or may contain, the specified region.
+            The list will be empty if there is no overlap.
         """
         retList = []
         for coord in coordList:
@@ -186,10 +222,12 @@ class BaseSkyMap:
 
         Returns
         -------
-        sha1 : bytes
+        sha1 : `bytes`
             A 20-byte hash that uniquely identifies this SkyMap instance.
 
-        Subclasses should almost always override `updateSha1()` instead of
+        Notes
+        -----
+        Subclasses should almost always override ``updateSha1`` instead of
         this function to add subclass-specific state to the hash.
         """
         if self._sha1 is None:
@@ -215,19 +253,28 @@ class BaseSkyMap:
 
         Parameters
         ----------
-        sha1 : hashlib.sha1
-            A hashlib object on which `update()` can be called to add
+        sha1 : `hashlib.sha1`
+            A hashlib object on which `update` can be called to add
             additional state to the hash.
 
-        This method is conceptually "protected": it should be reimplemented by
+        Notes
+        -----
+        This method is conceptually "protected" : it should be reimplemented by
         all subclasses, but called only by the base class implementation of
-        `getSha1()`.
+        `getSha1` .
         """
         raise NotImplementedError()
 
     def register(self, name, registry):
         """Add SkyMap, Tract, and Patch Dimension entries to the given Gen3
         Butler Registry.
+
+        Parameters
+        ----------
+        name : `str`
+            The name of the skymap.
+        registry : `lsst.daf.butler.Registry`
+            The registry to add to.
         """
         registry.addDimensionEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
         for tractInfo in self:

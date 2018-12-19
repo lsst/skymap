@@ -19,24 +19,33 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+
+__all__ = ["coordFromVec"]
+
 import numpy
 
 import lsst.sphgeom
 import lsst.afw.geom as afwGeom
 
-__all__ = ["coordFromVec"]
 
 _TinyFloat = numpy.finfo(float).tiny
 
 
 def coordFromVec(vec, defRA=None):
-    """Convert an ICRS cartesian vector to an ICRS lsst.afw.geom.SpherePoint
+    """Convert an ICRS cartesian vector to an ICRS lsst.geom.SpherePoint
 
-    @param[in] vec: an ICRS catesian vector as a sequence of three floats
-    @param[in] defRA: the RA to use if the vector is too near a pole (an afwGeom Angle);
-                ignored if not near a pole
+    Parameters
+    ----------
+    vec : `list` of `float`
+        An ICRS catesian vector.
+    defRA : `lsst.geom.Angle` or None
+        The RA to use if the vector is too near a pole;
+        ignored if not near a pole.
 
-    @throw RuntimeError if vec too near a pole and defRA is None
+    Raises
+    ------
+    RuntimeError
+        If vec too near a pole and defRA is None.
     """
     if abs(vec[0]) < _TinyFloat and abs(vec[1]) < _TinyFloat:
         if defRA is None:

@@ -20,14 +20,26 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from .baseSkyMap import BaseSkyMap
-
 __all__ = ["CachingSkyMap"]
+
+from .baseSkyMap import BaseSkyMap
 
 
 class CachingSkyMap(BaseSkyMap):
-    """A SkyMap that generates its tracts on request and caches them
+    """A SkyMap that generates its tracts on request and caches them.
 
+    Parameters
+    ----------
+    numTracts : `int`
+        Number of tracts to create.
+    config : `lsst.skymap.BaseSkyMapConfig` (optional)
+        The configuration for this SkyMap; if None use the default config.
+    version : `int` or `tuple` of `int` (optional)
+        Software version of this class, to retain compatibility with old
+        instances.
+
+    Notes
+    -----
     A subclass should define
     * __init__ to calculate the required number of tracts (and pass it up)
     * generateTract to generate a tract
@@ -44,9 +56,11 @@ class CachingSkyMap(BaseSkyMap):
         self._version = version
 
     def __reduce__(self):
-        """To support pickling
+        """To support pickling.
 
-        Warning: This method assumes that the constructor should be defined:
+        Notes
+        -----
+        **Warning:** This method assumes that the constructor is be defined:
             __init__(self, config, version=defaultVersion)
         The use of 'config' is effectively set by the registry mechanism.
         If additional optional arguments are added, this method should be
@@ -55,16 +69,16 @@ class CachingSkyMap(BaseSkyMap):
         return (self.__class__, (self.config, self._version))
 
     def __iter__(self):
-        """Iterator over tracts"""
+        """Iterator over tracts."""
         for i in range(self._numTracts):
             yield self[i]
 
     def __len__(self):
-        """Length is number of tracts"""
+        """Length is number of tracts."""
         return self._numTracts
 
     def __getitem__(self, index):
-        """Get the TractInfo for a particular index
+        """Get the TractInfo for a particular index.
 
         The tract is returned from a cache, if available, otherwise generated
         on the fly.
@@ -78,5 +92,5 @@ class CachingSkyMap(BaseSkyMap):
         return tract
 
     def generateTract(self, index):
-        """Generate the TractInfo for the particular index"""
+        """Generate TractInfo for the specified tract index."""
         raise NotImplementedError("Subclasses must define this method.")
