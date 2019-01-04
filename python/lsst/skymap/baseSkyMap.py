@@ -276,7 +276,20 @@ class BaseSkyMap:
         registry : `lsst.daf.butler.Registry`
             The registry to add to.
         """
-        registry.addDimensionEntry("SkyMap", {"skymap": name, "hash": self.getSha1()})
+        nxMax = 0
+        nyMax = 0
+        for tractInfo in self:
+            nx, ny = tractInfo.getNumPatches()
+            nxMax = max(nxMax, nx)
+            nyMax = max(nyMax, ny)
+        registry.addDimensionEntry(
+            "SkyMap",
+            {"skymap": name,
+             "hash": self.getSha1(),
+             "tract_max": len(self),
+             "patch_nx_max": nxMax,
+             "patch_ny_max": nyMax}
+        )
         for tractInfo in self:
             region = tractInfo.getOuterSkyPolygon()
             centroid = SpherePoint(region.getCentroid())
