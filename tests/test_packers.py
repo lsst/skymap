@@ -24,7 +24,7 @@ import unittest
 import lsst.utils.tests
 
 try:
-    from lsst.daf.butler import DataId, DataIdPackerDimensions, DimensionGraph, DimensionSet
+    from lsst.daf.butler import DataId, DataIdPackerDimensions, DimensionUniverse, DimensionSet
     HAVE_DAF_BUTLER = True
 except ImportError:
     HAVE_DAF_BUTLER = False
@@ -36,7 +36,7 @@ from lsst.skymap.packers import SkyMapDataIdPacker
 class SkyMapDataIdPackerTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
-        self.universe = DimensionGraph.fromConfig()
+        self.universe = DimensionUniverse.fromConfig()
         self.given = DimensionSet(universe=self.universe, elements=["SkyMap"])
         self.parameters = dict(skymap="unimportant", tractMax=5, patchNxMax=3, patchNyMax=3)
 
