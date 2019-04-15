@@ -282,30 +282,32 @@ class BaseSkyMap:
             nx, ny = tractInfo.getNumPatches()
             nxMax = max(nxMax, nx)
             nyMax = max(nyMax, ny)
-        registry.addDimensionEntry(
-            "skymap",
-            {"skymap": name,
-             "hash": self.getSha1(),
-             "tract_max": len(self),
-             "patch_nx_max": nxMax,
-             "patch_ny_max": nyMax}
-        )
-        for tractInfo in self:
-            region = tractInfo.getOuterSkyPolygon()
-            centroid = SpherePoint(region.getCentroid())
+        with registry.transaction():
             registry.addDimensionEntry(
-                "tract",
-                {"skymap": name, "tract": tractInfo.getId(),
-                 "region": region,
-                 "ra": centroid.getRa().asDegrees(),
-                 "dec": centroid.getDec().asDegrees()}
+                "skymap",
+                {"skymap": name,
+                 "hash": self.getSha1(),
+                 "tract_max": len(self),
+                 "patch_nx_max": nxMax,
+                 "patch_ny_max": nyMax}
             )
-            for patchInfo in tractInfo:
-                cellX, cellY = patchInfo.getIndex()
-                registry.addDimensionEntry(
-                    "patch",
+            for tractInfo in self:
+                region = tractInfo.getOuterSkyPolygon()
+                centroid = SpherePoint(region.getCentroid())
+                entry = (
                     {"skymap": name, "tract": tractInfo.getId(),
-                     "patch": tractInfo.getSequentialPatchIndex(patchInfo),
-                     "cell_x": cellX, "cell_y": cellY,
-                     "region": patchInfo.getOuterSkyPolygon(tractInfo.getWcs())}
+                     "region": region,
+                     "ra": centroid.getRa().asDegrees(),
+                     "dec": centroid.getDec().asDegrees()}
                 )
+                registry.addDimensionEntry("tract", entry)
+                patchDataIdList = []
+                for patchInfo in tractInfo:
+                    cellX, cellY = patchInfo.getIndex()
+                    patchDataIdList.append(
+                        {"skymap": name, "tract": tractInfo.getId(),
+                         "patch": tractInfo.getSequentialPatchIndex(patchInfo),
+                         "cell_x": cellX, "cell_y": cellY,
+                         "region": patchInfo.getOuterSkyPolygon(tractInfo.getWcs())}
+                    )
+                registry.addDimensionEntryList("patch", patchDataIdList)
