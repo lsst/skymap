@@ -25,18 +25,18 @@ from lsst.daf.butler import DataIdPacker, DataId
 
 
 class SkyMapDataIdPacker(DataIdPacker):
-    """A `DataIdPacker` for Tract, Patch and optionally AbstractFilter, given
+    """A `DataIdPacker` for tract, patch and optionally abstract_filter, given
     a SkyMap.
 
     Parameters
     ----------
     dimensions : `DataIdPackerDimensions`
         Struct containing dimensions related to this `DataIdPacker`.  Must
-        have SkyMap as the only given dimension, Tract, Patch, and possibly
-        AbstractFilter as the covered dimensions, and all of these as required
+        have skymap as the only given dimension, tract, patch, and possibly
+        abstract_filter as the covered dimensions, and all of these as required
         dimensions.
     skymap : `str`
-        SkyMap name from `Registry`.
+        skymap name from `Registry`.
     tractMax : `int`
         Maximum (exclusive) tract index for this skymap.
     patchNxMax : `int`
@@ -46,7 +46,7 @@ class SkyMapDataIdPacker(DataIdPacker):
     """
 
     SUPPORTED_FILTERS = [None] + list("ugrizyUBGVRIZYJHK")  # split string into single chars
-    """AbstractFilter names supported by this packer.
+    """abstract_filter names supported by this packer.
 
     New filters should be added to the end of the list to maximize
     compatibility with existing IDs.
@@ -54,17 +54,17 @@ class SkyMapDataIdPacker(DataIdPacker):
 
     @classmethod
     def getIntFromFilter(cls, name):
-        """Return an integer that represents the AbstractFilter with the given
+        """Return an integer that represents the abstract_filter with the given
         name.
         """
         try:
             return cls.SUPPORTED_FILTERS.index(name)
         except ValueError:
-            raise NotImplementedError(f"AbstractFilter '{name}'' not supported by this ID packer.")
+            raise NotImplementedError(f"abstract_filter '{name}' not supported by this ID packer.")
 
     @classmethod
     def getFilterNameFromInt(cls, num):
-        """Return an AbstractFilter name from its integer representation.
+        """Return an abstract_filter name from its integer representation.
         """
         return cls.SUPPORTED_FILTERS[num]
 
@@ -75,9 +75,9 @@ class SkyMapDataIdPacker(DataIdPacker):
     @classmethod
     def configure(cls, dimensions):
         # Docstring inherited from DataIdPacker.configure
-        assert dimensions.given == ["SkyMap"]
-        assert dimensions.required.issuperset(["Tract", "Patch"])
-        metadata = {"SkyMap": ["tract_max", "patch_nx_max", "patch_ny_max"]}
+        assert dimensions.given == ["skymap"]
+        assert dimensions.required.issuperset(["tract", "patch"])
+        metadata = {"skymap": ["tract_max", "patch_nx_max", "patch_ny_max"]}
         kwds = {}
         return metadata, kwds
 
@@ -85,7 +85,7 @@ class SkyMapDataIdPacker(DataIdPacker):
         self._skyMapName = skymap
         self._patchMax = patchNxMax*patchNyMax
         self._tractPatchMax = self._patchMax*tractMax
-        if "AbstractFilter" in dimensions.required:
+        if "abstract_filter" in dimensions.required:
             self._filterMax = self.getMaxIntForFilters()
         else:
             self._filterMax = None

@@ -283,7 +283,7 @@ class BaseSkyMap:
             nxMax = max(nxMax, nx)
             nyMax = max(nyMax, ny)
         registry.addDimensionEntry(
-            "SkyMap",
+            "skymap",
             {"skymap": name,
              "hash": self.getSha1(),
              "tract_max": len(self),
@@ -294,7 +294,7 @@ class BaseSkyMap:
             region = tractInfo.getOuterSkyPolygon()
             centroid = SpherePoint(region.getCentroid())
             registry.addDimensionEntry(
-                "Tract",
+                "tract",
                 {"skymap": name, "tract": tractInfo.getId(),
                  "region": region,
                  "ra": centroid.getRa().asDegrees(),
@@ -303,7 +303,7 @@ class BaseSkyMap:
             for patchInfo in tractInfo:
                 cellX, cellY = patchInfo.getIndex()
                 registry.addDimensionEntry(
-                    "Patch",
+                    "patch",
                     {"skymap": name, "tract": tractInfo.getId(),
                      "patch": tractInfo.getSequentialPatchIndex(patchInfo),
                      "cell_x": cellX, "cell_y": cellY,

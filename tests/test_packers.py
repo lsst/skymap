@@ -37,11 +37,11 @@ class SkyMapDataIdPackerTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.universe = DimensionUniverse.fromConfig()
-        self.given = DimensionSet(universe=self.universe, elements=["SkyMap"])
+        self.given = DimensionSet(universe=self.universe, elements=["skymap"])
         self.parameters = dict(skymap="unimportant", tractMax=5, patchNxMax=3, patchNyMax=3)
 
     def testWithoutFilter(self):
-        covered = DimensionSet(universe=self.universe, elements=["Tract", "Patch"])
+        covered = DimensionSet(universe=self.universe, elements=["tract", "patch"])
         dimensions = DataIdPackerDimensions(given=self.given, required=self.given.union(covered))
         dataId = DataId(skymap=self.parameters["skymap"], tract=2, patch=6, universe=self.universe)
         packer = SkyMapDataIdPacker(dimensions, **self.parameters)
@@ -50,7 +50,7 @@ class SkyMapDataIdPackerTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(packer.unpack(packedId), dataId)
 
     def testWithFilter(self):
-        covered = DimensionSet(universe=self.universe, elements=["Tract", "Patch", "AbstractFilter"])
+        covered = DimensionSet(universe=self.universe, elements=["tract", "patch", "abstract_filter"])
         dimensions = DataIdPackerDimensions(given=self.given, required=self.given.union(covered))
         dataId = DataId(skymap=self.parameters["skymap"], tract=2, patch=6, abstract_filter="g",
                         universe=self.universe)
