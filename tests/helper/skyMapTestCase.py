@@ -24,7 +24,7 @@ import pickle
 
 import numpy as np
 
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 import lsst.utils.tests
 
 from lsst.skymap import skyMapRegistry
@@ -172,7 +172,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         unpickledWcs = unpickled.getWcs()
         for x in (-1000.0, 0.0, 1000.0):
             for y in (-532.5, 0.5, 532.5):
-                pixelPos = afwGeom.Point2D(x, y)
+                pixelPos = geom.Point2D(x, y)
                 skyPos = wcs.pixelToSky(pixelPos)
                 unpickledSkyPos = unpickledWcs.pixelToSky(pixelPos)
                 self.assertEqual(skyPos, unpickledSkyPos)
@@ -324,7 +324,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         for tract in skyMap:
             coord = tract.getCtrCoord()
             self.assertTrue(tract.contains(coord))
-            opposite = afwGeom.SpherePoint(coord.getLongitude() + 12*afwGeom.hours, -1*coord.getLatitude())
+            opposite = geom.SpherePoint(coord.getLongitude() + 12*geom.hours, -1*coord.getLatitude())
             self.assertFalse(tract.contains(opposite))
 
     def testTractInfoGetPolygon(self):
@@ -411,7 +411,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         centerCoord : `lsst.geom.SpherePoint`
             A coord approximately in the center of the region
         """
-        bboxd = afwGeom.Box2D(bbox)
+        bboxd = geom.Box2D(bbox)
         centerPixel = bboxd.getCenter()
         centerCoord = wcs.pixelToSky(centerPixel)
         skyCorners = getCornerCoords(wcs=wcs, bbox=bbox)
@@ -429,7 +429,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         centerCoord : `lsst.geom.SpherePoint`
             A coord approximately in the center of the region
         """
-        shiftAngle = 0.01*afwGeom.arcseconds
+        shiftAngle = 0.01*geom.arcseconds
         self.assertTrue(polygon.contains(centerCoord.getVector()))
         for vertex in vertexList:
             bearingToCenter = vertex.bearingTo(centerCoord)
@@ -442,5 +442,5 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
     """
-    cornerPosList = afwGeom.Box2D(bbox).getCorners()
+    cornerPosList = geom.Box2D(bbox).getCorners()
     return wcs.pixelToSky(cornerPosList)

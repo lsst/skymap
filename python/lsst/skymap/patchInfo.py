@@ -23,7 +23,7 @@
 __all__ = ["PatchInfo", "makeSkyPolygonFromBBox"]
 
 from lsst.sphgeom import ConvexPolygon
-from lsst.afw.geom import Box2D
+from lsst.geom import Box2D
 
 
 def makeSkyPolygonFromBBox(bbox, wcs):

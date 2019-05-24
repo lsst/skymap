@@ -26,6 +26,7 @@ import argparse
 import matplotlib.pyplot as pyplot
 
 import lsst.afw.cameraGeom as cameraGeom
+import lsst.geom as geom
 import lsst.afw.geom as afwGeom
 import lsst.daf.persistence as dafPersist
 from lsst.pipe.base.argumentParser import IdValueAction, DataIdContainer
@@ -35,7 +36,7 @@ def bboxToRaDec(bbox, wcs):
     """Get the corners of a BBox and convert them to lists of RA and Dec."""
     corners = []
     for corner in bbox.getCorners():
-        p = afwGeom.Point2D(corner.getX(), corner.getY())
+        p = geom.Point2D(corner.getX(), corner.getY())
         coord = wcs.pixelToSky(p)
         corners.append([coord.getRa().asDegrees(), coord.getDec().asDegrees()])
     ra, dec = zip(*corners)
@@ -91,10 +92,10 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
 
                     # add CCD serial numbers
                     if showCcds:
-                        minPoint = afwGeom.Point2D(min(ra), min(dec))
-                        maxPoint = afwGeom.Point2D(max(ra), max(dec))
+                        minPoint = geom.Point2D(min(ra), min(dec))
+                        maxPoint = geom.Point2D(max(ra), max(dec))
                         # Use doubles in Box2D to check overlap
-                        bboxDouble = afwGeom.Box2D(minPoint, maxPoint)
+                        bboxDouble = geom.Box2D(minPoint, maxPoint)
                         overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
                         if all(overlaps):
                             pyplot.text(percent(ra), percent(dec), str(ccdId), fontsize=6,

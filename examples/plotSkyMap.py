@@ -31,7 +31,7 @@ from itertools import cycle
 from mpl_toolkits.mplot3d import Axes3D  # noqa F401 used by fig.gca
 import matplotlib.pyplot as plt
 
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 
 
 def reportSkyMapInfo(skyMap):
@@ -45,14 +45,14 @@ def reportSkyMapInfo(skyMap):
     print("\nSkyMap has %d tracts:" % (len(skyMap)))
     for tractInfo in skyMap:
         wcs = tractInfo.getWcs()
-        posBox = afwGeom.Box2D(tractInfo.getBBox())
+        posBox = geom.Box2D(tractInfo.getBBox())
         pixelPosList = (
             posBox.getMin(),
-            afwGeom.Point2D(posBox.getMaxX(), posBox.getMinY()),
+            geom.Point2D(posBox.getMaxX(), posBox.getMinY()),
             posBox.getMax(),
-            afwGeom.Point2D(posBox.getMinX(), posBox.getMaxY()),
+            geom.Point2D(posBox.getMinX(), posBox.getMaxY()),
         )
-        skyPosList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees) for pos in pixelPosList]
+        skyPosList = [wcs.pixelToSky(pos).getPosition(geom.degrees) for pos in pixelPosList]
         posStrList = ["(%0.3f, %0.3f)" % tuple(skyPos) for skyPos in skyPosList]
         print("tract %s has corners %s (RA, Dec deg) and %s x %s patches" %
               (tractInfo.getId(), ", ".join(posStrList),
@@ -73,7 +73,7 @@ def plotSkyMap3d(skyMap):
     for tractInfo in skyMap:
         # display outer edge; scale to be approximately in the same plane as the inner region
         wcs = tractInfo.getWcs()
-        posBox = afwGeom.Box2D(tractInfo.getBBox())
+        posBox = geom.Box2D(tractInfo.getBBox())
         xRange = posBox.getMinX(), posBox.getMaxX()
         yRange = posBox.getMinY(), posBox.getMaxY()
 
@@ -181,7 +181,7 @@ def makePlotter(Projector=DefaultProjector):
                            (xList, yMax*numpy.ones(num)),
                            (xMin*numpy.ones(num), yList),
                            ):
-                coords = [wcs.pixelToSky(afwGeom.Point2D(x1, y1)) for x1, y1 in zip(xs, ys)]
+                coords = [wcs.pixelToSky(geom.Point2D(x1, y1)) for x1, y1 in zip(xs, ys)]
                 bounds = [proj.projectWithRecenter(c) for c in coords]
                 axes.plot([b[0] for b in bounds], [b[1] for b in bounds], color + '-')
 

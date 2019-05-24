@@ -25,7 +25,7 @@ __all__ = ["coordFromVec"]
 import numpy
 
 import lsst.sphgeom
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 
 
 _TinyFloat = numpy.finfo(float).tiny
@@ -54,5 +54,5 @@ def coordFromVec(vec, defRA=None):
             decDeg = 90.0
         else:
             decDeg = -90.0
-        return afwGeom.SpherePoint(defRA, decDeg*afwGeom.degrees)
-    return afwGeom.SpherePoint(lsst.sphgeom.Vector3d(*vec))
+        return geom.SpherePoint(defRA, decDeg*geom.degrees)
+    return geom.SpherePoint(lsst.sphgeom.Vector3d(*vec))

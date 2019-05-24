@@ -25,7 +25,7 @@ import unittest
 
 import numpy
 
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 import lsst.utils.tests
 
 from lsst.skymap import EquatSkyMap
@@ -38,7 +38,7 @@ class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
             SkyMapClass=EquatSkyMap,
             name="equat",
             numTracts=4,
-            neighborAngularSeparation=90*afwGeom.degrees,
+            neighborAngularSeparation=90*geom.degrees,
             numNeighbors=2,
         )
 
@@ -96,21 +96,21 @@ class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                 maxYInd = numPatches[1] - 1
                 for xInd in (0, midXIndex, numPatches[0] - 1):
                     minDecPatchInfo = tractInfo.getPatchInfo((xInd, 0))
-                    minDecPosBox = afwGeom.Box2D(minDecPatchInfo.getOuterBBox())
+                    minDecPosBox = geom.Box2D(minDecPatchInfo.getOuterBBox())
                     minPixelPosList += [
                         minDecPosBox.getMin(),
-                        afwGeom.Point2D(minDecPosBox.getMaxX(), minDecPosBox.getMinY()),
+                        geom.Point2D(minDecPosBox.getMaxX(), minDecPosBox.getMinY()),
                     ]
 
                     maxDecPatchInfo = tractInfo.getPatchInfo((xInd, maxYInd))
-                    maxDecPosBox = afwGeom.Box2D(maxDecPatchInfo.getOuterBBox())
+                    maxDecPosBox = geom.Box2D(maxDecPatchInfo.getOuterBBox())
                     maxPixelPosList += [
                         maxDecPosBox.getMax(),
-                        afwGeom.Point2D(maxDecPosBox.getMinX(), maxDecPosBox.getMaxY()),
+                        geom.Point2D(maxDecPosBox.getMinX(), maxDecPosBox.getMaxY()),
                     ]
                 wcs = tractInfo.getWcs()
-                minDecList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees)[1] for pos in minPixelPosList]
-                maxDecList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees)[1] for pos in maxPixelPosList]
+                minDecList = [wcs.pixelToSky(pos).getPosition(geom.degrees)[1] for pos in minPixelPosList]
+                maxDecList = [wcs.pixelToSky(pos).getPosition(geom.degrees)[1] for pos in maxPixelPosList]
                 self.assertTrue(numpy.allclose(minDecList, minDecList[0]))
                 self.assertTrue(numpy.allclose(maxDecList, maxDecList[0]))
                 self.assertTrue(minDecList[0] <= minDec)
@@ -162,7 +162,7 @@ class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                         v0 = ctrCoord0.getVector() * (0.5 + deltaFrac)
                         v1 = ctrCoord1.getVector() * (0.5 - deltaFrac)
                         testVec = v0 + v1
-                        testRa = afwGeom.SpherePoint(testVec).getRa()
+                        testRa = geom.SpherePoint(testVec).getRa()
 
                         if deltaFrac > 0.0:
                             expectedTractId = tractId0
@@ -170,8 +170,8 @@ class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                             expectedTractId = tractId1
 
                         for testDecDeg in decList:
-                            testDec = afwGeom.Angle(testDecDeg, afwGeom.degrees)
-                            testCoord = afwGeom.SpherePoint(testRa, testDec)
+                            testDec = geom.Angle(testDecDeg, geom.degrees)
+                            testCoord = geom.SpherePoint(testRa, testDec)
 
                             nearestTractInfo = skyMap.findTract(testCoord)
                             nearestTractId = nearestTractInfo.getId()
@@ -179,18 +179,18 @@ class EquatSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                             self.assertEqual(nearestTractId, expectedTractId)
 
                             patchInfo = nearestTractInfo.findPatch(testCoord)
-                            pixelInd = afwGeom.Point2I(nearestTractInfo.getWcs().skyToPixel(testCoord))
+                            pixelInd = geom.Point2I(nearestTractInfo.getWcs().skyToPixel(testCoord))
                             self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
                 # find a point outside the tract and make sure it fails
                 tractInfo = tractInfo0
                 wcs = tractInfo.getWcs()
-                bbox = afwGeom.Box2D(tractInfo.getBBox())
+                bbox = geom.Box2D(tractInfo.getBBox())
                 outerPixPosList = [
-                    bbox.getMin() - afwGeom.Extent2D(1, 1),
-                    afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()) - afwGeom.Extent2D(1, 1),
-                    bbox.getMax() + afwGeom.Extent2D(1, 1),
-                    afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()) + afwGeom.Extent2D(1, 1),
+                    bbox.getMin() - geom.Extent2D(1, 1),
+                    geom.Point2D(bbox.getMaxX(), bbox.getMinY()) - geom.Extent2D(1, 1),
+                    bbox.getMax() + geom.Extent2D(1, 1),
+                    geom.Point2D(bbox.getMinX(), bbox.getMaxY()) + geom.Extent2D(1, 1),
                 ]
                 for outerPixPos in outerPixPosList:
                     testCoord = wcs.pixelToSky(outerPixPos)

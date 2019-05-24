@@ -25,7 +25,7 @@ __all__ = ['EquatSkyMapConfig', 'EquatSkyMap']
 import struct
 
 import lsst.pex.config as pexConfig
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
 
@@ -64,29 +64,29 @@ class EquatSkyMap(BaseSkyMap):
     def __init__(self, config=None):
         BaseSkyMap.__init__(self, config)
 
-        decRange = tuple(afwGeom.Angle(dr, afwGeom.degrees) for dr in self.config.decRange)
+        decRange = tuple(geom.Angle(dr, geom.degrees) for dr in self.config.decRange)
         midDec = (decRange[0] + decRange[1]) / 2.0
-        tractWidthRA = afwGeom.Angle(360.0 / self.config.numTracts, afwGeom.degrees)
-        tractOverlap = afwGeom.Angle(self.config.tractOverlap, afwGeom.degrees)
+        tractWidthRA = geom.Angle(360.0 / self.config.numTracts, geom.degrees)
+        tractOverlap = geom.Angle(self.config.tractOverlap, geom.degrees)
 
         for id in range(self.config.numTracts):
             begRA = tractWidthRA * id
             endRA = begRA + tractWidthRA
             vertexCoordList = (
-                afwGeom.SpherePoint(begRA, decRange[0]),
-                afwGeom.SpherePoint(endRA, decRange[0]),
-                afwGeom.SpherePoint(endRA, decRange[1]),
-                afwGeom.SpherePoint(begRA, decRange[1]),
+                geom.SpherePoint(begRA, decRange[0]),
+                geom.SpherePoint(endRA, decRange[0]),
+                geom.SpherePoint(endRA, decRange[1]),
+                geom.SpherePoint(begRA, decRange[1]),
             )
 
             midRA = begRA + tractWidthRA / 2.0
-            ctrCoord = afwGeom.SpherePoint(midRA, midDec)
+            ctrCoord = geom.SpherePoint(midRA, midDec)
 
             # CRVal must have Dec=0 for symmetry about the equator
-            crValCoord = afwGeom.SpherePoint(midRA, afwGeom.Angle(0.0))
+            crValCoord = geom.SpherePoint(midRA, geom.Angle(0.0))
 
             # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
-            wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=crValCoord)
+            wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=crValCoord)
 
             self._tractInfoList.append(TractInfo(
                 id=id,

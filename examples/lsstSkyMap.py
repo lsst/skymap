@@ -22,7 +22,7 @@
 #
 import math
 
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from lsst.skymap import DodecaSkyMap
 
 print("Warning: this does not take into account the extra space required by patch borders")
@@ -41,21 +41,21 @@ for tractOverlap in (0.0, 0.33, 1.0, 3.5):
         numPix = dimensions[0] * dimensions[1]
         totNumPix += numPix
         wcs = tractInfo.getWcs()
-        posBBox = afwGeom.Box2D(bbox)
+        posBBox = geom.Box2D(bbox)
         ctrPixPos = posBBox.getCenter()
         ctrCoord = wcs.pixelToSky(ctrPixPos)
-        ctrSkyPosDeg = ctrCoord.getPosition(afwGeom.degrees)
-        leftCoord = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMinX(), ctrPixPos[1]))
-        rightCoord = wcs.pixelToSky(afwGeom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
-        topCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMinY()))
-        bottomCoord = wcs.pixelToSky(afwGeom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
+        ctrSkyPosDeg = ctrCoord.getPosition(geom.degrees)
+        leftCoord = wcs.pixelToSky(geom.Point2D(posBBox.getMinX(), ctrPixPos[1]))
+        rightCoord = wcs.pixelToSky(geom.Point2D(posBBox.getMaxX(), ctrPixPos[1]))
+        topCoord = wcs.pixelToSky(geom.Point2D(ctrPixPos[0], posBBox.getMinY()))
+        bottomCoord = wcs.pixelToSky(geom.Point2D(ctrPixPos[0], posBBox.getMaxY()))
         xSpan = leftCoord.separation(rightCoord).asDegrees()
         ySpan = bottomCoord.separation(topCoord).asDegrees()
         print("%3d   %7.1f %7.1f %10.2e  %10.2e %10.1e %6.1f %6.1f" %
               (tractInfo.getId(), ctrSkyPosDeg[0], ctrSkyPosDeg[1],
                dimensions[0], dimensions[1], numPix, xSpan, ySpan))
 
-    pixelScaleRad = afwGeom.Angle(skyMap.config.pixelScale, afwGeom.arcseconds).asRadians()
+    pixelScaleRad = geom.Angle(skyMap.config.pixelScale, geom.arcseconds).asRadians()
     nomPixelAreaRad2 = pixelScaleRad**2  # nominal area of a pixel in rad^2
     numPixToTileSphere = 4 * math.pi / nomPixelAreaRad2
     print("total pixels = %.1e" % (totNumPix,))

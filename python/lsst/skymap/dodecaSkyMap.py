@@ -30,7 +30,7 @@ __all__ = ['DodecaSkyMapConfig', 'DodecaSkyMap']
 import struct
 
 import lsst.pex.config as pexConfig
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from . import detail
 from .baseSkyMap import BaseSkyMap
 from .tractInfo import TractInfo
@@ -69,16 +69,16 @@ class DodecaSkyMap(BaseSkyMap):
         BaseSkyMap.__init__(self, config)
         self._dodecahedron = detail.Dodecahedron(withFacesOnPoles=self.config.withTractsOnPoles)
 
-        tractOverlap = afwGeom.Angle(self.config.tractOverlap, afwGeom.degrees)
+        tractOverlap = geom.Angle(self.config.tractOverlap, geom.degrees)
 
         for id in range(12):
             tractVec = self._dodecahedron.getFaceCtr(id)
-            tractCoord = detail.coordFromVec(tractVec, defRA=afwGeom.Angle(0))
+            tractCoord = detail.coordFromVec(tractVec, defRA=geom.Angle(0))
             tractRA = tractCoord.getLongitude()
             vertexVecList = self._dodecahedron.getVertices(id)
 
             # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
-            wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=tractCoord)
+            wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=tractCoord)
 
             self._tractInfoList.append(
                 TractInfo(
