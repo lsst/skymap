@@ -22,6 +22,7 @@
 
 __all__ = ['WcsFactory']
 
+import lsst.geom as geom
 import lsst.afw.geom as afwGeom
 
 
@@ -43,7 +44,7 @@ class WcsFactory:
         Flip the X axis?
     """
 
-    def __init__(self, pixelScale, projection, rotation=0*afwGeom.radians, flipX=False):
+    def __init__(self, pixelScale, projection, rotation=0*geom.radians, flipX=False):
         if len(projection) != 3:
             raise RuntimeError("projection=%r; must have length 3" % (projection,))
         self._projection = projection

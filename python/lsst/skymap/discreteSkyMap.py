@@ -25,7 +25,7 @@ __all__ = ["DiscreteSkyMap"]
 import struct
 
 from lsst.pex.config import ListField
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
@@ -69,11 +69,11 @@ class DiscreteSkyMap(CachingSkyMap):
 
     def generateTract(self, index):
         """Generate TractInfo for the specified tract index."""
-        center = afwGeom.SpherePoint(self.config.raList[index], self.config.decList[index], afwGeom.degrees)
+        center = geom.SpherePoint(self.config.raList[index], self.config.decList[index], geom.degrees)
         radius = self.config.radiusList[index]
-        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
+        wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
-                                 radius * afwGeom.degrees, self.config.tractOverlap * afwGeom.degrees, wcs)
+                                 radius*geom.degrees, self.config.tractOverlap*geom.degrees, wcs)
 
     def updateSha1(self, sha1):
         """Add subclass-specific state or configuration options to the SHA1."""

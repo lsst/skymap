@@ -26,7 +26,7 @@ import struct
 import math
 
 from lsst.pex.config import Field
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
@@ -87,7 +87,7 @@ class RingsSkyMap(CachingSkyMap):
             self._ringNums.append(int(2*math.pi*math.cos(dec)/self._ringSize) + 1)
         numTracts = sum(self._ringNums) + 2
         super(RingsSkyMap, self).__init__(numTracts, config, version)
-        self._raStart = self.config.raStart*afwGeom.degrees
+        self._raStart = self.config.raStart*geom.degrees
 
     def getRingIndices(self, index):
         """Calculate ring indices given a numerical index of a tract.
@@ -129,13 +129,13 @@ class RingsSkyMap(CachingSkyMap):
             ra, dec = 0, 0.5*math.pi
         else:
             dec = self._ringSize*(ringNum + 1) - 0.5*math.pi
-            ra = ((2*math.pi*tractNum/self._ringNums[ringNum])*afwGeom.radians +
+            ra = ((2*math.pi*tractNum/self._ringNums[ringNum])*geom.radians +
                   self._raStart).wrap().asRadians()
 
-        center = afwGeom.SpherePoint(ra, dec, afwGeom.radians)
-        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
+        center = geom.SpherePoint(ra, dec, geom.radians)
+        wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
         return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
-                                 0.5*self._ringSize*afwGeom.radians, self.config.tractOverlap*afwGeom.degrees,
+                                 0.5*self._ringSize*geom.radians, self.config.tractOverlap*geom.degrees,
                                  wcs)
 
     def _decToRingNum(self, dec):

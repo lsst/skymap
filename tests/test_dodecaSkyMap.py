@@ -27,7 +27,7 @@ import unittest
 import numpy
 
 import lsst.sphgeom
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 import lsst.utils.tests
 
 from lsst.skymap import DodecaSkyMap
@@ -36,7 +36,7 @@ from helper import skyMapTestCase
 
 # dodecahedron properties
 _Phi = (1.0 + math.sqrt(5.0)) / 2.0
-_DihedralAngle = afwGeom.Angle(2.0 * math.atan(_Phi), afwGeom.radians)
+_DihedralAngle = geom.Angle(2.0 * math.atan(_Phi), geom.radians)
 
 
 class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
@@ -47,7 +47,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
             name="dodeca",
             numNeighbors=6,
             numTracts=12,
-            neighborAngularSeparation=180*afwGeom.degrees - _DihedralAngle,
+            neighborAngularSeparation=180*geom.degrees - _DihedralAngle,
         )
 
     def testSha1Compare(self):
@@ -72,7 +72,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
             for otherTractInfo in skyMap:
                 otherCtrCoord = otherTractInfo.getCtrCoord()
                 dist = ctrCoord0.separation(otherCtrCoord)
-                if abs(dist - self.neighborAngularSeparation) < afwGeom.Angle(0.1, afwGeom.degrees):
+                if abs(dist - self.neighborAngularSeparation) < geom.Angle(0.1, geom.degrees):
                     nbrTractList.append(otherTractInfo)
             self.assertEqual(len(nbrTractList), 5)
 
@@ -82,7 +82,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                 vector1 = numpy.array(ctrCoord1.getVector())
                 for tractInfo2 in nbrTractList[tractInfo1.getId():]:
                     dist = ctrCoord1.separation(tractInfo2.getCtrCoord())
-                    if abs(dist - self.neighborAngularSeparation) > afwGeom.Angle(0.1, afwGeom.degrees):
+                    if abs(dist - self.neighborAngularSeparation) > geom.Angle(0.1, geom.degrees):
                         continue
                     tractId2 = tractInfo2.getId()
                     ctrCoord2 = tractInfo2.getCtrCoord()
@@ -124,7 +124,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                                 testVector = (vector0 * frac0) + (vector1 * frac1) + (vector2 * frac2)
                                 vecLen = math.sqrt(numpy.sum(testVector**2))
                                 testVector /= vecLen
-                                testCoord = afwGeom.SpherePoint(lsst.sphgeom.Vector3d(*testVector))
+                                testCoord = geom.SpherePoint(lsst.sphgeom.Vector3d(*testVector))
                                 nearestTractInfo = skyMap.findTract(testCoord)
                                 nearestTractId = nearestTractInfo.getId()
 
@@ -149,7 +149,7 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                                               (expectedTractId, nearestTractId))
 
                                 patchInfo = nearestTractInfo.findPatch(testCoord)
-                                pixelInd = afwGeom.Point2I(
+                                pixelInd = geom.Point2I(
                                     nearestTractInfo.getWcs().skyToPixel(testCoord))
                                 self.assertTrue(patchInfo.getInnerBBox().contains(pixelInd))
 
@@ -157,12 +157,12 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
 def getCornerCoords(wcs, bbox):
     """Return the coords of the four corners of a bounding box
     """
-    bbox = afwGeom.Box2D(bbox)  # mak
+    bbox = geom.Box2D(bbox)  # mak
     cornerPosList = (
         bbox.getMin(),
-        afwGeom.Point2D(bbox.getMaxX(), bbox.getMinY()),
+        geom.Point2D(bbox.getMaxX(), bbox.getMinY()),
         bbox.getMax(),
-        afwGeom.Point2D(bbox.getMinX(), bbox.getMaxY()),
+        geom.Point2D(bbox.getMinX(), bbox.getMaxY()),
     )
     return wcs.pixelToSky(cornerPosList)
 

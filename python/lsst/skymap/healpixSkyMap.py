@@ -40,7 +40,7 @@ except Exception as e:
     healpy = DummyHealpy()
 
 from lsst.pex.config import Field
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
 
@@ -52,7 +52,7 @@ def angToCoord(thetaphi):
     of healpy functions can be directed to this function without
     additional translation.
     """
-    return afwGeom.SpherePoint(float(thetaphi[1]), float(thetaphi[0] - 0.5*numpy.pi), afwGeom.radians)
+    return geom.SpherePoint(float(thetaphi[1]), float(thetaphi[0] - 0.5*numpy.pi), geom.radians)
 
 
 def coordToAng(coord):
@@ -126,9 +126,9 @@ class HealpixSkyMap(CachingSkyMap):
     def generateTract(self, index):
         """Generate TractInfo for the specified tract index."""
         center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
-        wcs = self._wcsFactory.makeWcs(crPixPos=afwGeom.Point2D(0, 0), crValCoord=center)
+        wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
         return HealpixTractInfo(self._nside, index, self.config.nest, self.config.patchInnerDimensions,
-                                self.config.patchBorder, center, self.config.tractOverlap*afwGeom.degrees,
+                                self.config.patchBorder, center, self.config.tractOverlap*geom.degrees,
                                 wcs)
 
     def updateSha1(self, sha1):

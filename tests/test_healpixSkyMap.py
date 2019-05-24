@@ -1,5 +1,5 @@
 import unittest
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 import lsst.utils.tests
 from helper import skyMapTestCase
 
@@ -25,7 +25,7 @@ class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
             config=config,
             numTracts=healpy.nside2npix(nside),
             numNeighbors=1,
-            neighborAngularSeparation=healpy.max_pixrad(nside) * afwGeom.radians,
+            neighborAngularSeparation=healpy.max_pixrad(nside) * geom.radians,
         )
 
     def testSha1Compare(self):

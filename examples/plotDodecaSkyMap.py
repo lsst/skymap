@@ -28,7 +28,7 @@ import numpy
 from mpl_toolkits.mplot3d import Axes3D  # noqa F401 used by fig.gca
 import matplotlib.pyplot as plt
 
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from lsst.skymap import DodecaSkyMap
 
 skyMap = DodecaSkyMap()
@@ -54,9 +54,9 @@ for tractInfo in skyMap:
     bbox = tractInfo.getBBox()
     outerPixPos = [
         bbox.getMin(),
-        afwGeom.Point2I(bbox.getMaxX(), bbox.getMinY()),
+        geom.Point2I(bbox.getMaxX(), bbox.getMinY()),
         bbox.getMax(),
-        afwGeom.Point2I(bbox.getMinX(), bbox.getMaxY()),
+        geom.Point2I(bbox.getMinX(), bbox.getMaxY()),
         bbox.getMin(),
     ]
     outerPoints = [numpy.array(wcs.pixelToSky(p[0], p[1]).getVector()) for p in outerPixPos]

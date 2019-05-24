@@ -25,7 +25,7 @@ __all__ = ["TractInfo"]
 import numbers
 
 import lsst.pex.exceptions
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 from lsst.sphgeom import ConvexPolygon
 
 from .patchInfo import PatchInfo, makeSkyPolygonFromBBox
@@ -86,7 +86,7 @@ class TractInfo:
         self._id = id
         try:
             assert len(patchInnerDimensions) == 2
-            self._patchInnerDimensions = afwGeom.Extent2I(*(int(val) for val in patchInnerDimensions))
+            self._patchInnerDimensions = geom.Extent2I(*(int(val) for val in patchInnerDimensions))
         except Exception:
             raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
         self._patchBorder = int(patchBorder)
@@ -107,14 +107,14 @@ class TractInfo:
         We compute the bounding box that holds all the vertices and the
         desired overlap.
         """
-        minBBoxD = afwGeom.Box2D()
+        minBBoxD = geom.Box2D()
         halfOverlap = self._tractOverlap / 2.0
         for vertexCoord in self._vertexCoordList:
             if self._tractOverlap == 0:
                 minBBoxD.include(wcs.skyToPixel(vertexCoord))
             else:
                 numAngles = 24
-                angleIncr = afwGeom.Angle(360.0, afwGeom.degrees) / float(numAngles)
+                angleIncr = geom.Angle(360.0, geom.degrees) / float(numAngles)
                 for i in range(numAngles):
                     offAngle = angleIncr * i
                     offCoord = vertexCoord.offset(offAngle, halfOverlap)
@@ -144,10 +144,10 @@ class TractInfo:
             final bounding box, number of patches
         numPatches : `int`
         """
-        bbox = afwGeom.Box2I(minBBox)
+        bbox = geom.Box2I(minBBox)
         bboxMin = bbox.getMin()
         bboxDim = bbox.getDimensions()
-        numPatches = afwGeom.Extent2I(0, 0)
+        numPatches = geom.Extent2I(0, 0)
         for i, innerDim in enumerate(self._patchInnerDimensions):
             num = (bboxDim[i] + innerDim - 1) // innerDim  # round up
             deltaDim = (innerDim * num) - bboxDim[i]
@@ -155,7 +155,7 @@ class TractInfo:
                 bboxDim[i] = innerDim * num
                 bboxMin[i] -= deltaDim // 2
             numPatches[i] = num
-        bbox = afwGeom.Box2I(bboxMin, bboxDim)
+        bbox = geom.Box2I(bboxMin, bboxDim)
         return bbox, numPatches
 
     def _finalOrientation(self, bbox, wcs):
@@ -178,11 +178,11 @@ class TractInfo:
         wcs : `lsst.afw.geom.SkyWcs`
             Revised Wcs.
         """
-        finalBBox = afwGeom.Box2I(afwGeom.Point2I(0, 0), bbox.getDimensions())
+        finalBBox = geom.Box2I(geom.Point2I(0, 0), bbox.getDimensions())
         # shift the WCS by the same amount as the bbox; extra code is required
         # because simply subtracting makes an Extent2I
-        pixPosOffset = afwGeom.Extent2D(finalBBox.getMinX() - bbox.getMinX(),
-                                        finalBBox.getMinY() - bbox.getMinY())
+        pixPosOffset = geom.Extent2D(finalBBox.getMinX() - bbox.getMinX(),
+                                     finalBBox.getMinY() - bbox.getMinY())
         wcs = wcs.copyAtShiftedPixelOrigin(pixPosOffset)
         return finalBBox, wcs
 
@@ -224,7 +224,7 @@ class TractInfo:
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
-        pixelInd = afwGeom.Point2I(pixel)
+        pixelInd = geom.Point2I(pixel)
         if not self.getBBox().contains(pixelInd):
             raise LookupError("coord %s is not in tract %s" % (coord, self.getId()))
         patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
@@ -255,7 +255,7 @@ class TractInfo:
           overlap the region (especially if the region is not a rectangle
           aligned along patch x,y).
         """
-        box2D = afwGeom.Box2D()
+        box2D = geom.Box2D()
         for coord in coordList:
             try:
                 pixelPos = self.getWcs().skyToPixel(coord)
@@ -263,7 +263,7 @@ class TractInfo:
                 # the point is so far off the tract that its pixel position cannot be computed
                 continue
             box2D.include(pixelPos)
-        bbox = afwGeom.Box2I(box2D)
+        bbox = geom.Box2I(box2D)
         bbox.grow(self.getPatchBorder())
         bbox.clip(self.getBBox())
         if bbox.isEmpty():
@@ -276,9 +276,9 @@ class TractInfo:
                      for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
     def getBBox(self):
-        """Get bounding box of tract (as an afwGeom.Box2I)
+        """Get bounding box of tract (as an geom.Box2I)
         """
-        return afwGeom.Box2I(self._bbox)
+        return geom.Box2I(self._bbox)
 
     def getCtrCoord(self):
         """Get ICRS sky coordinate of center of tract
@@ -330,13 +330,13 @@ class TractInfo:
                 or (not 0 <= index[1] < self._numPatches[1]):
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
                              (index, self._numPatches[0]-1, self._numPatches[1]-1))
-        innerMin = afwGeom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
-        innerBBox = afwGeom.Box2I(innerMin, self._patchInnerDimensions)
+        innerMin = geom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
+        innerBBox = geom.Box2I(innerMin, self._patchInnerDimensions)
         if not self._bbox.contains(innerBBox):
             raise RuntimeError(
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" %
                 (index, innerBBox, self._bbox))
-        outerBBox = afwGeom.Box2I(innerBBox)
+        outerBBox = geom.Box2I(innerBBox)
         outerBBox.grow(self.getPatchBorder())
         outerBBox.clip(self._bbox)
         return PatchInfo(
@@ -412,7 +412,7 @@ class TractInfo:
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             return False
-        return self.getBBox().contains(afwGeom.Point2I(pixels))
+        return self.getBBox().contains(geom.Point2I(pixels))
 
 
 class ExplicitTractInfo(TractInfo):
@@ -429,7 +429,7 @@ class ExplicitTractInfo(TractInfo):
         super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
         # Shrink the box slightly to make sure the vertices are in the tract
-        bboxD = afwGeom.BoxD(self.getBBox())
+        bboxD = geom.BoxD(self.getBBox())
         bboxD.grow(-0.001)
         finalWcs = self.getWcs()
         self._vertexCoordList = finalWcs.pixelToSky(bboxD.getCorners())
@@ -438,9 +438,9 @@ class ExplicitTractInfo(TractInfo):
         """Calculate the minimum bounding box for the tract, given the WCS, and
         the nominated radius.
         """
-        bbox = afwGeom.Box2D()
+        bbox = geom.Box2D()
         for i in range(4):
-            cornerCoord = self._ctrCoord.offset(i*90*afwGeom.degrees, self._radius + self._tractOverlap)
+            cornerCoord = self._ctrCoord.offset(i*90*geom.degrees, self._radius + self._tractOverlap)
             pixPos = wcs.skyToPixel(cornerCoord)
             bbox.include(pixPos)
         return bbox
