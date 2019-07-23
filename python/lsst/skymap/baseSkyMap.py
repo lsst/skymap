@@ -29,7 +29,7 @@ __all__ = ["BaseSkyMapConfig", "BaseSkyMap"]
 import hashlib
 import struct
 
-import lsst.afw.geom as afwGeom
+import lsst.geom as geom
 import lsst.pex.config as pexConfig
 from lsst.geom import SpherePoint, Angle, arcseconds, degrees
 from . import detail
@@ -229,14 +229,14 @@ class BaseSkyMap:
         log.info("sky map has %s tracts" % (len(self),))
         for tractInfo in self:
             wcs = tractInfo.getWcs()
-            posBox = afwGeom.Box2D(tractInfo.getBBox())
+            posBox = geom.Box2D(tractInfo.getBBox())
             pixelPosList = (
                 posBox.getMin(),
-                afwGeom.Point2D(posBox.getMaxX(), posBox.getMinY()),
+                geom.Point2D(posBox.getMaxX(), posBox.getMinY()),
                 posBox.getMax(),
-                afwGeom.Point2D(posBox.getMinX(), posBox.getMaxY()),
+                geom.Point2D(posBox.getMinX(), posBox.getMaxY()),
             )
-            skyPosList = [wcs.pixelToSky(pos).getPosition(afwGeom.degrees) for pos in pixelPosList]
+            skyPosList = [wcs.pixelToSky(pos).getPosition(geom.degrees) for pos in pixelPosList]
             posStrList = ["(%0.3f, %0.3f)" % tuple(skyPos) for skyPos in skyPosList]
             log.info("tract %s has corners %s (RA, Dec deg) and %s x %s patches" %
                      (tractInfo.getId(), ", ".join(posStrList),
