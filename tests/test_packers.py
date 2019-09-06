@@ -24,37 +24,54 @@ import unittest
 import lsst.utils.tests
 
 try:
-    from lsst.daf.butler import DataId, DataIdPackerDimensions, DimensionUniverse, DimensionSet
+    from lsst.daf.butler import ExpandedDataCoordinate, DimensionUniverse, DimensionGraph, DataCoordinate
     HAVE_DAF_BUTLER = True
 except ImportError:
     HAVE_DAF_BUTLER = False
 
-from lsst.skymap.packers import SkyMapDataIdPacker
+from lsst.skymap.packers import SkyMapDimensionPacker
 
 
 @unittest.skipUnless(HAVE_DAF_BUTLER, "daf_butler not setup")
-class SkyMapDataIdPackerTestCase(lsst.utils.tests.TestCase):
+class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
-        self.universe = DimensionUniverse.fromConfig()
-        self.given = DimensionSet(universe=self.universe, elements=["skymap"])
-        self.parameters = dict(skymap="unimportant", tractMax=5, patchNxMax=3, patchNyMax=3)
+        self.universe = DimensionUniverse()
+        self.fixed = ExpandedDataCoordinate(
+            DimensionGraph(universe=self.universe, names=["skymap"]),
+            values=("unimportant",),
+            records={
+                "skymap": self.universe["skymap"].RecordClass.fromDict({
+                    "name": "unimportant",
+                    "tract_max": 5,
+                    "patch_nx_max": 3,
+                    "patch_ny_max": 3,
+                })
+            })
 
     def testWithoutFilter(self):
-        covered = DimensionSet(universe=self.universe, elements=["tract", "patch"])
-        dimensions = DataIdPackerDimensions(given=self.given, required=self.given.union(covered))
-        dataId = DataId(skymap=self.parameters["skymap"], tract=2, patch=6, universe=self.universe)
-        packer = SkyMapDataIdPacker(dimensions, **self.parameters)
+        dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch"])
+        dataId = DataCoordinate.standardize(
+            skymap=self.fixed["skymap"],
+            tract=2,
+            patch=6,
+            universe=self.universe
+        )
+        packer = SkyMapDimensionPacker(self.fixed, dimensions)
         packedId = packer.pack(dataId)
         self.assertLessEqual(packedId.bit_length(), packer.maxBits)
         self.assertEqual(packer.unpack(packedId), dataId)
 
     def testWithFilter(self):
-        covered = DimensionSet(universe=self.universe, elements=["tract", "patch", "abstract_filter"])
-        dimensions = DataIdPackerDimensions(given=self.given, required=self.given.union(covered))
-        dataId = DataId(skymap=self.parameters["skymap"], tract=2, patch=6, abstract_filter="g",
-                        universe=self.universe)
-        packer = SkyMapDataIdPacker(dimensions, **self.parameters)
+        dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch", "abstract_filter"])
+        dataId = DataCoordinate.standardize(
+            skymap=self.fixed["skymap"],
+            tract=2,
+            patch=6,
+            abstract_filter="g",
+            universe=self.universe
+        )
+        packer = SkyMapDimensionPacker(self.fixed, dimensions)
         packedId = packer.pack(dataId)
         self.assertLessEqual(packedId.bit_length(), packer.maxBits)
         self.assertEqual(packer.unpack(packedId), dataId)

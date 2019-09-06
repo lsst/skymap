@@ -19,30 +19,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ("SkyMapDataIdPacker",)
+__all__ = ("SkyMapDimensionPacker",)
 
-from lsst.daf.butler import DataIdPacker, DataId
+from lsst.daf.butler import DimensionPacker, ExpandedDataCoordinate, DimensionGraph, DataCoordinate
 
 
-class SkyMapDataIdPacker(DataIdPacker):
-    """A `DataIdPacker` for tract, patch and optionally abstract_filter, given
-    a SkyMap.
+class SkyMapDimensionPacker(DimensionPacker):
+    """A `DimensionPacker` for tract, patch and optionally abstract_filter,
+    given a SkyMap.
 
     Parameters
     ----------
-    dimensions : `DataIdPackerDimensions`
-        Struct containing dimensions related to this `DataIdPacker`.  Must
-        have skymap as the only given dimension, tract, patch, and possibly
-        abstract_filter as the covered dimensions, and all of these as required
-        dimensions.
-    skymap : `str`
-        skymap name from `Registry`.
-    tractMax : `int`
-        Maximum (exclusive) tract index for this skymap.
-    patchNxMax : `int`
-        Maximum (exclusive) patch index in the x direction.
-    patchNyMax : `int`
-        Maximum (exclusive) patch index in the y direction.
+    fixed : `lsst.daf.butler.ExpandedDataCoordinate`
+        Expanded data ID that must include at least the skymap dimension.
+    dimensions : `lsst.daf.butler.DimensionGraph`
+        The dimensions of data IDs packed by this instance.  Must include
+        skymap, tract, and patch, and may include abstract_filter.
     """
 
     SUPPORTED_FILTERS = [None] + list("ugrizyUBGVRIZYJHK")  # split string into single chars
@@ -81,31 +73,33 @@ class SkyMapDataIdPacker(DataIdPacker):
         kwds = {}
         return metadata, kwds
 
-    def __init__(self, dimensions, skymap, tractMax, patchNxMax, patchNyMax):
-        self._skyMapName = skymap
-        self._patchMax = patchNxMax*patchNyMax
-        self._tractPatchMax = self._patchMax*tractMax
-        if "abstract_filter" in dimensions.required:
+    def __init__(self, fixed: ExpandedDataCoordinate, dimensions: DimensionGraph):
+        super().__init__(fixed, dimensions)
+        record = fixed.records["skymap"]
+        self._skyMapName = record.name
+        self._patchMax = record.patch_nx_max * record.patch_ny_max
+        self._tractPatchMax = self._patchMax*record.tract_max
+        if "abstract_filter" in dimensions:
             self._filterMax = self.getMaxIntForFilters()
         else:
             self._filterMax = None
 
     @property
-    def maxBits(self):
+    def maxBits(self) -> int:
         # Docstring inherited from DataIdPacker.maxBits
         packedMax = self._tractPatchMax
         if self._filterMax is not None:
             packedMax *= self._filterMax
         return packedMax.bit_length()
 
-    def _pack(self, dataId):
+    def _pack(self, dataId: DataCoordinate) -> int:
         # Docstring inherited from DataIdPacker.pack
         packed = dataId["patch"] + self._patchMax*dataId["tract"]
         if self._filterMax is not None:
             packed += self.getIntFromFilter(dataId["abstract_filter"])*self._tractPatchMax
         return packed
 
-    def unpack(self, packedId):
+    def unpack(self, packedId: int) -> DataCoordinate:
         # Docstring inherited from DataIdPacker.unpack
         d = {"skymap": self._skyMapName}
         if self._filterMax is not None:
@@ -113,4 +107,4 @@ class SkyMapDataIdPacker(DataIdPacker):
             packedId %= self._tractPatchMax
         d["tract"] = packedId // self._patchMax
         d["patch"] = packedId % self._patchMax
-        return DataId(d, dimensions=self.dimensions.required)
+        return DataCoordinate.standardize(d, graph=self.dimensions)
