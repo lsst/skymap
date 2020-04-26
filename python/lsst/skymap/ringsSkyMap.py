@@ -129,8 +129,8 @@ class RingsSkyMap(CachingSkyMap):
             ra, dec = 0, 0.5*math.pi
         else:
             dec = self._ringSize*(ringNum + 1) - 0.5*math.pi
-            ra = ((2*math.pi*tractNum/self._ringNums[ringNum])*geom.radians +
-                  self._raStart).wrap().asRadians()
+            ra = ((2*math.pi*tractNum/self._ringNums[ringNum])*geom.radians
+                  + self._raStart).wrap().asRadians()
 
         center = geom.SpherePoint(ra, dec, geom.radians)
         wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
@@ -179,8 +179,8 @@ class RingsSkyMap(CachingSkyMap):
         if ringNum in (-1, self.config.numRings):
             return 0
         assert ringNum in range(self.config.numRings)
-        tractNum = int((ra - self._raStart).wrap().asRadians() /
-                       (2*math.pi/self._ringNums[ringNum]) + 0.5)
+        tractNum = int((ra - self._raStart).wrap().asRadians()
+                       / (2*math.pi/self._ringNums[ringNum]) + 0.5)
         return 0 if tractNum == self._ringNums[ringNum] else tractNum  # Allow wraparound
 
     def findTract(self, coord):
