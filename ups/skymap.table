@@ -1,8 +1,6 @@
-setupRequired(numpy)
 setupRequired(sphgeom)
 setupRequired(geom)
 setupRequired(afw)
 setupOptional(daf_butler)
-setupOptional(healpy)
 
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
