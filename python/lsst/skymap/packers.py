@@ -21,7 +21,7 @@
 
 __all__ = ("SkyMapDimensionPacker",)
 
-from lsst.daf.butler import DimensionPacker, ExpandedDataCoordinate, DimensionGraph, DataCoordinate
+from lsst.daf.butler import DimensionPacker, DimensionGraph, DataCoordinate
 
 
 class SkyMapDimensionPacker(DimensionPacker):
@@ -30,7 +30,7 @@ class SkyMapDimensionPacker(DimensionPacker):
 
     Parameters
     ----------
-    fixed : `lsst.daf.butler.ExpandedDataCoordinate`
+    fixed : `lsst.daf.butler.DataCoordinate`
         Expanded data ID that must include at least the skymap dimension.
     dimensions : `lsst.daf.butler.DimensionGraph`
         The dimensions of data IDs packed by this instance.  Must include
@@ -73,7 +73,7 @@ class SkyMapDimensionPacker(DimensionPacker):
         kwds = {}
         return metadata, kwds
 
-    def __init__(self, fixed: ExpandedDataCoordinate, dimensions: DimensionGraph):
+    def __init__(self, fixed: DataCoordinate, dimensions: DimensionGraph):
         super().__init__(fixed, dimensions)
         record = fixed.records["skymap"]
         self._skyMapName = record.name

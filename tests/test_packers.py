@@ -24,7 +24,7 @@ import unittest
 import lsst.utils.tests
 
 try:
-    from lsst.daf.butler import ExpandedDataCoordinate, DimensionUniverse, DimensionGraph, DataCoordinate
+    from lsst.daf.butler import DimensionUniverse, DimensionGraph, DataCoordinate
     HAVE_DAF_BUTLER = True
 except ImportError:
     HAVE_DAF_BUTLER = False
@@ -37,9 +37,10 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.universe = DimensionUniverse()
-        self.fixed = ExpandedDataCoordinate(
+        self.fixed = DataCoordinate.fromFullValues(
             DimensionGraph(universe=self.universe, names=["skymap"]),
             values=("unimportant",),
+        ).expanded(
             records={
                 "skymap": self.universe["skymap"].RecordClass.fromDict({
                     "name": "unimportant",
@@ -47,7 +48,8 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
                     "patch_nx_max": 3,
                     "patch_ny_max": 3,
                 })
-            })
+            }
+        )
 
     def testWithoutFilter(self):
         dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch"])
