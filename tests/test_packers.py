@@ -42,12 +42,12 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
             values=("unimportant",),
         ).expanded(
             records={
-                "skymap": self.universe["skymap"].RecordClass.fromDict({
-                    "name": "unimportant",
-                    "tract_max": 5,
-                    "patch_nx_max": 3,
-                    "patch_ny_max": 3,
-                })
+                "skymap": self.universe["skymap"].RecordClass(
+                    name="unimportant",
+                    tract_max=5,
+                    patch_nx_max=3,
+                    patch_ny_max=3,
+                )
             }
         )
 
