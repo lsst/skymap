@@ -25,7 +25,7 @@ from lsst.daf.butler import DimensionPacker, DimensionGraph, DataCoordinate
 
 
 class SkyMapDimensionPacker(DimensionPacker):
-    """A `DimensionPacker` for tract, patch and optionally abstract_filter,
+    """A `DimensionPacker` for tract, patch and optionally band,
     given a SkyMap.
 
     Parameters
@@ -34,11 +34,11 @@ class SkyMapDimensionPacker(DimensionPacker):
         Expanded data ID that must include at least the skymap dimension.
     dimensions : `lsst.daf.butler.DimensionGraph`
         The dimensions of data IDs packed by this instance.  Must include
-        skymap, tract, and patch, and may include abstract_filter.
+        skymap, tract, and patch, and may include band.
     """
 
     SUPPORTED_FILTERS = [None] + list("ugrizyUBGVRIZYJHK")  # split string into single chars
-    """abstract_filter names supported by this packer.
+    """band names supported by this packer.
 
     New filters should be added to the end of the list to maximize
     compatibility with existing IDs.
@@ -46,17 +46,17 @@ class SkyMapDimensionPacker(DimensionPacker):
 
     @classmethod
     def getIntFromFilter(cls, name):
-        """Return an integer that represents the abstract_filter with the given
+        """Return an integer that represents the band with the given
         name.
         """
         try:
             return cls.SUPPORTED_FILTERS.index(name)
         except ValueError:
-            raise NotImplementedError(f"abstract_filter '{name}' not supported by this ID packer.")
+            raise NotImplementedError(f"band '{name}' not supported by this ID packer.")
 
     @classmethod
     def getFilterNameFromInt(cls, num):
-        """Return an abstract_filter name from its integer representation.
+        """Return an band name from its integer representation.
         """
         return cls.SUPPORTED_FILTERS[num]
 
@@ -79,7 +79,7 @@ class SkyMapDimensionPacker(DimensionPacker):
         self._skyMapName = record.name
         self._patchMax = record.patch_nx_max * record.patch_ny_max
         self._tractPatchMax = self._patchMax*record.tract_max
-        if "abstract_filter" in dimensions:
+        if "band" in dimensions:
             self._filterMax = self.getMaxIntForFilters()
         else:
             self._filterMax = None
@@ -96,14 +96,14 @@ class SkyMapDimensionPacker(DimensionPacker):
         # Docstring inherited from DataIdPacker.pack
         packed = dataId["patch"] + self._patchMax*dataId["tract"]
         if self._filterMax is not None:
-            packed += self.getIntFromFilter(dataId["abstract_filter"])*self._tractPatchMax
+            packed += self.getIntFromFilter(dataId["band"])*self._tractPatchMax
         return packed
 
     def unpack(self, packedId: int) -> DataCoordinate:
         # Docstring inherited from DataIdPacker.unpack
         d = {"skymap": self._skyMapName}
         if self._filterMax is not None:
-            d["abstract_filter"] = self.getFilterNameFromInt(packedId // self._tractPatchMax)
+            d["band"] = self.getFilterNameFromInt(packedId // self._tractPatchMax)
             packedId %= self._tractPatchMax
         d["tract"] = packedId // self._patchMax
         d["patch"] = packedId % self._patchMax
