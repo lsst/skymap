@@ -65,12 +65,12 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(packer.unpack(packedId), dataId)
 
     def testWithFilter(self):
-        dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch", "abstract_filter"])
+        dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch", "band"])
         dataId = DataCoordinate.standardize(
             skymap=self.fixed["skymap"],
             tract=2,
             patch=6,
-            abstract_filter="g",
+            band="g",
             universe=self.universe
         )
         packer = SkyMapDimensionPacker(self.fixed, dimensions)
