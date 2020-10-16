@@ -291,7 +291,7 @@ class BaseSkyMap:
         raise NotImplementedError()
 
     def register(self, name, registry):
-        """Add SkyMap, Tract, and Patch Dimension entries to the given Gen3
+        """Add skymap, tract, and patch Dimension entries to the given Gen3
         Butler Registry.
 
         Parameters
@@ -300,21 +300,37 @@ class BaseSkyMap:
             The name of the skymap.
         registry : `lsst.daf.butler.Registry`
             The registry to add to.
+
+        Raises
+        ------
+        lsst.daf.butler.registry.ConflictingDefinitionError
+            Raised if a different skymap exists with the same name.
+
+        Notes
+        -----
+        Registering the same skymap multiple times (with the exact same
+        definition) is safe, but inefficient; most of the work of computing
+        the rows to be inserted must be done first in order to check for
+        consistency between the new skymap and any existing one.
+
+        Re-registering a skymap with different tract and/or patch definitions
+        but the same summary information may not be detected as a conflict but
+        will never result in updating the skymap; there is intentionally no
+        way to modify a registered skymap (aside from manual administrative
+        operations on the database), as it is hard to guarantee that this can
+        be done without affecting reproducibility.
         """
         nxMax = 0
         nyMax = 0
-        records = {
-            "skymap": [],
-            "tract": [],
-            "patch": [],
-        }
+        tractRecords = []
+        patchRecords = []
         for tractInfo in self:
             nx, ny = tractInfo.getNumPatches()
             nxMax = max(nxMax, nx)
             nyMax = max(nyMax, ny)
             region = tractInfo.getOuterSkyPolygon()
             centroid = SpherePoint(region.getCentroid())
-            records["tract"].append({
+            tractRecords.append({
                 "skymap": name,
                 "tract": tractInfo.getId(),
                 "region": region,
@@ -323,7 +339,7 @@ class BaseSkyMap:
             })
             for patchInfo in tractInfo:
                 cellX, cellY = patchInfo.getIndex()
-                records["patch"].append({
+                patchRecords.append({
                     "skymap": name,
                     "tract": tractInfo.getId(),
                     "patch": tractInfo.getSequentialPatchIndex(patchInfo),
@@ -331,13 +347,14 @@ class BaseSkyMap:
                     "cell_y": cellY,
                     "region": patchInfo.getOuterSkyPolygon(tractInfo.getWcs()),
                 })
-        records["skymap"].append({
+        skyMapRecord = {
             "skymap": name,
             "hash": self.getSha1(),
             "tract_max": len(self),
             "patch_nx_max": nxMax,
             "patch_ny_max": nyMax,
-        })
+        }
         with registry.transaction():
-            for dimension, recordsForDimension in records.items():
-                registry.insertDimensionData(dimension, *recordsForDimension)
+            if registry.syncDimensionData("skymap", skyMapRecord):
+                registry.insertDimensionData("tract", *tractRecords)
+                registry.insertDimensionData("patch", *patchRecords)
