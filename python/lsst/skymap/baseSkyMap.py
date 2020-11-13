@@ -290,16 +290,20 @@ class BaseSkyMap:
         """
         raise NotImplementedError()
 
-    def register(self, name, registry):
+    SKYMAP_RUN_COLLECTION_NAME = "skymaps"
+
+    SKYMAP_DATASET_TYPE_NAME = "skyMap"
+
+    def register(self, name, butler):
         """Add skymap, tract, and patch Dimension entries to the given Gen3
-        Butler Registry.
+        Butler.
 
         Parameters
         ----------
         name : `str`
             The name of the skymap.
-        registry : `lsst.daf.butler.Registry`
-            The registry to add to.
+        butler : `lsst.daf.butler.Butler`
+            The butler to add to.
 
         Raises
         ------
@@ -354,7 +358,20 @@ class BaseSkyMap:
             "patch_nx_max": nxMax,
             "patch_ny_max": nyMax,
         }
-        with registry.transaction():
-            if registry.syncDimensionData("skymap", skyMapRecord):
-                registry.insertDimensionData("tract", *tractRecords)
-                registry.insertDimensionData("patch", *patchRecords)
+        butler.registry.registerRun(self.SKYMAP_RUN_COLLECTION_NAME)
+        # Kind of crazy that we've got three different capitalizations of
+        # "skymap" here, but that's what the various conventions (or at least
+        # precedents) dictate.
+        from lsst.daf.butler import DatasetType
+        datasetType = DatasetType(
+            name=self.SKYMAP_DATASET_TYPE_NAME,
+            dimensions=["skymap"],
+            storageClass="SkyMap",
+            universe=butler.registry.dimensions
+        )
+        butler.registry.registerDatasetType(datasetType)
+        with butler.transaction():
+            if butler.registry.syncDimensionData("skymap", skyMapRecord):
+                butler.registry.insertDimensionData("tract", *tractRecords)
+                butler.registry.insertDimensionData("patch", *patchRecords)
+                butler.put(self, datasetType, {"skymap": name}, run=self.SKYMAP_RUN_COLLECTION_NAME)
