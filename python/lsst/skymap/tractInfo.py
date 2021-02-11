@@ -23,6 +23,7 @@
 __all__ = ["TractInfo"]
 
 import numbers
+import numpy as np
 
 import lsst.pex.exceptions
 import lsst.geom as geom
@@ -411,6 +412,9 @@ class TractInfo:
             pixels = self.getWcs().skyToPixel(coord)
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
+            return False
+        if not np.isfinite(pixels.getX()) or not np.isfinite(pixels.getY()):
+            # Point is definitely off the tract
             return False
         return self.getBBox().contains(geom.Point2I(pixels))
 
