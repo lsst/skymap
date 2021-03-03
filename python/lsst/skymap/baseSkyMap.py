@@ -363,6 +363,7 @@ class BaseSkyMap:
         # "skymap" here, but that's what the various conventions (or at least
         # precedents) dictate.
         from lsst.daf.butler import DatasetType
+        from lsst.daf.butler.registry import ConflictingDefinitionError
         datasetType = DatasetType(
             name=self.SKYMAP_DATASET_TYPE_NAME,
             dimensions=["skymap"],
@@ -371,7 +372,13 @@ class BaseSkyMap:
         )
         butler.registry.registerDatasetType(datasetType)
         with butler.transaction():
-            if butler.registry.syncDimensionData("skymap", skyMapRecord):
+            try:
+                inserted = butler.registry.syncDimensionData("skymap", skyMapRecord)
+            except ConflictingDefinitionError as err:
+                raise ConflictingDefinitionError(
+                    f"SkyMap with hash {self.getSha1().hex()} is already registered with a different name."
+                ) from err
+            if inserted:
                 butler.registry.insertDimensionData("tract", *tractRecords)
                 butler.registry.insertDimensionData("patch", *patchRecords)
                 butler.put(self, datasetType, {"skymap": name}, run=self.SKYMAP_RUN_COLLECTION_NAME)
