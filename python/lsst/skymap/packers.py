@@ -37,7 +37,11 @@ class SkyMapDimensionPacker(DimensionPacker):
         skymap, tract, and patch, and may include band.
     """
 
-    SUPPORTED_FILTERS = [None] + list("ugrizyUBGVRIZYJHK")  # split string into single chars
+    SUPPORTED_FILTERS = (
+        [None]
+        + list("ugrizyUBGVRIZYJHK")  # split string into single chars
+        + [f"N{d}" for d in (387, 515, 656, 816, 1010)]  # HSC narrow-bands
+    )
     """band names supported by this packer.
 
     New filters should be added to the end of the list to maximize
