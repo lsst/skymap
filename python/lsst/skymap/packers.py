@@ -40,7 +40,7 @@ class SkyMapDimensionPacker(DimensionPacker):
     SUPPORTED_FILTERS = (
         [None]
         + list("ugrizyUBGVRIZYJHK")  # split string into single chars
-        + [f"N{d}" for d in (387, 515, 656, 816, 1010)]  # HSC narrow-bands
+        + [f"N{d}" for d in (387, 515, 656, 816, 921, 1010)]  # HSC narrow-bands
     )
     """band names supported by this packer.
 
