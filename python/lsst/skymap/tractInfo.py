@@ -197,7 +197,7 @@ class TractInfo:
     def getPatchIndexPair(self, sequentialIndex):
         nx, ny = self.getNumPatches()
         x = sequentialIndex % nx
-        y = (sequentialIndex - x) / nx
+        y = (sequentialIndex - x) // nx
         return (x, y)
 
     def findPatch(self, coord):
