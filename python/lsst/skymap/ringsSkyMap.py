@@ -24,6 +24,7 @@ __all__ = ["RingsSkyMapConfig", "RingsSkyMap"]
 
 import struct
 import math
+import numpy as np
 
 from lsst.pex.config import Field
 import lsst.geom as geom
@@ -200,6 +201,53 @@ class RingsSkyMap(CachingSkyMap):
 
         index = sum(self._ringNums[:ringNum], tractNum + 1)  # Allow 1 for south pole
         return self[index]
+
+    def findTractIdArray(self, ra, dec, degrees=False):
+        if degrees:
+            _ra = np.deg2rad(ra)
+            _dec = np.deg2rad(dec)
+        else:
+            _ra = np.atleast_1d(ra)
+            _dec = np.atleast_1d(dec)
+
+        # Set default to -1 to distinguish from polar tracts
+        indexes = np.full(_ra.size, -1, dtype=np.int32)
+
+        # Do the dec search
+        firstRingStart = self._ringSize*0.5 - 0.5*np.pi
+        ringNums = np.zeros(len(_dec), dtype=np.int32)
+
+        ringNums[_dec < firstRingStart] = -1
+        ringNums[_dec > -1*firstRingStart] = self.config.numRings
+
+        mid = (_dec >= firstRingStart) & (_dec <= -1*firstRingStart)
+        ringNums[mid] = ((_dec[mid] - firstRingStart)/self._ringSize).astype(np.int32)
+
+        indexes[ringNums == -1] = 0
+        indexes[ringNums == self.config.numRings] = self._numTracts - 1
+
+        # We now do the full lookup for all non-polar tracts that have not been set.
+        inRange, = np.where(indexes < 0)
+
+        # Do the ra search
+        _ringNumArray = np.array(self._ringNums)
+        _ringCumulative = np.cumsum(np.insert(_ringNumArray, 0, 0))
+
+        deltaWrap = (_ra[inRange] - self._raStart.asRadians()) % (2.*np.pi)
+        tractNum = (deltaWrap/(2.*np.pi/_ringNumArray[ringNums[inRange]]) + 0.5).astype(np.int32)
+        # Allow wraparound
+        tractNum[tractNum == _ringNumArray[ringNums[inRange]]] = 0
+
+        if self._version == 0:
+            # Account for off-by-one error in getRingIndices
+            # Note that this means tract 1 gets duplicated
+            offByOne, = np.where((tractNum == 0)
+                                 & (ringNums[inRange] != 0))
+            ringNums[inRange[offByOne]] += 1
+
+        indexes[inRange] = _ringCumulative[ringNums[inRange]] + tractNum + 1
+
+        return indexes
 
     def findAllTracts(self, coord):
         """Find all tracts which include the specified coord.
