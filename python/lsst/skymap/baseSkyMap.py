@@ -466,3 +466,75 @@ class BaseSkyMap:
                 butler.registry.insertDimensionData("tract", *tractRecords)
                 butler.registry.insertDimensionData("patch", *patchRecords)
                 butler.put(self, datasetType, {"skymap": name}, run=self.SKYMAP_RUN_COLLECTION_NAME)
+
+    def pack_data_id(self, tract, patch, band=None):
+        """Pack a skymap-based data ID into an integer.
+
+        Parameters
+        ----------
+        tract : `int`
+            Integer ID for the tract.
+        patch : `tuple` (`int`) or `int`
+            Either a 2-element (x, y) tuple (Gen2 patch ID) or a single integer
+            (Gen3 patch ID, corresponding to the "sequential" patch index
+            methods in this package).
+        band : `str`, optional
+            If provided, a filter name present in
+            `SkyMapDimensionPacker.SUPPORTED_FILTERS` (which is aspirationally
+            a list of all Gen3 'bands', but in practice may be missing some;
+            see RFC-785).  If not provided, the packing algorithm that does
+            not include the filter will be used.
+
+        Returns
+        -------
+        packed : `int`
+            Integer that corresponds to the data ID.
+        max_bits : `int`
+            Maximum number of bits that ``packed`` could have, assuming this
+            skymap and presence or absence of ``band``.
+
+        Notes
+        -----
+        This method uses a Gen3 `lsst.daf.butler.DimensionPacker` object under
+        the hood to guarantee consistency with pure Gen3 code, but it does not
+        require the caller to actually have a Gen3 butler available.  It does,
+        however, require a filter value compatible with the Gen3 "band"
+        dimension.
+
+        This is a temporary interface intended to aid with the migration from
+        Gen2 to Gen3 middleware.  It will be removed with the Gen2 middleware
+        or when DM-31924 provides a longer-term replacement, whichever comes
+        first.  Pure Gen3 code should use `lsst.daf.butler.DataCoordinate.pack`
+        or other `lsst.daf.butler.DimensionPacker` interfaces.
+        """
+        from lsst.daf.butler import DataCoordinate, DimensionUniverse
+        universe = DimensionUniverse()
+        dummy_skymap_name = "unimportant"  # only matters to Gen3 registry
+        tract_info = self[tract]
+        patch_info = tract_info[patch]
+        nx, ny = tract_info.getNumPatches()
+        skymap_record = universe["skymap"].RecordClass(
+            name=dummy_skymap_name,
+            hash=self.getSha1(),
+            tract_max=len(self),
+            patch_nx_max=nx,  # assuming these are the same for all tracts for now
+            patch_ny_max=ny,
+        )
+        skymap_data_id = DataCoordinate.standardize(
+            skymap=dummy_skymap_name,
+            universe=universe,
+        ).expanded(
+            records={"skymap": skymap_record},
+        )
+        full_data_id = DataCoordinate.standardize(
+            skymap=dummy_skymap_name,
+            tract=tract_info.getId(),
+            patch=tract_info.getSequentialPatchIndex(patch_info),
+            universe=universe,
+        )
+        if band is None:
+            packer = universe.makePacker("tract_patch", skymap_data_id)
+        else:
+            packer = universe.makePacker("tract_patch_band", skymap_data_id)
+            full_data_id = DataCoordinate.standardize(full_data_id, band=band)
+        return packer.pack(full_data_id, returnMaxBits=True)
