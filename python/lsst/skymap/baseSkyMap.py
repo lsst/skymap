@@ -28,6 +28,7 @@ __all__ = ["BaseSkyMapConfig", "BaseSkyMap"]
 
 import hashlib
 import struct
+import numpy as np
 
 import lsst.geom as geom
 import lsst.pex.config as pexConfig
@@ -145,6 +146,45 @@ class BaseSkyMap:
             distTractInfoList.append((angSep, i, tractInfo))
         distTractInfoList.sort()
         return distTractInfoList[0][2]
+
+    def findTractIdArray(self, ra, dec, degrees=False):
+        """Find array of tract IDs with vectorized operations (where supported).
+
+        If a given sky map does not support vectorized operations, then a loop
+        over findTract will be called.
+
+        Parameters
+        ----------
+        ra : `np.ndarray`
+            Array of Right Ascension.  Units are radians unless
+            degrees=True.
+        dec : `np.ndarray`
+            Array of Declination.  Units are radians unless
+            degrees=True.
+        degrees : `bool`, optional
+            Input ra, dec arrays are degrees if True.
+
+        Returns
+        -------
+        tractId : `np.ndarray`
+            Array of tract IDs
+
+        Notes
+        -----
+        - If coord is equidistant between multiple sky tract centers then one
+          is arbitrarily chosen.
+
+        **Warning:**
+        If tracts do not cover the whole sky then the returned tract may not
+        include the given ra/dec.
+        """
+        units = geom.degrees if degrees else geom.radians
+        coords = [geom.SpherePoint(r*units, d*units) for r, d in zip(np.atleast_1d(ra),
+                                                                     np.atleast_1d(dec))]
+
+        tractId = np.array([self.findTract(coord).getId() for coord in coords])
+
+        return tractId
 
     def findTractPatchList(self, coordList):
         """Find tracts and patches that overlap a region.

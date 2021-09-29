@@ -1,5 +1,6 @@
 import unittest
 import math
+import numpy as np
 
 import lsst.utils.tests
 import lsst.geom
@@ -106,6 +107,11 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
         tract = self.skymap.findTract(coord)
         self.assertTrue(tract.contains(coord))
 
+        tractId = self.skymap.findTractIdArray(coord.getLongitude().asRadians(),
+                                               coord.getLatitude().asRadians(),
+                                               degrees=False)
+        self.assertEqual(tractId[0], tract.getId())
+
     def testWraparound(self):
         """Check wrapping at RA=0
 
@@ -121,6 +127,30 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
             coord = lsst.geom.SpherePoint(centerRa + devRa, centerDec, lsst.geom.degrees)
             foundTractId = self.skymap.findTract(coord).getId()
             self.assertEqual(tractId, foundTractId)
+
+            foundTractArrayId = self.skymap.findTractIdArray([centerRa + devRa],
+                                                             [centerDec],
+                                                             degrees=True)
+            self.assertEqual(tractId, foundTractArrayId[0])
+
+    def testFindTractIdArray(self):
+        """Test findTractIdArray.
+
+        Test an array of positions to ensure that findTract and findTractIdArray
+        give the same answers.
+        """
+        np.random.seed(12345)
+
+        ras = np.random.uniform(low=0.0, high=360.0, size=1000)
+        decs = np.random.uniform(low=-90.0, high=90.0, size=1000)
+
+        coords = [lsst.geom.SpherePoint(ra*lsst.geom.degrees, dec*lsst.geom.degrees)
+                  for ra, dec in zip(ras, decs)]
+
+        indexes = [self.skymap.findTract(coord).getId() for coord in coords]
+        indexes2 = self.skymap.findTractIdArray(ras, decs, degrees=True)
+
+        np.testing.assert_array_equal(indexes2, indexes)
 
     def getFirstTractLastRingCoord(self):
         """Return the coordinates of the first tract in the last ring
