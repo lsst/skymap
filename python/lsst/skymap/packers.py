@@ -41,6 +41,7 @@ class SkyMapDimensionPacker(DimensionPacker):
         [None]
         + list("ugrizyUBGVRIZYJHK")  # split string into single chars
         + [f"N{d}" for d in (387, 515, 656, 816, 921, 1010)]  # HSC narrow-bands
+        + [f"N{d}" for d in (419, 540, 708, 964)]  # DECam narrow-bands
     )
     """band names supported by this packer.
 
