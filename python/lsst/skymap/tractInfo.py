@@ -36,10 +36,8 @@ class TractInfo:
     ----------
     id : `int`
         tract ID
-    patchInnerDimensions : `tuple` of `int`
-        Dimensions of inner region of patches (x,y pixels).
-    patchBorder : `int`
-        Overlap between adjacent patches (in pixels)
+    patchBuilder : Subclass of `lsst.skymap.BasePatchBuilder`
+        Object used to compute patch geometry.
     ctrCoord : `lsst.geom.SpherePoint`
         ICRS sky coordinate of center of inner region of tract; also used as
         the CRVAL for the WCS.
@@ -89,25 +87,6 @@ class TractInfo:
         minBBox = self._minimumBoundingBox(wcs)
         initialBBox, self._numPatches = self._patchBuilder.setupPatches(minBBox, wcs)
         self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
-
-    """
-    def __init__(self, id, patchInnerDimensions, patchBorder, ctrCoord, vertexCoordList, tractOverlap, wcs):
-        self._id = id
-        # FIXME: this doesn't need to be there.
-        try:
-            assert len(patchInnerDimensions) == 2
-            self._patchInnerDimensions = geom.Extent2I(*(int(val) for val in patchInnerDimensions))
-        except Exception:
-            raise TypeError("patchInnerDimensions=%s; must be two ints" % (patchInnerDimensions,))
-        self._patchBorder = int(patchBorder)
-        self._ctrCoord = ctrCoord
-        self._vertexCoordList = tuple(vertexCoordList)
-        self._tractOverlap = tractOverlap
-
-        minBBox = self._minimumBoundingBox(wcs)
-        initialBBox, self._numPatches = self._setupPatches(minBBox, wcs)
-        self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
-    """
 
     def _minimumBoundingBox(self, wcs):
         """Calculate the minimum bounding box for the tract, given the WCS.
