@@ -27,27 +27,21 @@ rather than the scale at the center.
 __all__ = ["BaseSkyMapConfig", "BaseSkyMap"]
 
 import hashlib
-import struct
 import numpy as np
 
 import lsst.geom as geom
 import lsst.pex.config as pexConfig
 from lsst.geom import SpherePoint, Angle, arcseconds, degrees
 from . import detail
+from .tractBuilder import tractBuilderRegistry
 
 
 class BaseSkyMapConfig(pexConfig.Config):
-    patchInnerDimensions = pexConfig.ListField(
-        doc="dimensions of inner region of patches (x,y pixels)",
-        dtype=int,
-        length=2,
-        default=(4000, 4000),
+    tractBuilder = tractBuilderRegistry.makeField(
+        "Tract building algorithm",
+        default="legacy"
     )
-    patchBorder = pexConfig.Field(
-        doc="border between patch inner and outer bbox (pixels)",
-        dtype=int,
-        default=100,
-    )
+
     tractOverlap = pexConfig.Field(
         doc="minimum overlap between adjacent sky tracts, on the sky (deg)",
         dtype=float,
@@ -71,6 +65,24 @@ class BaseSkyMapConfig(pexConfig.Config):
         dtype=float,
         default=0,
     )
+
+    # Backwards compatibility
+    # We can't use the @property decorator because it makes pexConfig sad.
+    def getPatchInnerDimensions(self):
+        return self.tractBuilder["legacy"].patchInnerDimensions
+
+    def setPatchInnerDimensions(self, value):
+        self.tractBuilder["legacy"].patchInnerDimensions = value
+
+    patchInnerDimensions = property(getPatchInnerDimensions, setPatchInnerDimensions)
+
+    def getPatchBorder(self):
+        return self.tractBuilder["legacy"].patchBorder
+
+    def setPatchBorder(self, value):
+        self.tractBuilder["legacy"].patchBorder = value
+
+    patchBorder = property(getPatchBorder, setPatchBorder)
 
 
 class BaseSkyMap:
@@ -113,6 +125,7 @@ class BaseSkyMap:
             rotation=Angle(self.config.rotation, degrees),
         )
         self._sha1 = None
+        self._tractBuilder = config.tractBuilder.apply()
 
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
@@ -298,16 +311,7 @@ class BaseSkyMap:
         if self._sha1 is None:
             sha1 = hashlib.sha1()
             sha1.update(type(self).__name__.encode('utf-8'))
-            configPacked = struct.pack(
-                "<iiidd3sd",
-                self.config.patchInnerDimensions[0],
-                self.config.patchInnerDimensions[1],
-                self.config.patchBorder,
-                self.config.tractOverlap,
-                self.config.pixelScale,
-                self.config.projection.encode('ascii'),
-                self.config.rotation
-            )
+            configPacked = self._tractBuilder.getPackedConfig(self.config)
             sha1.update(configPacked)
             self.updateSha1(sha1)
             self._sha1 = sha1.digest()
