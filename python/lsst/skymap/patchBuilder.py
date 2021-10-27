@@ -211,7 +211,7 @@ class OldPatchBuilder(BasePatchBuilder):
         numPatches = geom.Extent2I(0, 0)
         for i, innerDim in enumerate(self._patchInnerDimensions):
             num = (bboxDim[i] + innerDim - 1) // innerDim  # round up
-            deltaDim = (innerDim * num) - bboxDim[i]
+            deltaDim = (innerDim*num) - bboxDim[i]
             if deltaDim > 0:
                 bboxDim[i] = innerDim * num
                 bboxMin[i] -= deltaDim // 2
@@ -294,14 +294,117 @@ class CellPatchBuilderConfig(BasePatchBuilderConfig):
         dtype=int,
         default=50,
     )
+    numCellsPerPatchInner = pexConfig.Field(
+        doc=("Number of cells per inner patch.  There will be a buffer of "
+             "one cell all the way around the boundary."),
+        dtype=int,
+        default=20,
+    )
+
+    def validate(self):
+        if len(self.cellInnerDimensions) != 2:
+            raise ValueError("cellInnerDimensions must be 2 ints.")
+
+        if self.cellInnerDimensions[0] != self.cellInnerDimensions[1]:
+            raise ValueError("cellInnerDimensions must be equal (for square cells).")
 
 
 class CellPatchBuilder(BasePatchBuilder):
     ConfigClass = CellPatchBuilderConfig
-    _DefaultName = "cellPatchBuilder"
 
-    def setupPatches(self):
-        pass
+    def __init__(self, config):
+        super().__init__(config)
+
+        self._cellInnerDimensions = geom.Extent2I(*(val
+                                                    for val in config.cellInnerDimensions))
+        self._cellBorder = config.cellBorder
+        self._numCellsPerPatchInner = config.numCellsPerPatchInner
+        self._patchInnerDimensions = geom.Extent2I(*(val*self._numCellsPerPatchInner
+                                                     for val in config.cellInnerDimensions))
+        self._patchBorder = config.cellInnerDimensions[0]
+        self._initialized = False
+
+    def setupPatches(self, minBBox, wcs):
+        # This, so far, is the same as the Old version.
+        bbox = geom.Box2I(minBBox)
+        bboxMin = bbox.getMin()
+        bboxDim = bbox.getDimensions()
+        numPatches = geom.Extent2I(0, 0)
+        for i, innerDim in enumerate(self._patchInnerDimensions):
+            num = (bboxDim[i] + innerDim - 1) // innerDim  # round up
+            deltaDim = (innerDim*num) - bboxDim[i]
+            if deltaDim > 0:
+                bboxDim[i] = innerDim * num
+                bboxMin[i] -= deltaDim // 2
+            numPatches[i] = num
+        bbox = geom.Box2I(bboxMin, bboxDim)
+        self._numPatches = numPatches
+        # The final tract BBox starts at zero.
+        self._tractBBox = geom.Box2I(geom.Point2I(0, 0), bbox.getDimensions())
+        self._initialized = True
+
+        return bbox, numPatches
+
+    def getPatchInfo(self, index):
+        # This should always be initialized
+        assert self._initialized
+        if isinstance(index, numbers.Number):
+            index = self.getPatchIndexPair(index)
+        if (not 0 <= index[0] < self._numPatches[0]) \
+           or (not 0 <= index[1] < self._numPatches[1]):
+            raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
+                             (index, self._numPatches[0] - 1, self._numPatches[1] - 1))
+        innerMin = geom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
+        innerBBox = geom.Box2I(innerMin, self._patchInnerDimensions)
+        if not self._tractBBox.contains(innerBBox):
+            raise RuntimeError(
+                "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" %
+                (index, innerBBox, self._tractBBox))
+        outerBBox = geom.Box2I(innerBBox)
+        outerBBox.grow(self.getPatchBorder())
+        # We do not clip the patch
+        return PatchInfo(
+            index=index,
+            innerBBox=innerBBox,
+            outerBBox=outerBBox,
+        )
+
+    def findPatch(self, tractId, wcs, coord):
+        # This is the same as above
+        try:
+            pixel = wcs.skyToPixel(coord)
+        except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+            # Point must be way off the tract
+            raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
+        pixelInd = geom.Point2I(pixel)
+        if not self._tractBBox.contains(pixelInd):
+            raise LookupError("coord %s is not in tract %s" % (coord, tractId))
+        # This should probably be the same as above because we only
+        # care about the INNER dimensions.
+        patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
+        return self.getPatchInfo(patchInd)
+
+    def findPatchList(self, wcs, coordList):
+        # Same as above
+        box2D = geom.Box2D()
+        for coord in coordList:
+            try:
+                pixelPos = wcs.skyToPixel(coord)
+            except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+                # the point is so far off the tract that its pixel position cannot be computed
+                continue
+            box2D.include(pixelPos)
+        bbox = geom.Box2I(box2D)
+        bbox.grow(self.getPatchBorder())
+        bbox.clip(self._tractBBox)
+        if bbox.isEmpty():
+            return ()
+
+        llPatchInd = tuple(int(bbox.getMin()[i]/self._patchInnerDimensions[i]) for i in range(2))
+        urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
+        return tuple(self.getPatchInfo((xInd, yInd))
+                     for xInd in range(llPatchInd[0], urPatchInd[0]+1)
+                     for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
 
 patchBuilderRegistry = pexConfig.makeRegistry(
