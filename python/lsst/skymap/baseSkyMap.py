@@ -126,6 +126,7 @@ class BaseSkyMap:
             rotation=Angle(self.config.rotation, degrees),
         )
         self._sha1 = None
+        self._patchBuilder = config.patchBuilder.apply()
 
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.

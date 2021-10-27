@@ -22,13 +22,11 @@
 
 __all__ = ["TractInfo"]
 
-import numbers
-
 import lsst.pex.exceptions
 import lsst.geom as geom
 from lsst.sphgeom import ConvexPolygon
 
-from .patchInfo import PatchInfo, makeSkyPolygonFromBBox
+from .patchInfo import makeSkyPolygonFromBBox
 
 
 class TractInfo:
@@ -81,9 +79,21 @@ class TractInfo:
     - It is not enforced that ctrCoord is the center of vertexCoordList, but
       SkyMap relies on it.
     """
+    def __init__(self, id, patchBuilder, ctrCoord, vertexCoordList, tractOverlap, wcs):
+        self._id = id
+        self._ctrCoord = ctrCoord
+        self._vertexCoordList = tuple(vertexCoordList)
+        self._tractOverlap = tractOverlap
+        self._patchBuilder = patchBuilder
 
+        minBBox = self._minimumBoundingBox(wcs)
+        initialBBox, self._numPatches = self._patchBuilder.setupPatches(minBBox, wcs)
+        self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
+
+    """
     def __init__(self, id, patchInnerDimensions, patchBorder, ctrCoord, vertexCoordList, tractOverlap, wcs):
         self._id = id
+        # FIXME: this doesn't need to be there.
         try:
             assert len(patchInnerDimensions) == 2
             self._patchInnerDimensions = geom.Extent2I(*(int(val) for val in patchInnerDimensions))
@@ -97,6 +107,7 @@ class TractInfo:
         minBBox = self._minimumBoundingBox(wcs)
         initialBBox, self._numPatches = self._setupPatches(minBBox, wcs)
         self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
+    """
 
     def _minimumBoundingBox(self, wcs):
         """Calculate the minimum bounding box for the tract, given the WCS.
@@ -121,42 +132,6 @@ class TractInfo:
                     pixPos = wcs.skyToPixel(offCoord)
                     minBBoxD.include(pixPos)
         return minBBoxD
-
-    def _setupPatches(self, minBBox, wcs):
-        """Setup for patches of a particular size.
-
-        We grow the bounding box to hold an exact multiple of
-        the desired size (patchInnerDimensions), while keeping
-        the center roughly the same.  We return the final
-        bounding box, and the number of patches in each dimension
-        (as an Extent2I).
-
-        Parameters
-        ----------
-        minBBox : `lsst.geom.Box2I`
-            Minimum bounding box for tract
-        wcs : `lsst.afw.geom.SkyWcs`
-            Wcs object
-
-        Returns
-        -------
-        bbox : `lsst.geom.Box2I
-            final bounding box, number of patches
-        numPatches : `int`
-        """
-        bbox = geom.Box2I(minBBox)
-        bboxMin = bbox.getMin()
-        bboxDim = bbox.getDimensions()
-        numPatches = geom.Extent2I(0, 0)
-        for i, innerDim in enumerate(self._patchInnerDimensions):
-            num = (bboxDim[i] + innerDim - 1) // innerDim  # round up
-            deltaDim = (innerDim * num) - bboxDim[i]
-            if deltaDim > 0:
-                bboxDim[i] = innerDim * num
-                bboxMin[i] -= deltaDim // 2
-            numPatches[i] = num
-        bbox = geom.Box2I(bboxMin, bboxDim)
-        return bbox, numPatches
 
     def _finalOrientation(self, bbox, wcs):
         """Determine the final orientation
@@ -195,10 +170,17 @@ class TractInfo:
         return nx*y + x
 
     def getPatchIndexPair(self, sequentialIndex):
-        nx, ny = self.getNumPatches()
-        x = sequentialIndex % nx
-        y = (sequentialIndex - x) // nx
-        return (x, y)
+        """Convert sequential index into patch index (x,y) pair.
+
+        Parameters
+        ----------
+        sequentialIndex : `int`
+
+        Returns
+        -------
+        x, y : `int`, `int`
+        """
+        return self._patchBuilder.getPatchIndexPair(sequentialIndex)
 
     def findPatch(self, coord):
         """Find the patch containing the specified coord.
@@ -219,16 +201,7 @@ class TractInfo:
             If coord is not in tract or we cannot determine the
             pixel coordinate (which likely means the coord is off the tract).
         """
-        try:
-            pixel = self.getWcs().skyToPixel(coord)
-        except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
-            # Point must be way off the tract
-            raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
-        pixelInd = geom.Point2I(pixel)
-        if not self.getBBox().contains(pixelInd):
-            raise LookupError("coord %s is not in tract %s" % (coord, self.getId()))
-        patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
-        return self.getPatchInfo(patchInd)
+        return self._patchBuilder.findPatch(self.getId(), self.getWcs(), coord)
 
     def findPatchList(self, coordList):
         """Find patches containing the specified list of coords.
@@ -255,25 +228,7 @@ class TractInfo:
           overlap the region (especially if the region is not a rectangle
           aligned along patch x,y).
         """
-        box2D = geom.Box2D()
-        for coord in coordList:
-            try:
-                pixelPos = self.getWcs().skyToPixel(coord)
-            except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
-                # the point is so far off the tract that its pixel position cannot be computed
-                continue
-            box2D.include(pixelPos)
-        bbox = geom.Box2I(box2D)
-        bbox.grow(self.getPatchBorder())
-        bbox.clip(self.getBBox())
-        if bbox.isEmpty():
-            return ()
-
-        llPatchInd = tuple(int(bbox.getMin()[i]/self._patchInnerDimensions[i]) for i in range(2))
-        urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
-        return tuple(self.getPatchInfo((xInd, yInd))
-                     for xInd in range(llPatchInd[0], urPatchInd[0]+1)
-                     for yInd in range(llPatchInd[1], urPatchInd[1]+1))
+        return self._patchBuilder.findPatchList(self.getWcs(), coordList)
 
     def getBBox(self):
         """Get bounding box of tract (as an geom.Box2I)
@@ -302,7 +257,7 @@ class TractInfo:
         return self._numPatches
 
     def getPatchBorder(self):
-        return self._patchBorder
+        return self._patchBuilder.getPatchBorder()
 
     def getPatchInfo(self, index):
         """Return information for the specified patch.
@@ -324,31 +279,12 @@ class TractInfo:
         IndexError
             If index is out of range.
         """
-        if isinstance(index, numbers.Number):
-            index = self.getPatchIndexPair(index)
-        if (not 0 <= index[0] < self._numPatches[0]) \
-                or (not 0 <= index[1] < self._numPatches[1]):
-            raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
-                             (index, self._numPatches[0]-1, self._numPatches[1]-1))
-        innerMin = geom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
-        innerBBox = geom.Box2I(innerMin, self._patchInnerDimensions)
-        if not self._bbox.contains(innerBBox):
-            raise RuntimeError(
-                "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" %
-                (index, innerBBox, self._bbox))
-        outerBBox = geom.Box2I(innerBBox)
-        outerBBox.grow(self.getPatchBorder())
-        outerBBox.clip(self._bbox)
-        return PatchInfo(
-            index=index,
-            innerBBox=innerBBox,
-            outerBBox=outerBBox,
-        )
+        return self._patchBuilder.getPatchInfo(index)
 
     def getPatchInnerDimensions(self):
         """Get dimensions of inner region of the patches (all are the same)
         """
-        return self._patchInnerDimensions
+        return self._patchBuilder.getPatchInnerDimensions()
 
     def getTractOverlap(self):
         """Get minimum overlap of adjacent sky tracts.
@@ -421,12 +357,11 @@ class ExplicitTractInfo(TractInfo):
     A tract is placed at the explicitly defined coordinates, with the nominated
     radius.  The tracts are square (i.e., the radius is really a half-size).
     """
-
-    def __init__(self, ident, patchInnerDimensions, patchBorder, ctrCoord, radius, tractOverlap, wcs):
+    def __init__(self, id, patchBuilder, ctrCoord, radius, tractOverlap, wcs):
         # We don't want TractInfo setting the bbox on the basis of vertices, but on the radius.
         vertexList = []
         self._radius = radius
-        super(ExplicitTractInfo, self).__init__(ident, patchInnerDimensions, patchBorder, ctrCoord,
+        super(ExplicitTractInfo, self).__init__(id, patchBuilder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
         # Shrink the box slightly to make sure the vertices are in the tract
         bboxD = geom.BoxD(self.getBBox())

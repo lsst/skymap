@@ -21,6 +21,7 @@
 #
 import itertools
 import pickle
+import copy
 
 import numpy as np
 
@@ -102,6 +103,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         """Provide an instance of the skymap"""
         if config is None:
             config = self.getConfig()
+        config.validate()
         return self.SkyMapClass(config=config)
 
     def getConfig(self):
@@ -109,8 +111,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         if self.config is None:
             return self.SkyMapClass.ConfigClass()
         # Want to return a copy of self.config, so it can be modified.
-        # However, there is no Config.copy() method, so this is more complicated than desirable.
-        return pickle.loads(pickle.dumps(self.config))
+        return copy.copy(self.config)
 
     def testRegistry(self):
         """Confirm that the skymap can be retrieved from the registry"""

@@ -72,7 +72,7 @@ class DiscreteSkyMap(CachingSkyMap):
         center = geom.SpherePoint(self.config.raList[index], self.config.decList[index], geom.degrees)
         radius = self.config.radiusList[index]
         wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
-        return ExplicitTractInfo(index, self.config.patchInnerDimensions, self.config.patchBorder, center,
+        return ExplicitTractInfo(index, self._patchBuilder, center,
                                  radius*geom.degrees, self.config.tractOverlap*geom.degrees, wcs)
 
     def updateSha1(self, sha1):

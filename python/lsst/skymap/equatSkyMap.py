@@ -90,8 +90,7 @@ class EquatSkyMap(BaseSkyMap):
 
             self._tractInfoList.append(TractInfo(
                 id=id,
-                patchInnerDimensions=self.config.patchInnerDimensions,
-                patchBorder=self.config.patchBorder,
+                patchBuilder=self._patchBuilder,
                 ctrCoord=ctrCoord,
                 vertexCoordList=vertexCoordList,
                 tractOverlap=tractOverlap,
