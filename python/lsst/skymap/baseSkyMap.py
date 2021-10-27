@@ -34,20 +34,15 @@ import lsst.geom as geom
 import lsst.pex.config as pexConfig
 from lsst.geom import SpherePoint, Angle, arcseconds, degrees
 from . import detail
+from .patchBuilder import patchBuilderRegistry
 
 
 class BaseSkyMapConfig(pexConfig.Config):
-    patchInnerDimensions = pexConfig.ListField(
-        doc="dimensions of inner region of patches (x,y pixels)",
-        dtype=int,
-        length=2,
-        default=(4000, 4000),
+    patchBuilder = patchBuilderRegistry.makeField(
+        "Patch building algorithm",
+        default="old"
     )
-    patchBorder = pexConfig.Field(
-        doc="border between patch inner and outer bbox (pixels)",
-        dtype=int,
-        default=100,
-    )
+
     tractOverlap = pexConfig.Field(
         doc="minimum overlap between adjacent sky tracts, on the sky (deg)",
         dtype=float,
@@ -71,6 +66,24 @@ class BaseSkyMapConfig(pexConfig.Config):
         dtype=float,
         default=0,
     )
+
+    # Backwards compatibility
+    # We can't use the @property decorator because it makes pexConfig sad.
+    def getPatchInnerDimensions(self):
+        return self.patchBuilder["old"].patchInnerDimensions
+
+    def setPatchInnerDimensions(self, value):
+        self.patchBuilder["old"].patchInnerDimensions = value
+
+    patchInnerDimensions = property(getPatchInnerDimensions, setPatchInnerDimensions)
+
+    def getPatchBorder(self):
+        return self.patchBuilder["old"].patchBorder
+
+    def setPatchBorder(self, value):
+        self.patchBuilder["old"].patchBorder = value
+
+    patchBorder = property(getPatchBorder, setPatchBorder)
 
 
 class BaseSkyMap:
