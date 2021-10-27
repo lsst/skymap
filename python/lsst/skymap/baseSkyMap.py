@@ -312,16 +312,30 @@ class BaseSkyMap:
         if self._sha1 is None:
             sha1 = hashlib.sha1()
             sha1.update(type(self).__name__.encode('utf-8'))
-            configPacked = struct.pack(
-                "<iiidd3sd",
-                self.config.patchInnerDimensions[0],
-                self.config.patchInnerDimensions[1],
-                self.config.patchBorder,
-                self.config.tractOverlap,
-                self.config.pixelScale,
-                self.config.projection.encode('ascii'),
-                self.config.rotation
-            )
+            if self.config.patchBuilder.name == 'old':
+                pbConfig = self.config.patchBuilder['old']
+                configPacked = struct.pack(
+                    "<iiidd3sd",
+                    pbConfig.patchInnerDimensions[0],
+                    pbConfig.patchInnerDimensions[1],
+                    pbConfig.patchBorder,
+                    self.config.tractOverlap,
+                    self.config.pixelScale,
+                    self.config.projection.encode('ascii'),
+                    self.config.rotation
+                )
+            elif self.config.patchBuilder.name == 'cells':
+                pbConfig = self.config.patchBuilder['cells']
+                configPacked = struct.pack(
+                    "<iiidd3sd",
+                    pbConfig.cellInnerDimensions[0],
+                    pbConfig.cellInnerDimensions[1],
+                    pbConfig.cellBorder,
+                    self.config.tractOverlap,
+                    self.config.pixelScale,
+                    self.config.projection.encode('ascii'),
+                    self.config.rotation
+                )
             sha1.update(configPacked)
             self.updateSha1(sha1)
             self._sha1 = sha1.digest()
