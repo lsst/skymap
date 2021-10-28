@@ -1,3 +1,4 @@
+from .cellInfo import *
 from .patchInfo import *
 from .tractInfo import *
 from .baseSkyMap import *

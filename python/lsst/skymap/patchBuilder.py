@@ -354,7 +354,7 @@ class CellPatchBuilder(BasePatchBuilder):
            or (not 0 <= index[1] < self._numPatches[1]):
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
                              (index, self._numPatches[0] - 1, self._numPatches[1] - 1))
-        innerMin = geom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
+        innerMin = geom.Point2I(*[index[i]*self._patchInnerDimensions[i] for i in range(2)])
         innerBBox = geom.Box2I(innerMin, self._patchInnerDimensions)
         if not self._tractBBox.contains(innerBBox):
             raise RuntimeError(
@@ -367,6 +367,9 @@ class CellPatchBuilder(BasePatchBuilder):
             index=index,
             innerBBox=innerBBox,
             outerBBox=outerBBox,
+            cellInnerDimensions=self._cellInnerDimensions,
+            cellBorder=self._cellBorder,
+            numCellsPerPatchInner=self._numCellsPerPatchInner
         )
 
     def findPatch(self, tractId, wcs, coord):
