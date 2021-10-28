@@ -173,7 +173,10 @@ class PatchInfo:
                              (index, self._numCells[0] - 1, self._numCells[1] - 1))
         # We offset the index by 1 because the cells start outside the inner
         # dimensions.
+        # The cells are defined relative to the patch bounding box.
+        patchInnerBBox = self.getInnerBBox()
         innerMin = Point2I(*[(index[i] - 1)*self._cellInnerDimensions[i]
+                             + patchInnerBBox.getBegin()[i]
                              for i in range(2)])
 
         innerBBox = Box2I(innerMin, self._cellInnerDimensions)
