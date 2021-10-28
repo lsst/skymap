@@ -179,12 +179,6 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                 if xInd == numPatches[0] - 1:
                     self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
                 else:
-                    if innerBBox.getMaxX() + patchBorder != outerBBox.getMaxX():
-                        print(innerBBox.getMaxX())
-                        print(patchBorder)
-                        print(outerBBox.getMaxX())
-                        import IPython
-                        IPython.embed()
                     self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
                 if yInd == numPatches[1] - 1:
                     self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
