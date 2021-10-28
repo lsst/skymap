@@ -66,11 +66,11 @@ def coordToAng(coord):
 class HealpixTractInfo(TractInfo):
     """Tract for the HealpixSkyMap"""
 
-    def __init__(self, nSide, ident, nest, patchBuilder, ctrCoord, tractOverlap, wcs):
+    def __init__(self, nSide, ident, nest, tractBuilder, ctrCoord, tractOverlap, wcs):
         """Set vertices from nside, ident, nest"""
         theta, phi = healpy.vec2ang(numpy.transpose(healpy.boundaries(nSide, ident, nest=nest)))
         vertexList = [angToCoord(thetaphi) for thetaphi in zip(theta, phi)]
-        super(HealpixTractInfo, self).__init__(ident, patchBuilder, ctrCoord,
+        super(HealpixTractInfo, self).__init__(ident, tractBuilder, ctrCoord,
                                                vertexList, tractOverlap, wcs)
 
 
@@ -127,7 +127,7 @@ class HealpixSkyMap(CachingSkyMap):
         """Generate TractInfo for the specified tract index."""
         center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
         wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
-        return HealpixTractInfo(self._nside, index, self.config.nest, self._patchBuilder,
+        return HealpixTractInfo(self._nside, index, self.config.nest, self._tractBuilder,
                                 center, self.config.tractOverlap*geom.degrees,
                                 wcs)
 

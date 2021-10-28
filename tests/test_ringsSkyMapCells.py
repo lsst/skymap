@@ -13,7 +13,7 @@ class RingsCellsTestCase(skyMapTestCase.SkyMapTestCase):
     def setUp(self):
         config = RingsSkyMap.ConfigClass()
         config.numRings = 3
-        config.patchBuilder = "cells"
+        config.tractBuilder = "cells"
 
         self.setAttributes(
             SkyMapClass=RingsSkyMap,
@@ -30,7 +30,7 @@ class RingsCellsTestCase(skyMapTestCase.SkyMapTestCase):
 
         tractInfo = skymap[13]
 
-        cellConfig = self.config.patchBuilder['cells']
+        cellConfig = self.config.tractBuilder['cells']
 
         numCellsPerPatch = cellConfig.numCellsPerPatchInner + 2
         patchInnerSize = (cellConfig.numCellsPerPatchInner*cellConfig.cellInnerDimensions[0],

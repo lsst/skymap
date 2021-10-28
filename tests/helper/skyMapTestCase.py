@@ -130,9 +130,9 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             self.assertEqual(len(skyMap), self.numTracts)
             self.assertNotEqual(skyMap, defaultSkyMap)
 
-        if defaultSkyMap.config.patchBuilder.name == 'cells':
+        if defaultSkyMap.config.tractBuilder.name == 'cells':
             # The following tests are not appropriate for cells
-            # see test_ringsSkyMapCells.py for "cell" patch testing.
+            # see test_ringsSkyMapCells.py for "cell" tract testing.
             return
 
         for patchBorder in (0, 101):

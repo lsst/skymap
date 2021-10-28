@@ -83,7 +83,7 @@ class DodecaSkyMap(BaseSkyMap):
             self._tractInfoList.append(
                 TractInfo(
                     id=id,
-                    patchBuilder=self._patchBuilder,
+                    tractBuilder=self._tractBuilder,
                     ctrCoord=tractCoord,
                     vertexCoordList=[detail.coordFromVec(vec, defRA=tractRA) for vec in vertexVecList],
                     tractOverlap=tractOverlap,

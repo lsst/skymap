@@ -135,7 +135,7 @@ class RingsSkyMap(CachingSkyMap):
 
         center = geom.SpherePoint(ra, dec, geom.radians)
         wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
-        return ExplicitTractInfo(index, self._patchBuilder, center,
+        return ExplicitTractInfo(index, self._tractBuilder, center,
                                  0.5*self._ringSize*geom.radians, self.config.tractOverlap*geom.degrees,
                                  wcs)
 

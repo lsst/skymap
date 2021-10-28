@@ -20,23 +20,24 @@
 #
 import abc
 import numbers
+import struct
 
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions
 import lsst.geom as geom
 from .patchInfo import PatchInfo
 
-__all__ = ["patchBuilderRegistry", "BasePatchBuilder",
-           "OldPatchBuilder", "CellPatchBuilder"]
+__all__ = ["tractBuilderRegistry", "BaseTractBuilder",
+           "LegacyTractBuilder", "CellTractBuilder"]
 
 
-class BasePatchBuilderConfig(pexConfig.Config):
-    """Configuration that is to be shared amongst all patch builders."""
+class BaseTractBuilderConfig(pexConfig.Config):
+    """Configuration that is to be shared amongst all tract builders."""
     pass
 
 
-class BasePatchBuilder(metaclass=abc.ABCMeta):
-    """Base class for patch builders.
+class BaseTractBuilder(metaclass=abc.ABCMeta):
+    """Base class for tract builders.
 
     Parameters
     ----------
@@ -48,11 +49,12 @@ class BasePatchBuilder(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def setupPatches(self, minBBox, wcs):
-        """Set up the patches of a particular size.
+        """Set up the patches of a particular size in a tract.
 
-        We grow the bounding box to hold an exact multiple of
-        the desired size (patchInnerDimensions), while keeping
-        the center roughly the same.  We return the final
+        We grow the tract bounding box to hold an exact multiple of
+        the desired size (patchInnerDimensions or
+        numCellsPerPatchInner*cellInnerDimensions), while keeping
+        the center roughly the same.  We return the final tract
         bounding box, and the number of patches in each dimension
         (as an Extent2I).
 
@@ -174,8 +176,22 @@ class BasePatchBuilder(metaclass=abc.ABCMeta):
         y = (sequentialIndex - x) // nx
         return (x, y)
 
+    @abc.abstractmethod
+    def getPackedConfig(self, config):
+        """Get a packed config suitable for using in a sha1.
 
-class OldPatchBuilderConfig(BasePatchBuilderConfig):
+        Parameters
+        ----------
+        config : `lsst.skymap.BaseTractBuilderConfig`
+
+        Returns
+        -------
+        configPacked : `bytes`
+        """
+        raise NotImplementedError("Must be implemented by a subclass")
+
+
+class LegacyTractBuilderConfig(BaseTractBuilderConfig):
     patchInnerDimensions = pexConfig.ListField(
         doc="dimensions of inner region of patches (x,y pixels)",
         dtype=int,
@@ -193,8 +209,8 @@ class OldPatchBuilderConfig(BasePatchBuilderConfig):
             raise ValueError("patchInnerDimensions must be 2 ints.")
 
 
-class OldPatchBuilder(BasePatchBuilder):
-    ConfigClass = OldPatchBuilderConfig
+class LegacyTractBuilder(BaseTractBuilder):
+    ConfigClass = LegacyTractBuilderConfig
 
     def __init__(self, config):
         super().__init__(config)
@@ -281,8 +297,23 @@ class OldPatchBuilder(BasePatchBuilder):
                      for xInd in range(llPatchInd[0], urPatchInd[0]+1)
                      for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
+    def getPackedConfig(self, config):
+        subConfig = config.tractBuilder[config.tractBuilder.name]
+        configPacked = struct.pack(
+            "<iiidd3sd",
+            subConfig.patchInnerDimensions[0],
+            subConfig.patchInnerDimensions[1],
+            subConfig.patchBorder,
+            config.tractOverlap,
+            config.pixelScale,
+            config.projection.encode('ascii'),
+            config.rotation
+        )
 
-class CellPatchBuilderConfig(BasePatchBuilderConfig):
+        return configPacked
+
+
+class CellTractBuilderConfig(BaseTractBuilderConfig):
     cellInnerDimensions = pexConfig.ListField(
         doc="dimensions of inner region of cells (x,y pixels)",
         dtype=int,
@@ -309,8 +340,8 @@ class CellPatchBuilderConfig(BasePatchBuilderConfig):
             raise ValueError("cellInnerDimensions must be equal (for square cells).")
 
 
-class CellPatchBuilder(BasePatchBuilder):
-    ConfigClass = CellPatchBuilderConfig
+class CellTractBuilder(BaseTractBuilder):
+    ConfigClass = CellTractBuilderConfig
 
     def __init__(self, config):
         super().__init__(config)
@@ -362,7 +393,7 @@ class CellPatchBuilder(BasePatchBuilder):
                 (index, innerBBox, self._tractBBox))
         outerBBox = geom.Box2I(innerBBox)
         outerBBox.grow(self.getPatchBorder())
-        # We do not clip the patch
+        # We do not clip the patch for cell-based tracts.
         return PatchInfo(
             index=index,
             innerBBox=innerBBox,
@@ -409,10 +440,26 @@ class CellPatchBuilder(BasePatchBuilder):
                      for xInd in range(llPatchInd[0], urPatchInd[0]+1)
                      for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
+    def getPackedConfig(self, config):
+        subConfig = config.tractBuilder[config.tractBuilder.name]
+        configPacked = struct.pack(
+            "<iiiidd3sd",
+            subConfig.cellInnerDimensions[0],
+            subConfig.cellInnerDimensions[1],
+            subConfig.cellBorder,
+            subConfig.numCellsPerPatchInner,
+            config.tractOverlap,
+            config.pixelScale,
+            config.projection.encode('ascii'),
+            config.rotation
+        )
 
-patchBuilderRegistry = pexConfig.makeRegistry(
-    doc="A registry of Patch Builders (subclasses of PatchBuilder)",
+        return configPacked
+
+
+tractBuilderRegistry = pexConfig.makeRegistry(
+    doc="A registry of Tract Builders (subclasses of BaseTractBuilder)",
 )
 
-patchBuilderRegistry.register("old", OldPatchBuilder)
-patchBuilderRegistry.register("cells", CellPatchBuilder)
+tractBuilderRegistry.register("legacy", LegacyTractBuilder)
+tractBuilderRegistry.register("cells", CellTractBuilder)

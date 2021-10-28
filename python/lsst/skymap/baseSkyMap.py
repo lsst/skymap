@@ -27,20 +27,19 @@ rather than the scale at the center.
 __all__ = ["BaseSkyMapConfig", "BaseSkyMap"]
 
 import hashlib
-import struct
 import numpy as np
 
 import lsst.geom as geom
 import lsst.pex.config as pexConfig
 from lsst.geom import SpherePoint, Angle, arcseconds, degrees
 from . import detail
-from .patchBuilder import patchBuilderRegistry
+from .tractBuilder import tractBuilderRegistry
 
 
 class BaseSkyMapConfig(pexConfig.Config):
-    patchBuilder = patchBuilderRegistry.makeField(
-        "Patch building algorithm",
-        default="old"
+    tractBuilder = tractBuilderRegistry.makeField(
+        "Tract building algorithm",
+        default="legacy"
     )
 
     tractOverlap = pexConfig.Field(
@@ -70,18 +69,18 @@ class BaseSkyMapConfig(pexConfig.Config):
     # Backwards compatibility
     # We can't use the @property decorator because it makes pexConfig sad.
     def getPatchInnerDimensions(self):
-        return self.patchBuilder["old"].patchInnerDimensions
+        return self.tractBuilder["legacy"].patchInnerDimensions
 
     def setPatchInnerDimensions(self, value):
-        self.patchBuilder["old"].patchInnerDimensions = value
+        self.tractBuilder["legacy"].patchInnerDimensions = value
 
     patchInnerDimensions = property(getPatchInnerDimensions, setPatchInnerDimensions)
 
     def getPatchBorder(self):
-        return self.patchBuilder["old"].patchBorder
+        return self.tractBuilder["legacy"].patchBorder
 
     def setPatchBorder(self, value):
-        self.patchBuilder["old"].patchBorder = value
+        self.tractBuilder["legacy"].patchBorder = value
 
     patchBorder = property(getPatchBorder, setPatchBorder)
 
@@ -126,7 +125,7 @@ class BaseSkyMap:
             rotation=Angle(self.config.rotation, degrees),
         )
         self._sha1 = None
-        self._patchBuilder = config.patchBuilder.apply()
+        self._tractBuilder = config.tractBuilder.apply()
 
     def findTract(self, coord):
         """Find the tract whose center is nearest the specified coord.
@@ -312,30 +311,7 @@ class BaseSkyMap:
         if self._sha1 is None:
             sha1 = hashlib.sha1()
             sha1.update(type(self).__name__.encode('utf-8'))
-            if self.config.patchBuilder.name == 'old':
-                pbConfig = self.config.patchBuilder['old']
-                configPacked = struct.pack(
-                    "<iiidd3sd",
-                    pbConfig.patchInnerDimensions[0],
-                    pbConfig.patchInnerDimensions[1],
-                    pbConfig.patchBorder,
-                    self.config.tractOverlap,
-                    self.config.pixelScale,
-                    self.config.projection.encode('ascii'),
-                    self.config.rotation
-                )
-            elif self.config.patchBuilder.name == 'cells':
-                pbConfig = self.config.patchBuilder['cells']
-                configPacked = struct.pack(
-                    "<iiidd3sd",
-                    pbConfig.cellInnerDimensions[0],
-                    pbConfig.cellInnerDimensions[1],
-                    pbConfig.cellBorder,
-                    self.config.tractOverlap,
-                    self.config.pixelScale,
-                    self.config.projection.encode('ascii'),
-                    self.config.rotation
-                )
+            configPacked = self._tractBuilder.getPackedConfig(self.config)
             sha1.update(configPacked)
             self.updateSha1(sha1)
             self._sha1 = sha1.digest()

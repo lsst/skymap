@@ -36,7 +36,7 @@ class TractInfo:
     ----------
     id : `int`
         tract ID
-    patchBuilder : Subclass of `lsst.skymap.BasePatchBuilder`
+    tractBuilder : Subclass of `lsst.skymap.BaseTractBuilder`
         Object used to compute patch geometry.
     ctrCoord : `lsst.geom.SpherePoint`
         ICRS sky coordinate of center of inner region of tract; also used as
@@ -77,15 +77,15 @@ class TractInfo:
     - It is not enforced that ctrCoord is the center of vertexCoordList, but
       SkyMap relies on it.
     """
-    def __init__(self, id, patchBuilder, ctrCoord, vertexCoordList, tractOverlap, wcs):
+    def __init__(self, id, tractBuilder, ctrCoord, vertexCoordList, tractOverlap, wcs):
         self._id = id
         self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(vertexCoordList)
         self._tractOverlap = tractOverlap
-        self._patchBuilder = patchBuilder
+        self._tractBuilder = tractBuilder
 
         minBBox = self._minimumBoundingBox(wcs)
-        initialBBox, self._numPatches = self._patchBuilder.setupPatches(minBBox, wcs)
+        initialBBox, self._numPatches = self._tractBuilder.setupPatches(minBBox, wcs)
         self._bbox, self._wcs = self._finalOrientation(initialBBox, wcs)
 
     def _minimumBoundingBox(self, wcs):
@@ -159,7 +159,7 @@ class TractInfo:
         -------
         x, y : `int`, `int`
         """
-        return self._patchBuilder.getPatchIndexPair(sequentialIndex)
+        return self._tractBuilder.getPatchIndexPair(sequentialIndex)
 
     def findPatch(self, coord):
         """Find the patch containing the specified coord.
@@ -180,7 +180,7 @@ class TractInfo:
             If coord is not in tract or we cannot determine the
             pixel coordinate (which likely means the coord is off the tract).
         """
-        return self._patchBuilder.findPatch(self.getId(), self.getWcs(), coord)
+        return self._tractBuilder.findPatch(self.getId(), self.getWcs(), coord)
 
     def findPatchList(self, coordList):
         """Find patches containing the specified list of coords.
@@ -207,7 +207,7 @@ class TractInfo:
           overlap the region (especially if the region is not a rectangle
           aligned along patch x,y).
         """
-        return self._patchBuilder.findPatchList(self.getWcs(), coordList)
+        return self._tractBuilder.findPatchList(self.getWcs(), coordList)
 
     def getBBox(self):
         """Get bounding box of tract (as an geom.Box2I)
@@ -236,7 +236,7 @@ class TractInfo:
         return self._numPatches
 
     def getPatchBorder(self):
-        return self._patchBuilder.getPatchBorder()
+        return self._tractBuilder.getPatchBorder()
 
     def getPatchInfo(self, index):
         """Return information for the specified patch.
@@ -258,12 +258,12 @@ class TractInfo:
         IndexError
             If index is out of range.
         """
-        return self._patchBuilder.getPatchInfo(index)
+        return self._tractBuilder.getPatchInfo(index)
 
     def getPatchInnerDimensions(self):
         """Get dimensions of inner region of the patches (all are the same)
         """
-        return self._patchBuilder.getPatchInnerDimensions()
+        return self._tractBuilder.getPatchInnerDimensions()
 
     def getTractOverlap(self):
         """Get minimum overlap of adjacent sky tracts.
@@ -336,11 +336,11 @@ class ExplicitTractInfo(TractInfo):
     A tract is placed at the explicitly defined coordinates, with the nominated
     radius.  The tracts are square (i.e., the radius is really a half-size).
     """
-    def __init__(self, id, patchBuilder, ctrCoord, radius, tractOverlap, wcs):
+    def __init__(self, id, tractBuilder, ctrCoord, radius, tractOverlap, wcs):
         # We don't want TractInfo setting the bbox on the basis of vertices, but on the radius.
         vertexList = []
         self._radius = radius
-        super(ExplicitTractInfo, self).__init__(id, patchBuilder, ctrCoord,
+        super(ExplicitTractInfo, self).__init__(id, tractBuilder, ctrCoord,
                                                 vertexList, tractOverlap, wcs)
         # Shrink the box slightly to make sure the vertices are in the tract
         bboxD = geom.BoxD(self.getBBox())
