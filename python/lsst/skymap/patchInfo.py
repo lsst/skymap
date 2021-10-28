@@ -176,7 +176,6 @@ class PatchInfo:
         innerMin = Point2I(*[(index[i] - 1)*self._cellInnerDimensions[i]
                              for i in range(2)])
 
-
         innerBBox = Box2I(innerMin, self._cellInnerDimensions)
         outerBBox = Box2I(innerBBox)
         outerBBox.grow(self._cellBorder)
