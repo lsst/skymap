@@ -316,10 +316,14 @@ class CellTractBuilderConfig(BaseTractBuilderConfig):
         default=50,
     )
     numCellsPerPatchInner = pexConfig.Field(
-        doc=("Number of cells per inner patch.  There will be a buffer of "
-             "one cell all the way around the boundary."),
+        doc="Number of cells per inner patch.",
         dtype=int,
         default=20,
+    )
+    numCellsInPatchBorder = pexConfig.Field(
+        doc="Number of cells in the patch border (outside the inner patch region).",
+        dtype=int,
+        default=1,
     )
 
     def validate(self):
@@ -340,9 +344,10 @@ class CellTractBuilder(BaseTractBuilder):
                                                     for val in config.cellInnerDimensions))
         self._cellBorder = config.cellBorder
         self._numCellsPerPatchInner = config.numCellsPerPatchInner
+        self._numCellsInPatchBorder = config.numCellsInPatchBorder
         self._patchInnerDimensions = geom.Extent2I(*(val*self._numCellsPerPatchInner
                                                      for val in config.cellInnerDimensions))
-        self._patchBorder = config.cellInnerDimensions[0]
+        self._patchBorder = config.numCellsInPatchBorder*config.cellInnerDimensions[0]
         self._initialized = False
 
     def getPatchInfo(self, index):
@@ -369,17 +374,19 @@ class CellTractBuilder(BaseTractBuilder):
             outerBBox=outerBBox,
             cellInnerDimensions=self._cellInnerDimensions,
             cellBorder=self._cellBorder,
-            numCellsPerPatchInner=self._numCellsPerPatchInner
+            numCellsPerPatchInner=self._numCellsPerPatchInner,
+            numCellsInPatchBorder=self._numCellsInPatchBorder
         )
 
     def getPackedConfig(self, config):
         subConfig = config.tractBuilder[config.tractBuilder.name]
         configPacked = struct.pack(
-            "<iiiidd3sd",
+            "<iiiiidd3sd",
             subConfig.cellInnerDimensions[0],
             subConfig.cellInnerDimensions[1],
             subConfig.cellBorder,
             subConfig.numCellsPerPatchInner,
+            subConfig.numCellsInPatchBorder,
             config.tractOverlap,
             config.pixelScale,
             config.projection.encode('ascii'),

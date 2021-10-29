@@ -51,11 +51,13 @@ class PatchInfo:
         Cell border size (pixels).
     numCellsPerPatchInner : `int`, optional
         Number of cells per inner patch region.
+    numCellsInPatchBorder : `int`, optional
+        Number of cells in the patch border.
     """
 
     def __init__(self, index, innerBBox, outerBBox,
                  cellInnerDimensions=Extent2I(0, 0), cellBorder=0,
-                 numCellsPerPatchInner=0):
+                 numCellsPerPatchInner=0, numCellsInPatchBorder=0):
         self._index = index
         self._innerBBox = innerBBox
         self._outerBBox = outerBBox
@@ -63,12 +65,13 @@ class PatchInfo:
             raise RuntimeError("outerBBox=%s does not contain innerBBox=%s" % (outerBBox, innerBBox))
         self._cellInnerDimensions = cellInnerDimensions
         self._cellBorder = cellBorder
+        self._numCellsInPatchBorder = numCellsInPatchBorder
         if numCellsPerPatchInner == 0:
             self._numCells = Extent2I(0, 0)
         else:
-            # There is one extra boundary cell on each side
-            self._numCells = Extent2I(numCellsPerPatchInner + 2,
-                                      numCellsPerPatchInner + 2)
+            # There are numCellsInPatchBorder extra boundary cell on each side
+            self._numCells = Extent2I(numCellsPerPatchInner + 2*numCellsInPatchBorder,
+                                      numCellsPerPatchInner + 2*numCellsInPatchBorder)
 
     def getIndex(self):
         """Return patch index: a tuple of (x, y)
@@ -171,11 +174,11 @@ class PatchInfo:
                 or (not 0 <= index[1] < self._numCells[1]):
             raise IndexError("Cell index %s is not in range [0-%d, 0-%d]" %
                              (index, self._numCells[0] - 1, self._numCells[1] - 1))
-        # We offset the index by 1 because the cells start outside the inner
-        # dimensions.
+        # We offset the index by numCellsInPatchBorder because the cells
+        # start outside the inner dimensions.
         # The cells are defined relative to the patch bounding box.
         patchInnerBBox = self.getInnerBBox()
-        innerMin = Point2I(*[(index[i] - 1)*self._cellInnerDimensions[i]
+        innerMin = Point2I(*[(index[i] - self._numCellsInPatchBorder)*self._cellInnerDimensions[i]
                              + patchInnerBBox.getBegin()[i]
                              for i in range(2)])
 
