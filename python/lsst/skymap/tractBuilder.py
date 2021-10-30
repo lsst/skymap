@@ -21,6 +21,7 @@
 import abc
 import numbers
 import struct
+from collections.abc import Iterable
 
 import lsst.pex.config as pexConfig
 import lsst.pex.exceptions
@@ -123,7 +124,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
         # This should probably be the same as above because we only
         # care about the INNER dimensions.
         patchInd = tuple(int(pixelInd[i]/self._patchInnerDimensions[i]) for i in range(2))
-        return self.getPatchInfo(patchInd)
+        return self.getPatchInfo(patchInd, wcs)
 
     def findPatchList(self, wcs, coordList):
         """Find patches containing the specified list of coords.
@@ -168,7 +169,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         llPatchInd = tuple(int(bbox.getMin()[i]/self._patchInnerDimensions[i]) for i in range(2))
         urPatchInd = tuple(int(bbox.getMax()[i]/self._patchInnerDimensions[i]) for i in range(2))
-        return tuple(self.getPatchInfo((xInd, yInd))
+        return tuple(self.getPatchInfo((xInd, yInd), wcs)
                      for xInd in range(llPatchInd[0], urPatchInd[0]+1)
                      for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
@@ -176,7 +177,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
         return self._patchBorder
 
     @abc.abstractmethod
-    def getPatchInfo(self, index):
+    def getPatchInfo(self, index, tractWcs):
         """Return information for the specified patch.
 
         Parameters
@@ -185,6 +186,8 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
             Index of patch, as a pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
+        tractWcs : `lsst.afw.geom.SkyWcs`
+            WCS associated with the tract.
 
         Returns
         -------
@@ -202,6 +205,40 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
         """Get dimensions of inner region of the patches (all are the same)
         """
         return self._patchInnerDimensions
+
+    def getSequentialPatchIndex(self, patchInfo):
+        """Return a single integer that uniquely identifies
+        the given patch within this tract.
+
+        Parameters
+        ----------
+        patchInfo : `lsst.skymap.PatchInfo`
+
+        Returns
+        -------
+        sequentialIndex : `int`
+        """
+        index = patchInfo.getIndex()
+        return self.getSequentialPatchIndexFromPair(index)
+
+    def getSequentialPatchIndexFromPair(self, index):
+        """Return a single integer that uniquely identifies
+        the patch index within the tract.
+
+        Parameters
+        ----------
+        index : `tuple` [`int`, `int`]
+
+        Returns
+        -------
+        sequentialIndex : `int`
+        """
+        if not isinstance(index, Iterable):
+            raise ValueError("Input index is not an iterable.")
+        if len(index) != 2:
+            raise ValueError("Input index does not have two values.")
+        nx, ny = self._numPatches
+        return nx*index[1] + index[0]
 
     def getPatchIndexPair(self, sequentialIndex):
         """Convert sequential index into patch index (x,y) pair.
@@ -263,7 +300,7 @@ class LegacyTractBuilder(BaseTractBuilder):
         self._patchBorder = config.patchBorder
         self._initialized = False
 
-    def getPatchInfo(self, index):
+    def getPatchInfo(self, index, tractWcs):
         # This should always be initialized
         assert self._initialized
         if isinstance(index, numbers.Number):
@@ -285,6 +322,8 @@ class LegacyTractBuilder(BaseTractBuilder):
             index=index,
             innerBBox=innerBBox,
             outerBBox=outerBBox,
+            sequentialIndex=self.getSequentialPatchIndexFromPair(index),
+            tractWcs=tractWcs
         )
 
     def getPackedConfig(self, config):
@@ -347,10 +386,11 @@ class CellTractBuilder(BaseTractBuilder):
         self._numCellsInPatchBorder = config.numCellsInPatchBorder
         self._patchInnerDimensions = geom.Extent2I(*(val*self._numCellsPerPatchInner
                                                      for val in config.cellInnerDimensions))
-        self._patchBorder = config.numCellsInPatchBorder*config.cellInnerDimensions[0]
+        # The patch border is the number of cells in the border + the cell border
+        self._patchBorder = config.numCellsInPatchBorder*config.cellInnerDimensions[0] + self._cellBorder
         self._initialized = False
 
-    def getPatchInfo(self, index):
+    def getPatchInfo(self, index, tractWcs):
         # This should always be initialized
         assert self._initialized
         if isinstance(index, numbers.Number):
@@ -372,6 +412,8 @@ class CellTractBuilder(BaseTractBuilder):
             index=index,
             innerBBox=innerBBox,
             outerBBox=outerBBox,
+            sequentialIndex=self.getSequentialPatchIndexFromPair(index),
+            tractWcs=tractWcs,
             cellInnerDimensions=self._cellInnerDimensions,
             cellBorder=self._cellBorder,
             numCellsPerPatchInner=self._numCellsPerPatchInner,

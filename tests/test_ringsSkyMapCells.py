@@ -1,6 +1,4 @@
 import unittest
-# import math
-# import numpy as np
 
 import lsst.utils.tests
 import lsst.geom
@@ -35,8 +33,10 @@ class RingsCellsTestCase(skyMapTestCase.SkyMapTestCase):
         numCellsPerPatch = cellConfig.numCellsPerPatchInner + 2
         patchInnerSize = (cellConfig.numCellsPerPatchInner*cellConfig.cellInnerDimensions[0],
                           cellConfig.numCellsPerPatchInner*cellConfig.cellInnerDimensions[1])
-        patchOuterSize = (numCellsPerPatch*cellConfig.cellInnerDimensions[0],
-                          numCellsPerPatch*cellConfig.cellInnerDimensions[1])
+        patchOuterSize = (numCellsPerPatch*cellConfig.cellInnerDimensions[0]
+                          + 2*cellConfig.cellBorder,
+                          numCellsPerPatch*cellConfig.cellInnerDimensions[1]
+                          + 2*cellConfig.cellBorder)
 
         for patchInfo in tractInfo:
             # Check that all the patchInfos have the correct size.
@@ -64,9 +64,11 @@ class RingsCellsTestCase(skyMapTestCase.SkyMapTestCase):
             self.assertEqual(patchInfo.getInnerBBox().getBeginY(), innerCorner[1])
 
             self.assertEqual(patchInfo.getOuterBBox().getBeginX(),
-                             innerCorner[0] - cellConfig.cellInnerDimensions[0])
+                             innerCorner[0] - cellConfig.cellInnerDimensions[0]
+                             - cellConfig.cellBorder)
             self.assertEqual(patchInfo.getOuterBBox().getBeginY(),
-                             innerCorner[1] - cellConfig.cellInnerDimensions[1])
+                             innerCorner[1] - cellConfig.cellInnerDimensions[1]
+                             - cellConfig.cellBorder)
 
             # And confirm that the lower left corner of the lower left patch
             # goes negative.

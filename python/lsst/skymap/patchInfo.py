@@ -23,6 +23,7 @@
 __all__ = ["PatchInfo", "makeSkyPolygonFromBBox"]
 
 import numbers
+from collections.abc import Iterable
 
 from lsst.geom import Extent2I, Point2I, Box2I
 from .detail import makeSkyPolygonFromBBox
@@ -45,6 +46,10 @@ class PatchInfo:
         inner bounding box
     outerBBox : `lsst.geom.Box2I`
         inner bounding box
+    sequentialIndex : `int`
+        Patch sequential index
+    tractWcs : `lsst.afw.geom.SkyWcs`
+        Tract WCS object.
     cellInnerDimensions : `lsst.geom.Extent2I`, optional
         Inner dimensions of each cell (x,y pixels).
     cellBorder : `int`, optional
@@ -55,12 +60,15 @@ class PatchInfo:
         Number of cells in the patch border.
     """
 
-    def __init__(self, index, innerBBox, outerBBox,
+    def __init__(self, index, innerBBox, outerBBox, sequentialIndex,
+                 tractWcs=None,
                  cellInnerDimensions=Extent2I(0, 0), cellBorder=0,
                  numCellsPerPatchInner=0, numCellsInPatchBorder=0):
         self._index = index
+        self._sequentialIndex = sequentialIndex
         self._innerBBox = innerBBox
         self._outerBBox = outerBBox
+        self._wcs = tractWcs
         if not outerBBox.contains(innerBBox):
             raise RuntimeError("outerBBox=%s does not contain innerBBox=%s" % (outerBBox, innerBBox))
         self._cellInnerDimensions = cellInnerDimensions
@@ -83,6 +91,32 @@ class PatchInfo:
         """
         return self._index
 
+    index = property(getIndex)
+
+    def getSequentialIndex(self):
+        """Return patch sequential index.
+
+        Returns
+        -------
+        result : `int`
+            Sequential patch index.
+        """
+        return self._sequentialIndex
+
+    sequential_index = property(getSequentialIndex)
+
+    def getWcs(self):
+        """Return the associated tract wcs
+
+        Returns
+        -------
+        wcs : `lsst.afw.geom.SkyWcs`
+            Tract WCS.
+        """
+        return self._wcs
+
+    wcs = property(getWcs)
+
     def getInnerBBox(self):
         """Get inner bounding box.
 
@@ -92,6 +126,8 @@ class PatchInfo:
             The inner bounding Box.
         """
         return self._innerBBox
+
+    inner_bbox = property(getInnerBBox)
 
     def getOuterBBox(self):
         """Get outer bounding box.
@@ -103,12 +139,14 @@ class PatchInfo:
         """
         return self._outerBBox
 
-    def getInnerSkyPolygon(self, tractWcs):
+    outer_bbox = property(getOuterBBox)
+
+    def getInnerSkyPolygon(self, tractWcs=None):
         """Get the inner on-sky region.
 
         Parameters
         ----------
-        tractWcs : `lsst.afw.image.SkyWcs`
+        tractWcs : `lsst.afw.image.SkyWcs`, optional
             WCS for the associated tract.
 
         Returns
@@ -116,14 +154,19 @@ class PatchInfo:
         result : `lsst.sphgeom.ConvexPolygon`
             The inner sky region.
         """
-        return makeSkyPolygonFromBBox(bbox=self.getInnerBBox(), wcs=tractWcs)
+        _tractWcs = tractWcs if tractWcs is not None else self._wcs
+        return makeSkyPolygonFromBBox(bbox=self.getInnerBBox(), wcs=_tractWcs)
 
-    def getOuterSkyPolygon(self, tractWcs):
+    @property
+    def inner_sky_polygon(self):
+        return self.getInnerSkyPolygon()
+
+    def getOuterSkyPolygon(self, tractWcs=None):
         """Get the outer on-sky region.
 
         Parameters
         ----------
-        tractWcs : `lsst.afw.image.SkyWcs`
+        tractWcs : `lsst.afw.image.SkyWcs`, optional
             WCS for the associated tract.
 
         Returns
@@ -131,7 +174,12 @@ class PatchInfo:
         result : `lsst.sphgeom.ConvexPolygon`
             The outer sky region.
         """
-        return makeSkyPolygonFromBBox(bbox=self.getOuterBBox(), wcs=tractWcs)
+        _tractWcs = tractWcs if tractWcs is not None else self._wcs
+        return makeSkyPolygonFromBBox(bbox=self.getOuterBBox(), wcs=_tractWcs)
+
+    @property
+    def outer_sky_polygon(self):
+        return self.getOuterSkyPolygon()
 
     def getNumCells(self):
         """Get the number of cells in x, y.
@@ -145,8 +193,12 @@ class PatchInfo:
         """
         return self._numCells
 
+    num_cells = property(getNumCells)
+
     def getCellBorder(self):
         return self._cellBorder
+
+    cell_border = property(getCellBorder)
 
     def getCellInfo(self, index):
         """Return information for the specified cell.
@@ -168,6 +220,8 @@ class PatchInfo:
         IndexError
             If index is out of range.
         """
+        if self._numCells[0] == 0 or self._numCells[1] == 0:
+            raise IndexError("Patch does not contain cells.")
         if isinstance(index, numbers.Number):
             index = self.getCellIndexPair(index)
         if (not 0 <= index[0] < self._numCells[0]) \
@@ -176,7 +230,7 @@ class PatchInfo:
                              (index, self._numCells[0] - 1, self._numCells[1] - 1))
         # We offset the index by numCellsInPatchBorder because the cells
         # start outside the inner dimensions.
-        # The cells are defined relative to the patch bounding box.
+        # The cells are defined relative to the patch bounding box (within the tract).
         patchInnerBBox = self.getInnerBBox()
         innerMin = Point2I(*[(index[i] - self._numCellsInPatchBorder)*self._cellInnerDimensions[i]
                              + patchInnerBBox.getBegin()[i]
@@ -189,7 +243,9 @@ class PatchInfo:
         return CellInfo(
             index=index,
             innerBBox=innerBBox,
-            outerBBox=outerBBox
+            outerBBox=outerBBox,
+            sequentialIndex=self.getSequentialCellIndexFromPair(index),
+            tractWcs=self._wcs
         )
 
     def getCellInnerDimensions(self):
@@ -197,15 +253,63 @@ class PatchInfo:
         """
         return self._cellInnerDimensions
 
+    cell_inner_dimensions = property(getCellInnerDimensions)
+
     def getSequentialCellIndex(self, cellInfo):
-        """Return a single integer that uniquely identifies the given
-        cell within this patch.
+        """Return a single integer that uniquely identifies
+        the given cell within this patch.
+
+        Parameters
+        ----------
+        cellInfo : `lsst.skymap.CellInfo`
+
+        Returns
+        -------
+        sequentialIndex : `int`
+
+        Raises
+        ------
+        IndexError
+            If index is out of range.
         """
-        x, y = cellInfo.getIndex()
+        index = cellInfo.getIndex()
+        return self.getSequentialCellIndexFromPair(index)
+
+    def getSequentialCellIndexFromPair(self, index):
+        """Return a single integer that uniquely identifies
+        the given cell within this patch.
+
+        Parameters
+        ----------
+        index : `tuple` [`int`, `int`]
+
+        Returns
+        -------
+        sequentialIndex : `int`
+
+        Raises
+        ------
+        IndexError
+            If index is out of range.
+        """
+        if not isinstance(index, Iterable):
+            raise ValueError("Input index is not an iterable.")
+        if len(index) != 2:
+            raise ValueError("Input index does not have two values.")
         nx, ny = self.getNumCells()
-        return nx*y + x
+        return nx*index[1] + index[0]
 
     def getCellIndexPair(self, sequentialIndex):
+        """Convert a sequential index into an index pair.
+
+        Raises
+        ------
+        IndexError
+            If index is out of range.
+        """
+        if self._numCells[0] == 0 or self._numCells[1] == 0:
+            raise IndexError("Patch does not contain cells.")
+
         nx, ny = self.getNumCells()
         x = sequentialIndex % nx
         y = (sequentialIndex - x) // nx

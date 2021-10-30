@@ -141,12 +141,32 @@ class TractInfo:
         return finalBBox, wcs
 
     def getSequentialPatchIndex(self, patchInfo):
-        """Return a single integer that uniquely identifies the given patch
-        within this tract.
+        """Return a single integer that uniquely identifies
+        the given patch within this tract.
+
+        Parameters
+        ----------
+        patchInfo : `lsst.skymap.PatchInfo`
+
+        Returns
+        -------
+        sequentialIndex : `int`
         """
-        x, y = patchInfo.getIndex()
-        nx, ny = self.getNumPatches()
-        return nx*y + x
+        return self._tractBuilder.getSequentialPatchIndex(patchInfo)
+
+    def getSequentialPatchIndexFromPair(self, index):
+        """Return a single integer that uniquely identifies
+        the patch index within the tract.
+
+        Parameters
+        ----------
+        index : `tuple` [`int`, `int`]
+
+        Returns
+        -------
+        sequentialIndex : `int`
+        """
+        return self._tractBuilder.getSequentialPatchIndexFromPair(index)
 
     def getPatchIndexPair(self, sequentialIndex):
         """Convert sequential index into patch index (x,y) pair.
@@ -214,16 +234,22 @@ class TractInfo:
         """
         return geom.Box2I(self._bbox)
 
+    bbox = property(getBBox)
+
     def getCtrCoord(self):
         """Get ICRS sky coordinate of center of tract
         (as an lsst.geom.SpherePoint)
         """
         return self._ctrCoord
 
+    ctr_coord = property(getCtrCoord)
+
     def getId(self):
         """Get ID of tract
         """
         return self._id
+
+    tract_id = property(getId)
 
     def getNumPatches(self):
         """Get the number of patches in x, y.
@@ -235,8 +261,12 @@ class TractInfo:
         """
         return self._numPatches
 
+    num_patches = property(getNumPatches)
+
     def getPatchBorder(self):
         return self._tractBuilder.getPatchBorder()
+
+    patch_border = property(getPatchBorder)
 
     def getPatchInfo(self, index):
         """Return information for the specified patch.
@@ -258,17 +288,21 @@ class TractInfo:
         IndexError
             If index is out of range.
         """
-        return self._tractBuilder.getPatchInfo(index)
+        return self._tractBuilder.getPatchInfo(index, self._wcs)
 
     def getPatchInnerDimensions(self):
         """Get dimensions of inner region of the patches (all are the same)
         """
         return self._tractBuilder.getPatchInnerDimensions()
 
+    patch_inner_dimensions = property(getPatchInnerDimensions)
+
     def getTractOverlap(self):
         """Get minimum overlap of adjacent sky tracts.
         """
         return self._tractOverlap
+
+    tract_overlap = property(getTractOverlap)
 
     def getVertexList(self):
         """Get list of ICRS sky coordinates of vertices that define the
@@ -280,16 +314,22 @@ class TractInfo:
         """
         return self._vertexCoordList
 
+    vertex_list = property(getVertexList)
+
     def getInnerSkyPolygon(self):
         """Get inner on-sky region as a sphgeom.ConvexPolygon.
         """
         skyUnitVectors = [sp.getVector() for sp in self.getVertexList()]
         return ConvexPolygon.convexHull(skyUnitVectors)
 
+    inner_sky_polygon = property(getInnerSkyPolygon)
+
     def getOuterSkyPolygon(self):
         """Get outer on-sky region as a sphgeom.ConvexPolygon
         """
         return makeSkyPolygonFromBBox(bbox=self.getBBox(), wcs=self.getWcs())
+
+    outer_sky_polygon = property(getOuterSkyPolygon)
 
     def getWcs(self):
         """Get WCS of tract.
@@ -300,6 +340,8 @@ class TractInfo:
             The WCS of this tract
         """
         return self._wcs
+
+    wcs = property(getWcs)
 
     def __str__(self):
         return "TractInfo(id=%s)" % (self._id,)

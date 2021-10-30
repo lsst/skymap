@@ -38,11 +38,17 @@ class CellInfo():
         Inner bounding box.
     outerBBox : `lsst.geom.Box2I`
         Outer bounding box.
+    sequentialIndex : `int`
+        Cell sequential index.
+    tractWcs : `lsst.afw.geom.SkyWcs`
+        Tract WCS object.
     """
-    def __init__(self, index, innerBBox, outerBBox):
+    def __init__(self, index, innerBBox, outerBBox, sequentialIndex, tractWcs):
         self._index = index
+        self._sequentialIndex = sequentialIndex
         self._innerBBox = innerBBox
         self._outerBBox = outerBBox
+        self._wcs = tractWcs
         if not outerBBox.contains(innerBBox):
             raise RuntimeError("outerBBox=%s does not contain innerBBox=%s" % (outerBBox, innerBBox))
 
@@ -56,6 +62,32 @@ class CellInfo():
         """
         return self._index
 
+    index = property(getIndex)
+
+    def getSequentialIndex(self):
+        """Return cell sequential index.
+
+        Returns
+        -------
+        result : `int`
+            Sequential cell index.
+        """
+        return self._sequentialIndex
+
+    sequential_index = property(getSequentialIndex)
+
+    def getWcs(self):
+        """Return the associated tract wcs
+
+        Returns
+        -------
+        wcs : `lsst.afw.geom.SkyWcs`
+            Tract WCS.
+        """
+        return self._wcs
+
+    wcs = property(getWcs)
+
     def getInnerBBox(self):
         """Get inner bounding box.
 
@@ -65,6 +97,8 @@ class CellInfo():
             The inner bounding Box.
         """
         return self._innerBBox
+
+    inner_bbox = property(getInnerBBox)
 
     def getOuterBBox(self):
         """Get outer bounding box.
@@ -76,12 +110,14 @@ class CellInfo():
         """
         return self._outerBBox
 
-    def getInnerSkyPolygon(self, tractWcs):
+    outer_bbox = property(getOuterBBox)
+
+    def getInnerSkyPolygon(self, tractWcs=None):
         """Get the inner on-sky region.
 
         Parameters
         ----------
-        tractWcs : `lsst.afw.image.SkyWcs`
+        tractWcs : `lsst.afw.image.SkyWcs`, optional
             WCS for the associated tract.
 
         Returns
@@ -89,14 +125,19 @@ class CellInfo():
         result : `lsst.sphgeom.ConvexPolygon`
             The inner sky region.
         """
-        return makeSkyPolygonFromBBox(bbox=self.getInnerBBox(), wcs=tractWcs)
+        _tractWcs = tractWcs if tractWcs is not None else self._wcs
+        return makeSkyPolygonFromBBox(bbox=self.getInnerBBox(), wcs=_tractWcs)
 
-    def getOuterSkyPolygon(self, tractWcs):
+    @property
+    def inner_sky_polygon(self):
+        return self.getInnerSkyPolygon()
+
+    def getOuterSkyPolygon(self, tractWcs=None):
         """Get the outer on-sky region.
 
         Parameters
         ----------
-        tractWcs : `lsst.afw.image.SkyWcs`
+        tractWcs : `lsst.afw.image.SkyWcs`, optional
             WCS for the associated tract.
 
         Returns
@@ -104,7 +145,12 @@ class CellInfo():
         result : `lsst.sphgeom.ConvexPolygon`
             The outer sky region.
         """
-        return makeSkyPolygonFromBBox(bbox=self.getOuterBBox(), wcs=tractWcs)
+        _tractWcs = tractWcs if tractWcs is not None else self._wcs
+        return makeSkyPolygonFromBBox(bbox=self.getOuterBBox(), wcs=_tractWcs)
+
+    @property
+    def outer_sky_polygon(self):
+        return self.getOuterSkyPolygon()
 
     def __eq__(self, rhs):
         return (self.getIndex() == rhs.getIndex()) \
