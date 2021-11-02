@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 
 import lsst.utils.tests
 import lsst.geom
@@ -35,6 +36,19 @@ class TractInfoTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(tractInfo.inner_sky_polygon, tractInfo.getInnerSkyPolygon())
         self.assertEqual(tractInfo.outer_sky_polygon, tractInfo.getOuterSkyPolygon())
         self.assertEqual(tractInfo.wcs, tractInfo.getWcs())
+
+    def testContains(self):
+        """Simple tests for the contains method, including bad inputs."""
+        tractInfo = self.skymap[0]
+        coord = tractInfo.ctr_coord
+
+        self.assertTrue(tractInfo.contains(coord))
+
+        badCoord = lsst.geom.SpherePoint(np.nan*lsst.geom.degrees, 0.0*lsst.geom.degrees)
+        self.assertFalse(tractInfo.contains(badCoord))
+
+        badCoord = lsst.geom.SpherePoint(0.0*lsst.geom.degrees, np.nan*lsst.geom.degrees)
+        self.assertFalse(tractInfo.contains(badCoord))
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):

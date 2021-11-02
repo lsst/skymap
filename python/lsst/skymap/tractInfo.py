@@ -22,6 +22,8 @@
 
 __all__ = ["TractInfo"]
 
+import numpy as np
+
 import lsst.pex.exceptions
 import lsst.geom as geom
 from lsst.sphgeom import ConvexPolygon
@@ -365,11 +367,14 @@ class TractInfo:
     def contains(self, coord):
         """Does this tract contain the coordinate?"""
         try:
-            pixels = self.getWcs().skyToPixel(coord)
+            pixel = self.getWcs().skyToPixel(coord)
         except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
             # Point must be way off the tract
             return False
-        return self.getBBox().contains(geom.Point2I(pixels))
+        if not np.isfinite(pixel.getX()) or not np.isfinite(pixel.getY()):
+            # Point is definitely off the tract
+            return False
+        return self.getBBox().contains(geom.Point2I(pixel))
 
 
 class ExplicitTractInfo(TractInfo):
