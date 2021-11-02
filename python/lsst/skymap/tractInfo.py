@@ -28,7 +28,7 @@ import lsst.pex.exceptions
 import lsst.geom as geom
 from lsst.sphgeom import ConvexPolygon
 
-from .patchInfo import makeSkyPolygonFromBBox
+from .detail import makeSkyPolygonFromBBox, Index2D
 
 
 class TractInfo:
@@ -162,7 +162,7 @@ class TractInfo:
 
         Parameters
         ----------
-        index : `tuple` [`int`, `int`]
+        index : `lsst.skymap.Index2D`
 
         Returns
         -------
@@ -179,7 +179,7 @@ class TractInfo:
 
         Returns
         -------
-        x, y : `int`, `int`
+        x, y : `lsst.skymap.Index2D`
         """
         return self._tractBuilder.getPatchIndexPair(sequentialIndex)
 
@@ -275,7 +275,7 @@ class TractInfo:
 
         Parameters
         ----------
-        index : `tuple` of `int`
+        index : `typing.NamedTuple` ['x': `int`, 'y': `int`]
             Index of patch, as a pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
@@ -355,7 +355,7 @@ class TractInfo:
         xNum, yNum = self.getNumPatches()
         for y in range(yNum):
             for x in range(xNum):
-                yield self.getPatchInfo((x, y))
+                yield self.getPatchInfo(Index2D(x=x, y=y))
 
     def __len__(self):
         xNum, yNum = self.getNumPatches()

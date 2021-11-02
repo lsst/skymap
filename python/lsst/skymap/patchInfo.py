@@ -26,7 +26,7 @@ import numbers
 from collections.abc import Iterable
 
 from lsst.geom import Extent2I, Point2I, Box2I
-from .detail import makeSkyPolygonFromBBox
+from .detail import makeSkyPolygonFromBBox, Index2D
 from .cellInfo import CellInfo
 
 
@@ -40,7 +40,7 @@ class PatchInfo:
 
     Parameters
     ----------
-    index : `tuple` of `int`
+    index : `lsst.skymap.Index2D`
         x,y index of patch (a pair of ints)
     innerBBox : `lsst.geom.Box2I`
         inner bounding box
@@ -86,7 +86,7 @@ class PatchInfo:
 
         Returns
         -------
-        result : `tuple` of `int`
+        result : `lsst.skymap.Index2D`
             Patch index (x, y).
         """
         return self._index
@@ -205,8 +205,8 @@ class PatchInfo:
 
         Parameters
         ----------
-        index : `tuple` of `int`
-            Index of cell, as a pair of ints;
+        index : `lsst.skymap.Index2D` or `int`
+            Index of cell, as `Index2D`, or `Iterable` [`int`, `int`];
             or a sequential index as returned by getSequentialCellIndex;
             negative values are not supported.
 
@@ -222,17 +222,22 @@ class PatchInfo:
         """
         if self._numCells[0] == 0 or self._numCells[1] == 0:
             raise IndexError("Patch does not contain cells.")
-        if isinstance(index, numbers.Number):
-            index = self.getCellIndexPair(index)
-        if (not 0 <= index[0] < self._numCells[0]) \
-                or (not 0 <= index[1] < self._numCells[1]):
+        if isinstance(index, Index2D):
+            _index = index
+        else:
+            if isinstance(index, numbers.Number):
+                _index = self.getCellIndexPair(index)
+            else:
+                _index = Index2D(*index)
+        if (not 0 <= _index.x < self._numCells[0]) \
+                or (not 0 <= _index.y < self._numCells[1]):
             raise IndexError("Cell index %s is not in range [0-%d, 0-%d]" %
-                             (index, self._numCells[0] - 1, self._numCells[1] - 1))
+                             (_index, self._numCells[0] - 1, self._numCells[1] - 1))
         # We offset the index by numCellsInPatchBorder because the cells
         # start outside the inner dimensions.
         # The cells are defined relative to the patch bounding box (within the tract).
         patchInnerBBox = self.getInnerBBox()
-        innerMin = Point2I(*[(index[i] - self._numCellsInPatchBorder)*self._cellInnerDimensions[i]
+        innerMin = Point2I(*[(_index[i] - self._numCellsInPatchBorder)*self._cellInnerDimensions[i]
                              + patchInnerBBox.getBegin()[i]
                              for i in range(2)])
 
@@ -241,10 +246,10 @@ class PatchInfo:
         outerBBox.grow(self._cellBorder)
 
         return CellInfo(
-            index=index,
+            index=_index,
             innerBBox=innerBBox,
             outerBBox=outerBBox,
-            sequentialIndex=self.getSequentialCellIndexFromPair(index),
+            sequentialIndex=self.getSequentialCellIndexFromPair(_index),
             tractWcs=self._wcs
         )
 
@@ -281,7 +286,7 @@ class PatchInfo:
 
         Parameters
         ----------
-        index : `tuple` [`int`, `int`]
+        index : `lsst.skymap.Index2D`
 
         Returns
         -------
@@ -292,15 +297,27 @@ class PatchInfo:
         IndexError
             If index is out of range.
         """
-        if not isinstance(index, Iterable):
-            raise ValueError("Input index is not an iterable.")
-        if len(index) != 2:
-            raise ValueError("Input index does not have two values.")
+        if isinstance(index, Index2D):
+            _index = index
+        else:
+            if not isinstance(index, Iterable):
+                raise ValueError("Input index is not an iterable.")
+            if len(index) != 2:
+                raise ValueError("Input index does not have two values.")
+            _index = Index2D(*index)
         nx, ny = self.getNumCells()
-        return nx*index[1] + index[0]
+        return nx*_index.y + _index.x
 
     def getCellIndexPair(self, sequentialIndex):
         """Convert a sequential index into an index pair.
+
+        Parameters
+        ----------
+        sequentialIndex : `int`
+
+        Returns
+        -------
+        x, y : `lsst.skymap.Index2D`
 
         Raises
         ------
@@ -313,13 +330,13 @@ class PatchInfo:
         nx, ny = self.getNumCells()
         x = sequentialIndex % nx
         y = (sequentialIndex - x) // nx
-        return (x, y)
+        return Index2D(x=x, y=y)
 
     def __iter__(self):
         xNum, yNum = self.getNumCells()
         for y in range(yNum):
             for x in range(xNum):
-                yield self.getCellInfo((x, y))
+                yield self.getCellInfo(Index2D(x=x, y=y))
 
     def __len__(self):
         xNum, yNum = self.getNumCells()

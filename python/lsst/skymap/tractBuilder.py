@@ -27,6 +27,7 @@ import lsst.pex.config as pexConfig
 import lsst.pex.exceptions
 import lsst.geom as geom
 from .patchInfo import PatchInfo
+from .detail import Index2D
 
 __all__ = ["tractBuilderRegistry", "BaseTractBuilder",
            "LegacyTractBuilder", "CellTractBuilder"]
@@ -182,8 +183,8 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        index : `tuple` of `int`
-            Index of patch, as a pair of ints;
+        index : `lsst.skymap.Index2D` or `Iterable` [`int`, `int`]
+            Index of patch, as Index2D or pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
         tractWcs : `lsst.afw.geom.SkyWcs`
@@ -227,18 +228,22 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        index : `tuple` [`int`, `int`]
+        index : `lsst.skymap.Index2D` or `Iterable` [`int`, `int`]
 
         Returns
         -------
         sequentialIndex : `int`
         """
-        if not isinstance(index, Iterable):
-            raise ValueError("Input index is not an iterable.")
-        if len(index) != 2:
-            raise ValueError("Input index does not have two values.")
+        if isinstance(index, Index2D):
+            _index = index
+        else:
+            if not isinstance(index, Iterable):
+                raise ValueError("Input index is not an iterable.")
+            if len(index) != 2:
+                raise ValueError("Input index does not have two values.")
+            _index = Index2D(*index)
         nx, ny = self._numPatches
-        return nx*index[1] + index[0]
+        return nx*_index.y + _index.x
 
     def getPatchIndexPair(self, sequentialIndex):
         """Convert sequential index into patch index (x,y) pair.
@@ -249,12 +254,12 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        x, y : `int`, `int`
+        x, y : `lsst.skymap.Index2D`
         """
         nx, ny = self._numPatches
         x = sequentialIndex % nx
         y = (sequentialIndex - x) // nx
-        return (x, y)
+        return Index2D(x=x, y=y)
 
     @abc.abstractmethod
     def getPackedConfig(self, config):
@@ -303,26 +308,31 @@ class LegacyTractBuilder(BaseTractBuilder):
     def getPatchInfo(self, index, tractWcs):
         # This should always be initialized
         assert self._initialized
-        if isinstance(index, numbers.Number):
-            index = self.getPatchIndexPair(index)
-        if (not 0 <= index[0] < self._numPatches[0]) \
-                or (not 0 <= index[1] < self._numPatches[1]):
+        if isinstance(index, Index2D):
+            _index = index
+        else:
+            if isinstance(index, numbers.Number):
+                _index = self.getPatchIndexPair(index)
+            else:
+                _index = Index2D(*index)
+        if (not 0 <= _index.x < self._numPatches[0]) \
+           or (not 0 <= _index.y < self._numPatches[1]):
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
-                             (index, self._numPatches[0] - 1, self._numPatches[1] - 1))
-        innerMin = geom.Point2I(*[index[i] * self._patchInnerDimensions[i] for i in range(2)])
+                             (_index, self._numPatches[0] - 1, self._numPatches[1] - 1))
+        innerMin = geom.Point2I(*[_index[i] * self._patchInnerDimensions[i] for i in range(2)])
         innerBBox = geom.Box2I(innerMin, self._patchInnerDimensions)
         if not self._tractBBox.contains(innerBBox):
             raise RuntimeError(
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" %
-                (index, innerBBox, self._tractBBox))
+                (_index, innerBBox, self._tractBBox))
         outerBBox = geom.Box2I(innerBBox)
         outerBBox.grow(self.getPatchBorder())
         outerBBox.clip(self._tractBBox)
         return PatchInfo(
-            index=index,
+            index=_index,
             innerBBox=innerBBox,
             outerBBox=outerBBox,
-            sequentialIndex=self.getSequentialPatchIndexFromPair(index),
+            sequentialIndex=self.getSequentialPatchIndexFromPair(_index),
             tractWcs=tractWcs
         )
 
@@ -393,26 +403,31 @@ class CellTractBuilder(BaseTractBuilder):
     def getPatchInfo(self, index, tractWcs):
         # This should always be initialized
         assert self._initialized
-        if isinstance(index, numbers.Number):
-            index = self.getPatchIndexPair(index)
-        if (not 0 <= index[0] < self._numPatches[0]) \
-           or (not 0 <= index[1] < self._numPatches[1]):
+        if isinstance(index, Index2D):
+            _index = index
+        else:
+            if isinstance(index, numbers.Number):
+                _index = self.getPatchIndexPair(index)
+            else:
+                _index = Index2D(*index)
+        if (not 0 <= _index.x < self._numPatches[0]) \
+           or (not 0 <= _index.y < self._numPatches[1]):
             raise IndexError("Patch index %s is not in range [0-%d, 0-%d]" %
-                             (index, self._numPatches[0] - 1, self._numPatches[1] - 1))
-        innerMin = geom.Point2I(*[index[i]*self._patchInnerDimensions[i] for i in range(2)])
+                             (_index, self._numPatches[0] - 1, self._numPatches[1] - 1))
+        innerMin = geom.Point2I(*[_index[i]*self._patchInnerDimensions[i] for i in range(2)])
         innerBBox = geom.Box2I(innerMin, self._patchInnerDimensions)
         if not self._tractBBox.contains(innerBBox):
             raise RuntimeError(
                 "Bug: patch index %s valid but inner bbox=%s not contained in tract bbox=%s" %
-                (index, innerBBox, self._tractBBox))
+                (_index, innerBBox, self._tractBBox))
         outerBBox = geom.Box2I(innerBBox)
         outerBBox.grow(self.getPatchBorder())
         # We do not clip the patch for cell-based tracts.
         return PatchInfo(
-            index=index,
+            index=_index,
             innerBBox=innerBBox,
             outerBBox=outerBBox,
-            sequentialIndex=self.getSequentialPatchIndexFromPair(index),
+            sequentialIndex=self.getSequentialPatchIndexFromPair(_index),
             tractWcs=tractWcs,
             cellInnerDimensions=self._cellInnerDimensions,
             cellBorder=self._cellBorder,

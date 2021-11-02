@@ -5,6 +5,7 @@ import lsst.geom
 import lsst.sphgeom
 
 from lsst.skymap.discreteSkyMap import DiscreteSkyMap
+from lsst.skymap import Index2D
 
 
 class PatchInfoTestCase(lsst.utils.tests.TestCase):
@@ -39,6 +40,24 @@ class PatchInfoTestCase(lsst.utils.tests.TestCase):
                          patchInfo.getInnerSkyPolygon(tractWcs=tractInfo.wcs))
         self.assertEqual(patchInfo.outer_sky_polygon,
                          patchInfo.getOuterSkyPolygon(tractWcs=tractInfo.wcs))
+
+    def testIndexes(self):
+        """Test accessing by index via tuple and Index2D"""
+        tractInfo = self.skymap[0]
+
+        index = Index2D(x=2, y=5)
+        sequential_index = tractInfo.getSequentialPatchIndexFromPair(index)
+        patchInfo = tractInfo[index]
+
+        self.assertEqual(tractInfo.getSequentialPatchIndexFromPair((2, 5)), sequential_index)
+        self.assertEqual(tractInfo.getPatchInfo(index), patchInfo)
+        self.assertEqual(tractInfo.getPatchInfo((2, 5)), patchInfo)
+        self.assertEqual(tractInfo[index], patchInfo)
+        self.assertEqual(tractInfo[sequential_index], patchInfo)
+        self.assertEqual(tractInfo[(2, 5)], patchInfo)
+
+        for patchInfo in tractInfo:
+            self.assertEqual(tractInfo[patchInfo.index], patchInfo)
 
     def testSequentialIndex(self):
         """Test patch sequential indices."""

@@ -20,8 +20,9 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["coordFromVec", "makeSkyPolygonFromBBox"]
+__all__ = ["coordFromVec", "makeSkyPolygonFromBBox", "Index2D"]
 
+from typing import NamedTuple
 import numpy
 
 import lsst.sphgeom
@@ -75,3 +76,8 @@ def makeSkyPolygonFromBBox(bbox, wcs):
     pixelPoints = geom.Box2D(bbox).getCorners()
     skyPoints = wcs.pixelToSky(pixelPoints)
     return lsst.sphgeom.ConvexPolygon([sp.getVector() for sp in skyPoints])
+
+
+class Index2D(NamedTuple):
+    x: int
+    y: int

@@ -32,7 +32,7 @@ class CellInfo():
 
     Parameters
     ----------
-    index : `tuple` of `int`
+    index : `lsst.skymap.Index2D`
         x,y index of a cell (a pair of ints)
     innerBBox : `lsst.geom.Box2I`
         Inner bounding box.
@@ -57,7 +57,7 @@ class CellInfo():
 
         Returns
         -------
-        result : `tuple` of `int`
+        result : `lsst.skymap.Index2D`
             Patch index (x, y).
         """
         return self._index
