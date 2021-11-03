@@ -38,7 +38,7 @@ from .tractBuilder import tractBuilderRegistry
 
 class BaseSkyMapConfig(pexConfig.Config):
     tractBuilder = tractBuilderRegistry.makeField(
-        "Tract building algorithm",
+        doc="Algorithm for creating patches within the tract.",
         default="legacy"
     )
 
@@ -69,17 +69,57 @@ class BaseSkyMapConfig(pexConfig.Config):
     # Backwards compatibility
     # We can't use the @property decorator because it makes pexConfig sad.
     def getPatchInnerDimensions(self):
+        """Get the patch inner dimensions, for backwards compatibility.
+
+        This value is only used with the ``legacy`` tract builder,
+        and is ignored otherwise.  In general, the config should be
+        accessed directly with config.tractBuilder["legacy"].patchInnerDimensions.
+
+        Returns
+        -------
+        innerDimensions : `list` [`int`, `int`]
+        """
         return self.tractBuilder["legacy"].patchInnerDimensions
 
     def setPatchInnerDimensions(self, value):
+        """Set the patch inner dimensions, for backwards compatibility.
+
+        This value is only used with the ``legacy`` tract builder,
+        and is ignored otherwise.  In general, the config should be
+        accessed directly with config.tractBuilder["legacy"].patchInnerDimensions.
+
+        Parameters
+        ----------
+        value : `list` [`int`, `int`]
+        """
         self.tractBuilder["legacy"].patchInnerDimensions = value
 
     patchInnerDimensions = property(getPatchInnerDimensions, setPatchInnerDimensions)
 
     def getPatchBorder(self):
+        """Get the patch border, for backwards compatibility.
+
+        This value is only used with the ``legacy`` tract builder,
+        and is ignored otherwise.  In general, the config should be
+        accessed directly with config.tractBuilder["legacy"].patchBorder.
+
+        Returns
+        -------
+        border: `int`
+        """
         return self.tractBuilder["legacy"].patchBorder
 
     def setPatchBorder(self, value):
+        """Set the patch border, for backwards compatibility.
+
+        This value is only used with the ``legacy`` tract builder,
+        and is ignored otherwise.  In general, the config should be
+        accessed directly with config.tractBuilder["legacy"].patchBorder.
+
+        Parameters
+        -------
+        border: `int`
+        """
         self.tractBuilder["legacy"].patchBorder = value
 
     patchBorder = property(getPatchBorder, setPatchBorder)

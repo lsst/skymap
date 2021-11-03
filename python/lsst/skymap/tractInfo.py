@@ -202,7 +202,18 @@ class TractInfo:
             If coord is not in tract or we cannot determine the
             pixel coordinate (which likely means the coord is off the tract).
         """
-        return self._tractBuilder.findPatch(self.getId(), self.getWcs(), coord)
+        try:
+            pixel = self.wcs.skyToPixel(coord)
+        except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+            # Point must be way off the tract
+            raise LookupError("Unable to determine pixel position for coordinate %s" % (coord,))
+        pixelInd = geom.Point2I(pixel)
+        if not self._bbox.contains(pixelInd):
+            raise LookupError("coord %s is not in tract %s" % (coord, self.tract_id))
+        # This should probably be the same as above because we only
+        # care about the INNER dimensions.
+        patchInd = tuple(int(pixelInd[i]/self.patch_inner_dimensions[i]) for i in range(2))
+        return self.getPatchInfo(patchInd)
 
     def findPatchList(self, coordList):
         """Find patches containing the specified list of coords.
@@ -229,7 +240,25 @@ class TractInfo:
           overlap the region (especially if the region is not a rectangle
           aligned along patch x,y).
         """
-        return self._tractBuilder.findPatchList(self.getWcs(), coordList)
+        box2D = geom.Box2D()
+        for coord in coordList:
+            try:
+                pixelPos = self.wcs.skyToPixel(coord)
+            except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
+                # the point is so far off the tract that its pixel position cannot be computed
+                continue
+            box2D.include(pixelPos)
+        bbox = geom.Box2I(box2D)
+        bbox.grow(self.getPatchBorder())
+        bbox.clip(self._bbox)
+        if bbox.isEmpty():
+            return ()
+
+        llPatchInd = tuple(int(bbox.getMin()[i]/self.patch_inner_dimensions[i]) for i in range(2))
+        urPatchInd = tuple(int(bbox.getMax()[i]/self.patch_inner_dimensions[i]) for i in range(2))
+        return tuple(self.getPatchInfo((xInd, yInd))
+                     for xInd in range(llPatchInd[0], urPatchInd[0]+1)
+                     for yInd in range(llPatchInd[1], urPatchInd[1]+1))
 
     def getBBox(self):
         """Get bounding box of tract (as an geom.Box2I)
@@ -258,7 +287,7 @@ class TractInfo:
 
         Returns
         -------
-        result : `tuple` of `int`
+        result : `lsst.skymap.Index2D`
             The number of patches in x, y
         """
         return self._numPatches

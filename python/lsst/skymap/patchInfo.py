@@ -20,7 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["PatchInfo", "makeSkyPolygonFromBBox"]
+__all__ = ["PatchInfo"]
 
 import numbers
 from collections.abc import Iterable
@@ -50,7 +50,7 @@ class PatchInfo:
         Patch sequential index
     tractWcs : `lsst.afw.geom.SkyWcs`
         Tract WCS object.
-    cellInnerDimensions : `lsst.geom.Extent2I`, optional
+    cellInnerDimensions : `Iterable` [`int`, `int`] or `lsst.geom.Extent2I`, optional
         Inner dimensions of each cell (x,y pixels).
     cellBorder : `int`, optional
         Cell border size (pixels).
@@ -61,8 +61,8 @@ class PatchInfo:
     """
 
     def __init__(self, index, innerBBox, outerBBox, sequentialIndex,
-                 tractWcs=None,
-                 cellInnerDimensions=Extent2I(0, 0), cellBorder=0,
+                 tractWcs,
+                 cellInnerDimensions=(0, 0), cellBorder=0,
                  numCellsPerPatchInner=0, numCellsInPatchBorder=0):
         self._index = index
         self._sequentialIndex = sequentialIndex
@@ -71,15 +71,19 @@ class PatchInfo:
         self._wcs = tractWcs
         if not outerBBox.contains(innerBBox):
             raise RuntimeError("outerBBox=%s does not contain innerBBox=%s" % (outerBBox, innerBBox))
-        self._cellInnerDimensions = cellInnerDimensions
+        if not isinstance(cellInnerDimensions, (Iterable, Extent2I)):
+            raise ValueError("Input cellInnerDimensions is not an iterable.")
+        if len(cellInnerDimensions) != 2:
+            raise ValueError("Input cellInnerDimensions does not have two values.")
+        self._cellInnerDimensions = Extent2I(*cellInnerDimensions)
         self._cellBorder = cellBorder
         self._numCellsInPatchBorder = numCellsInPatchBorder
         if numCellsPerPatchInner == 0:
-            self._numCells = Extent2I(0, 0)
+            self._numCells = Index2D(x=0, y=0)
         else:
             # There are numCellsInPatchBorder extra boundary cell on each side
-            self._numCells = Extent2I(numCellsPerPatchInner + 2*numCellsInPatchBorder,
-                                      numCellsPerPatchInner + 2*numCellsInPatchBorder)
+            self._numCells = Index2D(x=numCellsPerPatchInner + 2*numCellsInPatchBorder,
+                                     y=numCellsPerPatchInner + 2*numCellsInPatchBorder)
 
     def getIndex(self):
         """Return patch index: a tuple of (x, y)
@@ -188,7 +192,7 @@ class PatchInfo:
 
         Returns
         -------
-        result : `lsst.geom.Extent2I`
+        result : `lsst.skymap.Index2D`
             The number of cells in x, y.
         """
         return self._numCells
@@ -220,7 +224,7 @@ class PatchInfo:
         IndexError
             If index is out of range.
         """
-        if self._numCells[0] == 0 or self._numCells[1] == 0:
+        if self._numCells.x == 0 or self._numCells.y == 0:
             raise IndexError("Patch does not contain cells.")
         if isinstance(index, Index2D):
             _index = index
@@ -229,10 +233,10 @@ class PatchInfo:
                 _index = self.getCellIndexPair(index)
             else:
                 _index = Index2D(*index)
-        if (not 0 <= _index.x < self._numCells[0]) \
-                or (not 0 <= _index.y < self._numCells[1]):
+        if (not 0 <= _index.x < self._numCells.x) \
+                or (not 0 <= _index.y < self._numCells.y):
             raise IndexError("Cell index %s is not in range [0-%d, 0-%d]" %
-                             (_index, self._numCells[0] - 1, self._numCells[1] - 1))
+                             (_index, self._numCells.x - 1, self._numCells.y - 1))
         # We offset the index by numCellsInPatchBorder because the cells
         # start outside the inner dimensions.
         # The cells are defined relative to the patch bounding box (within the tract).
@@ -300,10 +304,6 @@ class PatchInfo:
         if isinstance(index, Index2D):
             _index = index
         else:
-            if not isinstance(index, Iterable):
-                raise ValueError("Input index is not an iterable.")
-            if len(index) != 2:
-                raise ValueError("Input index does not have two values.")
             _index = Index2D(*index)
         nx, ny = self.getNumCells()
         return nx*_index.y + _index.x
@@ -324,12 +324,12 @@ class PatchInfo:
         IndexError
             If index is out of range.
         """
-        if self._numCells[0] == 0 or self._numCells[1] == 0:
+        if self._numCells.x == 0 or self._numCells.y == 0:
             raise IndexError("Patch does not contain cells.")
 
         nx, ny = self.getNumCells()
         x = sequentialIndex % nx
-        y = (sequentialIndex - x) // nx
+        y = sequentialIndex // nx
         return Index2D(x=x, y=y)
 
     def __iter__(self):

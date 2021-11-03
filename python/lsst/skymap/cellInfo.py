@@ -25,7 +25,7 @@ __all__ = ["CellInfo"]
 from .detail import makeSkyPolygonFromBBox
 
 
-class CellInfo():
+class CellInfo:
     """Information about a cell within a patch of a tract of a sky map.
 
     See `PatchInfo` and `TractInfo` for more information.

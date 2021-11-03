@@ -79,5 +79,15 @@ def makeSkyPolygonFromBBox(bbox, wcs):
 
 
 class Index2D(NamedTuple):
+    """Two dimensional index for patches and cells.
+
+    This class contains the x and y values of the location of a patch
+    within a tract, or a cell within a patch.
+
+    Parameters
+    ----------
+    x : `int`
+    y : `int`
+    """
     x: int
     y: int
