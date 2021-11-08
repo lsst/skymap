@@ -21,6 +21,7 @@
 #
 import itertools
 import pickle
+import copy
 
 import numpy as np
 
@@ -102,6 +103,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         """Provide an instance of the skymap"""
         if config is None:
             config = self.getConfig()
+        config.validate()
         return self.SkyMapClass(config=config)
 
     def getConfig(self):
@@ -109,8 +111,7 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         if self.config is None:
             return self.SkyMapClass.ConfigClass()
         # Want to return a copy of self.config, so it can be modified.
-        # However, there is no Config.copy() method, so this is more complicated than desirable.
-        return pickle.loads(pickle.dumps(self.config))
+        return copy.copy(self.config)
 
     def testRegistry(self):
         """Confirm that the skymap can be retrieved from the registry"""
@@ -128,6 +129,11 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                 self.assertAlmostEqual(tractInfo.getTractOverlap().asDegrees(), tractOverlap)
             self.assertEqual(len(skyMap), self.numTracts)
             self.assertNotEqual(skyMap, defaultSkyMap)
+
+        if defaultSkyMap.config.tractBuilder.name == 'cells':
+            # The following tests are not appropriate for cells
+            # see test_ringsSkyMapCells.py for "cell" tract testing.
+            return
 
         for patchBorder in (0, 101):
             config = self.getConfig()
@@ -147,6 +153,37 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                     self.assertEqual(tuple(tractInfo.getPatchInnerDimensions()), (xInnerDim, yInnerDim))
                 self.assertEqual(len(skyMap), self.numTracts)
                 self.assertNotEqual(skyMap, defaultSkyMap)
+
+        # Compare a few patches
+        defaultSkyMap = self.getSkyMap()
+        tractInfo = defaultSkyMap[0]
+        numPatches = tractInfo.getNumPatches()
+        patchBorder = defaultSkyMap.config.patchBorder
+        for xInd in (0, 1, numPatches[0]//2, numPatches[0]-2, numPatches[0]-1):
+            for yInd in (0, 1, numPatches[1]//2, numPatches[1]-2, numPatches[1]-1):
+                patchInfo = tractInfo.getPatchInfo((xInd, yInd))
+
+                # check inner and outer bbox
+                innerBBox = patchInfo.getInnerBBox()
+                outerBBox = patchInfo.getOuterBBox()
+
+                if xInd == 0:
+                    self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
+                else:
+                    self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
+                if yInd == 0:
+                    self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
+                else:
+                    self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
+
+                if xInd == numPatches[0] - 1:
+                    self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
+                else:
+                    self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
+                if yInd == numPatches[1] - 1:
+                    self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
+                else:
+                    self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
 
     def assertUnpickledTractInfo(self, unpickled, original, patchBorder):
         """Assert that an unpickled TractInfo is functionally identical to the original
@@ -184,29 +221,6 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                 patchInfo = original.getPatchInfo((xInd, yInd))
                 unpickledPatchInfo = unpickled.getPatchInfo((xInd, yInd))
                 self.assertEqual(patchInfo, unpickledPatchInfo)
-
-                # check inner and outer bbox (nothing to do with pickle,
-                # but a convenient place for the test)
-                innerBBox = patchInfo.getInnerBBox()
-                outerBBox = patchInfo.getOuterBBox()
-
-                if xInd == 0:
-                    self.assertEqual(innerBBox.getMinX(), outerBBox.getMinX())
-                else:
-                    self.assertEqual(innerBBox.getMinX() - patchBorder, outerBBox.getMinX())
-                if yInd == 0:
-                    self.assertEqual(innerBBox.getMinY(), outerBBox.getMinY())
-                else:
-                    self.assertEqual(innerBBox.getMinY() - patchBorder, outerBBox.getMinY())
-
-                if xInd == numPatches[0] - 1:
-                    self.assertEqual(innerBBox.getMaxX(), outerBBox.getMaxX())
-                else:
-                    self.assertEqual(innerBBox.getMaxX() + patchBorder, outerBBox.getMaxX())
-                if yInd == numPatches[1] - 1:
-                    self.assertEqual(innerBBox.getMaxY(), outerBBox.getMaxY())
-                else:
-                    self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
 
     def testPickle(self):
         """Test that pickling and unpickling restores the original exactly

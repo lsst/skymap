@@ -20,13 +20,13 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["coordFromVec"]
+__all__ = ["coordFromVec", "makeSkyPolygonFromBBox", "Index2D"]
 
+from typing import NamedTuple
 import numpy
 
 import lsst.sphgeom
 import lsst.geom as geom
-
 
 _TinyFloat = numpy.finfo(float).tiny
 
@@ -56,3 +56,38 @@ def coordFromVec(vec, defRA=None):
             decDeg = -90.0
         return geom.SpherePoint(defRA, decDeg*geom.degrees)
     return geom.SpherePoint(lsst.sphgeom.Vector3d(*vec))
+
+
+def makeSkyPolygonFromBBox(bbox, wcs):
+    """Make an on-sky polygon from a bbox and a SkyWcs
+
+    Parameters
+    ----------
+    bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
+        Bounding box of region, in pixel coordinates
+    wcs : `lsst.afw.geom.SkyWcs`
+        Celestial WCS
+
+    Returns
+    -------
+    polygon : `lsst.sphgeom.ConvexPolygon`
+        On-sky region
+    """
+    pixelPoints = geom.Box2D(bbox).getCorners()
+    skyPoints = wcs.pixelToSky(pixelPoints)
+    return lsst.sphgeom.ConvexPolygon([sp.getVector() for sp in skyPoints])
+
+
+class Index2D(NamedTuple):
+    """Two dimensional index for patches and cells.
+
+    This class contains the x and y values of the location of a patch
+    within a tract, or a cell within a patch.
+
+    Parameters
+    ----------
+    x : `int`
+    y : `int`
+    """
+    x: int
+    y: int
