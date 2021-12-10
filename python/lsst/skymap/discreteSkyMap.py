@@ -20,7 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = ["DiscreteSkyMap"]
+__all__ = ["DiscreteSkyMapConfig", "DiscreteSkyMap"]
 
 import struct
 

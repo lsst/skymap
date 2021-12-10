@@ -18,8 +18,10 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
-__all__ = ["tractBuilderRegistry", "BaseTractBuilder",
-           "LegacyTractBuilder", "CellTractBuilder"]
+__all__ = ["tractBuilderRegistry",
+           "BaseTractBuilderConfig", "BaseTractBuilder",
+           "LegacyTractBuilderConfig", "LegacyTractBuilder",
+           "CellTractBuilderConfig", "CellTractBuilder"]
 
 import abc
 import numbers
