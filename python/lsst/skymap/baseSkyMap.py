@@ -408,33 +408,10 @@ class BaseSkyMap:
         operations on the database), as it is hard to guarantee that this can
         be done without affecting reproducibility.
         """
-        nxMax = 0
-        nyMax = 0
-        tractRecords = []
-        patchRecords = []
-        for tractInfo in self:
-            nx, ny = tractInfo.getNumPatches()
-            nxMax = max(nxMax, nx)
-            nyMax = max(nyMax, ny)
-            region = tractInfo.getOuterSkyPolygon()
-            centroid = SpherePoint(region.getCentroid())
-            tractRecords.append({
-                "skymap": name,
-                "tract": tractInfo.getId(),
-                "region": region,
-                "ra": centroid.getRa().asDegrees(),
-                "dec": centroid.getDec().asDegrees(),
-            })
-            for patchInfo in tractInfo:
-                cellX, cellY = patchInfo.getIndex()
-                patchRecords.append({
-                    "skymap": name,
-                    "tract": tractInfo.getId(),
-                    "patch": tractInfo.getSequentialPatchIndex(patchInfo),
-                    "cell_x": cellX,
-                    "cell_y": cellY,
-                    "region": patchInfo.getOuterSkyPolygon(tractInfo.getWcs()),
-                })
+        numPatches = [tractInfo.getNumPatches() for tractInfo in self]
+        nxMax = max(nn[0] for nn in numPatches)
+        nyMax = max(nn[1] for nn in numPatches)
+
         skyMapRecord = {
             "skymap": name,
             "hash": self.getSha1(),
@@ -463,8 +440,35 @@ class BaseSkyMap:
                     f"SkyMap with hash {self.getSha1().hex()} is already registered with a different name."
                 ) from err
             if inserted:
-                butler.registry.insertDimensionData("tract", *tractRecords)
-                butler.registry.insertDimensionData("patch", *patchRecords)
+                for tractInfo in self:
+                    tractId = tractInfo.getId()
+                    tractRegion = tractInfo.getOuterSkyPolygon()
+                    centroid = SpherePoint(tractRegion.getCentroid())
+                    tractWcs = tractInfo.getWcs()
+                    tractRecord = dict(
+                        skymap=name,
+                        tract=tractId,
+                        region=tractRegion,
+                        ra=centroid.getRa().asDegrees(),
+                        dec=centroid.getDec().asDegrees(),
+                    )
+                    butler.registry.insertDimensionData("tract", tractRecord)
+
+                    patchRecords = []
+                    for patchInfo in tractInfo:
+                        xx, yy = patchInfo.getIndex()
+                        patchRecords.append(
+                            dict(
+                                skymap=name,
+                                tract=tractId,
+                                patch=tractInfo.getSequentialPatchIndex(patchInfo),
+                                cell_x=xx,
+                                cell_y=yy,
+                                region=patchInfo.getOuterSkyPolygon(tractWcs),
+                            )
+                        )
+                    butler.registry.insertDimensionData("patch", *patchRecords)
+
                 butler.put(self, datasetType, {"skymap": name}, run=self.SKYMAP_RUN_COLLECTION_NAME)
 
     def pack_data_id(self, tract, patch, band=None):
