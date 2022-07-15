@@ -25,19 +25,7 @@ __all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
 import struct
 import numpy
 
-# We want to register the HealpixSkyMap, but want "healpy" to be an
-# optional dependency.  However, the HealpixSkyMap requires the use
-# of healpy.  Therefore, we'll only raise an exception on the healpy
-# import when it comes time to using it.
-try:
-    import healpy
-except Exception as e:
-    class DummyHealpy:
-        """An object which blows up when we try to read it"""
-
-        def __getattr__(self, name, e=e):
-            raise RuntimeError("Was unable to import healpy: %s" % e)
-    healpy = DummyHealpy()
+import hpgeom
 
 from lsst.pex.config import Field
 import lsst.geom as geom
@@ -46,17 +34,17 @@ from .tractInfo import TractInfo
 
 
 def angToCoord(thetaphi):
-    """Convert healpy's ang to an lsst.geom.SpherePoint
+    """Convert hpgeom ang to an lsst.geom.SpherePoint
 
-    The ang is provided as a single object, thetaphi, so the output
-    of healpy functions can be directed to this function without
+    The angle is provided as a single object, thetaphi, so the output
+    of hpgeom functions can be directed to this function without
     additional translation.
     """
     return geom.SpherePoint(float(thetaphi[1]), float(thetaphi[0] - 0.5*numpy.pi), geom.radians)
 
 
 def coordToAng(coord):
-    """Convert an lsst.geom.SpherePoint to a healpy ang (theta, phi)
+    """Convert an lsst.geom.SpherePoint to a hpgeom ang (theta, phi)
 
     The Healpix convention is that 0 <= theta <= pi, 0 <= phi < 2pi.
     """
@@ -68,7 +56,7 @@ class HealpixTractInfo(TractInfo):
 
     def __init__(self, nSide, ident, nest, tractBuilder, ctrCoord, tractOverlap, wcs):
         """Set vertices from nside, ident, nest"""
-        theta, phi = healpy.vec2ang(numpy.transpose(healpy.boundaries(nSide, ident, nest=nest)))
+        theta, phi = hpgeom.boundaries(nSide, ident, nest=nest, lonlat=False)
         vertexList = [angToCoord(thetaphi) for thetaphi in zip(theta, phi)]
         super(HealpixTractInfo, self).__init__(ident, tractBuilder, ctrCoord,
                                                vertexList, tractOverlap, wcs)
@@ -103,7 +91,7 @@ class HealpixSkyMap(CachingSkyMap):
 
     def __init__(self, config, version=0):
         self._nside = 1 << config.log2NSide
-        numTracts = healpy.nside2npix(self._nside)
+        numTracts = hpgeom.nside_to_npixel(self._nside)
         super(HealpixSkyMap, self).__init__(numTracts, config, version)
 
     def findTract(self, coord):
@@ -120,12 +108,12 @@ class HealpixSkyMap(CachingSkyMap):
             Info for tract whose inner region includes the coord.
         """
         theta, phi = coordToAng(coord)
-        index = healpy.ang2pix(self._nside, theta, phi, nest=self.config.nest)
+        index = hpgeom.angle_to_pixel(self._nside, theta, phi, nest=self.config.nest, lonlat=False)
         return self[index]
 
     def generateTract(self, index):
         """Generate TractInfo for the specified tract index."""
-        center = angToCoord(healpy.pix2ang(self._nside, index, nest=self.config.nest))
+        center = angToCoord(hpgeom.pixel_to_angle(self._nside, index, nest=self.config.nest, lonlat=False))
         wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
         return HealpixTractInfo(self._nside, index, self.config.nest, self._tractBuilder,
                                 center, self.config.tractOverlap*geom.degrees,

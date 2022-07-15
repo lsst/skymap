@@ -3,10 +3,7 @@ import lsst.geom as geom
 import lsst.utils.tests
 from helper import skyMapTestCase
 
-try:
-    import healpy
-except Exception:
-    healpy = None
+import hpgeom
 
 from lsst.skymap.healpixSkyMap import HealpixSkyMap
 
@@ -14,18 +11,15 @@ from lsst.skymap.healpixSkyMap import HealpixSkyMap
 class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        if not healpy:
-            self.skipTest("Missing healpy dependency.")
-
         config = HealpixSkyMap.ConfigClass()
         nside = 2**config.log2NSide
         self.setAttributes(
             SkyMapClass=HealpixSkyMap,
             name="healpix",
             config=config,
-            numTracts=healpy.nside2npix(nside),
+            numTracts=hpgeom.nside_to_npixel(nside),
             numNeighbors=1,
-            neighborAngularSeparation=healpy.max_pixrad(nside) * geom.radians,
+            neighborAngularSeparation=hpgeom.max_pixel_radius(nside) * geom.degrees,
         )
 
     def testSha1Compare(self):
