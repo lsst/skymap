@@ -78,6 +78,68 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
         self.assertLessEqual(packedId.bit_length(), packer.maxBits)
         self.assertEqual(packer.unpack(packedId), dataId)
 
+    def test_bad_dimensions(self):
+        with self.assertRaises(ValueError):
+            SkyMapDimensionPacker(
+                self.fixed,
+                DimensionGraph(universe=self.universe, names=["tract", "patch", "visit"]),
+            )
+        with self.assertRaises(ValueError):
+            SkyMapDimensionPacker(
+                self.fixed,
+                DimensionGraph(universe=self.universe, names=["tract", "patch", "detector"]),
+            )
+
+    def test_from_config(self):
+        data_id = DataCoordinate.standardize(
+            skymap=self.fixed["skymap"],
+            tract=2,
+            patch=6,
+            band="g",
+            universe=self.universe
+        )
+        config = SkyMapDimensionPacker.ConfigClass()
+        config.n_tracts = 5
+        config.n_patches = 9
+        config.n_bands = 3
+        config.bands = {"r": 0, "g": 1}
+        packer = SkyMapDimensionPacker.from_config(data_id, config=config)
+        packed_id = packer.pack(data_id)
+        self.assertLessEqual(packed_id.bit_length(), packer.maxBits)
+        self.assertEqual(packer.unpack(packed_id), data_id)
+
+    def test_from_config_no_bands(self):
+        data_id = DataCoordinate.standardize(
+            skymap=self.fixed["skymap"],
+            tract=2,
+            patch=6,
+            universe=self.universe
+        )
+        config = SkyMapDimensionPacker.ConfigClass()
+        config.n_tracts = 5
+        config.n_patches = 9
+        packer = SkyMapDimensionPacker.from_config(data_id, config=config)
+        packed_id = packer.pack(data_id)
+        self.assertLessEqual(packed_id.bit_length(), packer.maxBits)
+        self.assertEqual(packer.unpack(packed_id), data_id)
+
+    def test_from_config_default_bands(self):
+        data_id = DataCoordinate.standardize(
+            skymap=self.fixed["skymap"],
+            tract=2,
+            patch=6,
+            band="g",
+            universe=self.universe
+        )
+        config = SkyMapDimensionPacker.ConfigClass()
+        config.n_tracts = 5
+        config.n_patches = 9
+        config.n_bands = None
+        packer = SkyMapDimensionPacker.from_config(data_id, config=config)
+        packed_id = packer.pack(data_id)
+        self.assertLessEqual(packed_id.bit_length(), packer.maxBits)
+        self.assertEqual(packer.unpack(packed_id), data_id)
+
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
     pass
