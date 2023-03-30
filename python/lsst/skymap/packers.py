@@ -69,15 +69,6 @@ class SkyMapDimensionPacker(DimensionPacker):
     def getMaxIntForFilters(cls):
         return len(cls.SUPPORTED_FILTERS)
 
-    @classmethod
-    def configure(cls, dimensions):
-        # Docstring inherited from DataIdPacker.configure
-        assert dimensions.given == ["skymap"]
-        assert dimensions.required.issuperset(["tract", "patch"])
-        metadata = {"skymap": ["tract_max", "patch_nx_max", "patch_ny_max"]}
-        kwds = {}
-        return metadata, kwds
-
     def __init__(self, fixed: DataCoordinate, dimensions: DimensionGraph):
         super().__init__(fixed, dimensions)
         record = fixed.records["skymap"]
