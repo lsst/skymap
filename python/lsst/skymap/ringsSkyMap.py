@@ -78,7 +78,8 @@ class RingsSkyMap(CachingSkyMap):
     def __init__(self, config, version=1):
         assert version in (0, 1), "Unrecognised version: %s" % (version,)
         # We count rings from south to north
-        # Note: pole caps together count for one additional ring when calculating the ring size
+        # Note: pole caps together count for one additional ring when
+        # calculating the ring size.
         self._ringSize = math.pi / (config.numRings + 1)  # Size of a ring in Declination (radians)
         self._ringNums = []  # Number of tracts for each ring
         for i in range(config.numRings):
@@ -175,7 +176,8 @@ class RingsSkyMap(CachingSkyMap):
         Returns
         -------
         tractNum : `int`
-            Tract number within the ring (starts at 0 for the tract at raStart).
+            Tract number within the ring (starts at 0 for the tract at
+            ``raStart``).
         """
         if ringNum in (-1, self.config.numRings):
             return 0
@@ -226,7 +228,8 @@ class RingsSkyMap(CachingSkyMap):
         indexes[ringNums == -1] = 0
         indexes[ringNums == self.config.numRings] = self._numTracts - 1
 
-        # We now do the full lookup for all non-polar tracts that have not been set.
+        # We now do the full lookup for all non-polar tracts that have not
+        # been set.
         inRange, = np.where(indexes < 0)
 
         # Do the ra search

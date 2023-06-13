@@ -245,7 +245,8 @@ class TractInfo:
             try:
                 pixelPos = self.wcs.skyToPixel(coord)
             except (lsst.pex.exceptions.DomainError, lsst.pex.exceptions.RuntimeError):
-                # the point is so far off the tract that its pixel position cannot be computed
+                # The point is so far off the tract that its pixel position
+                # cannot be computed.
                 continue
             box2D.include(pixelPos)
         bbox = geom.Box2I(box2D)
@@ -413,7 +414,8 @@ class ExplicitTractInfo(TractInfo):
     radius.  The tracts are square (i.e., the radius is really a half-size).
     """
     def __init__(self, id, tractBuilder, ctrCoord, radius, tractOverlap, wcs):
-        # We don't want TractInfo setting the bbox on the basis of vertices, but on the radius.
+        # We don't want TractInfo setting the bbox on the basis of vertices,
+        # but on the radius.
         vertexList = []
         self._radius = radius
         super(ExplicitTractInfo, self).__init__(id, tractBuilder, ctrCoord,

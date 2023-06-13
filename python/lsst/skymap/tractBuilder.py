@@ -102,7 +102,8 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` [`int`, `int`]
+        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` \
+                [`int`, `int`]
             Index of patch, as Index2D or pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
@@ -312,7 +313,8 @@ class CellTractBuilder(BaseTractBuilder):
         self._numCellsInPatchBorder = config.numCellsInPatchBorder
         self._patchInnerDimensions = geom.Extent2I(*(val*self._numCellsPerPatchInner
                                                      for val in config.cellInnerDimensions))
-        # The patch border is the number of cells in the border + the cell border
+        # The patch border is the number of cells in the border + the cell
+        # border.
         self._patchBorder = config.numCellsInPatchBorder*config.cellInnerDimensions[0] + self._cellBorder
         self._initialized = False
 

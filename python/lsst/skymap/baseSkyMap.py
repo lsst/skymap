@@ -73,7 +73,8 @@ class BaseSkyMapConfig(pexConfig.Config):
 
         This value is only used with the ``legacy`` tract builder,
         and is ignored otherwise.  In general, the config should be
-        accessed directly with config.tractBuilder["legacy"].patchInnerDimensions.
+        accessed directly with
+        ``config.tractBuilder["legacy"].patchInnerDimensions``.
 
         Returns
         -------
@@ -86,7 +87,8 @@ class BaseSkyMapConfig(pexConfig.Config):
 
         This value is only used with the ``legacy`` tract builder,
         and is ignored otherwise.  In general, the config should be
-        accessed directly with config.tractBuilder["legacy"].patchInnerDimensions.
+        accessed directly with
+        ``config.tractBuilder["legacy"].patchInnerDimensions``.
 
         Parameters
         ----------
@@ -202,7 +204,8 @@ class BaseSkyMap:
         return distTractInfoList[0][2]
 
     def findTractIdArray(self, ra, dec, degrees=False):
-        """Find array of tract IDs with vectorized operations (where supported).
+        """Find array of tract IDs with vectorized operations (where
+        supported).
 
         If a given sky map does not support vectorized operations, then a loop
         over findTract will be called.

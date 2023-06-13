@@ -44,13 +44,15 @@ def checkDm14809(testcase, skymap):
 
     In order to be thorough, we generalise these over the entire skymap.
     """
-    # Check that the tract found for central coordinate of a tract is that tract
+    # Check that the tract found for central coordinate of a tract is that
+    # tract.
     expect = [tract.getId() for tract in skymap]
     got = [skymap.findTract(tract.getCtrCoord()).getId() for tract in skymap]
     testcase.assertListEqual(got, expect)
 
     # Check that the tract central coordinates are unique
-    # Round to integer arcminutes so differences are relatively immune to small numerical inaccuracies
+    # Round to integer arcminutes so differences are relatively immune to
+    # small numerical inaccuracies.
     centers = set([(int(coord.getRa().asArcminutes()), int(coord.getDec().asArcminutes())) for
                    coord in (tract.getCtrCoord() for tract in skymap)])
     testcase.assertEqual(len(centers), len(skymap))
@@ -186,11 +188,17 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
                     self.assertEqual(innerBBox.getMaxY() + patchBorder, outerBBox.getMaxY())
 
     def assertUnpickledTractInfo(self, unpickled, original, patchBorder):
-        """Assert that an unpickled TractInfo is functionally identical to the original
+        """Assert that an unpickled TractInfo is functionally identical to the
+        original.
 
-        @param unpickled      The unpickled TractInfo
-        @param original       The original TractInfo
-        @param patchBorder    Border around each patch, from SkyMap.config.patchBorder
+        Parameters
+        ----------
+        unpickled : `TractInfo`
+            The unpickled `TractInfo`.
+        original : `TractInfo`
+            The original `TractInfo`.
+        patchBorder : `int`
+            Border around each patch, from ``SkyMap.config.patchBorder``.
         """
         for getterName in ("getBBox",
                            "getCtrCoord",
@@ -303,8 +311,11 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
     def testFindTractPatchList(self):
         """Test findTractPatchList
 
-        Note: this test uses single points for speed and to avoid really large regions.
-        Note that findPatchList is being tested elsewhere.
+        Notes
+        -----
+        This test uses single points for speed and to avoid really large
+        regions.
+        Note that `findPatchList` is being tested elsewhere.
         """
         skyMap = self.getSkyMap()
         # pick 3 arbitrary tracts

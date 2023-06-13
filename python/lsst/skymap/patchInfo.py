@@ -50,7 +50,8 @@ class PatchInfo:
         Patch sequential index
     tractWcs : `lsst.afw.geom.SkyWcs`
         Tract WCS object.
-    cellInnerDimensions : `Iterable` [`int`, `int`] or `lsst.geom.Extent2I`, optional
+    cellInnerDimensions : `Iterable` [`int`, `int`] or `lsst.geom.Extent2I`, \
+            optional
         Inner dimensions of each cell (x,y pixels).
     cellBorder : `int`, optional
         Cell border size (pixels).
@@ -239,7 +240,8 @@ class PatchInfo:
                              (_index, self._numCells.x - 1, self._numCells.y - 1))
         # We offset the index by numCellsInPatchBorder because the cells
         # start outside the inner dimensions.
-        # The cells are defined relative to the patch bounding box (within the tract).
+        # The cells are defined relative to the patch bounding box (within the
+        # tract).
         patchInnerBBox = self.getInnerBBox()
         innerMin = Point2I(*[(_index[i] - self._numCellsInPatchBorder)*self._cellInnerDimensions[i]
                              + patchInnerBBox.getBegin()[i]

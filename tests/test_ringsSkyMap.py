@@ -136,8 +136,8 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
     def testFindTractIdArray(self):
         """Test findTractIdArray.
 
-        Test an array of positions to ensure that findTract and findTractIdArray
-        give the same answers.
+        Test an array of positions to ensure that ``findTract` and
+        ``findTractIdArray`` give the same answers.
         """
         np.random.seed(12345)
 
@@ -186,14 +186,16 @@ class Version0HscRingsTestCase(HscRingsTestCase):
         missing tract (the first tract in the last ring) so that the tract
         numbering would remain unchanged.
         """
-        # Check that the tract found for central coordinate of a tract is that tract
+        # Check that the tract found for central coordinate of a tract is that
+        # tract
         expect = [tract.getId() for tract in self.skymap]
         expect[self.skymap._ringNums[0] + 1] = 1  # Due to the bug
         got = [self.skymap.findTract(tract.getCtrCoord()).getId() for tract in self.skymap]
         self.assertEqual(got, expect)
 
         # Check that the tract central coordinates are unique
-        # Round to integer arcminutes so differences are relatively immune to small numerical inaccuracies
+        # Round to integer arcminutes so differences are relatively immune to
+        # small numerical inaccuracies
         centers = set([(int(coord.getRa().asArcminutes()), int(coord.getDec().asArcminutes())) for
                        coord in (tract.getCtrCoord() for tract in self.skymap)])
         self.assertEqual(len(centers), len(self.skymap) - 1)  # One tract is duplicated
@@ -209,7 +211,8 @@ class Version0HscRingsTestCase(HscRingsTestCase):
         self.assertEqual(self.skymap[9813].getCtrCoord(),
                          lsst.geom.SpherePoint(150.2479338842975*degrees, 2.2314049586776834*degrees))
 
-        # Check that the first tract in the last ring does NOT exist (due to the bug)
+        # Check that the first tract in the last ring does NOT exist
+        # (due to the bug).
         coord = self.getFirstTractLastRingCoord()
         tract = self.skymap.findTract(coord)
         self.assertFalse(tract.contains(coord))

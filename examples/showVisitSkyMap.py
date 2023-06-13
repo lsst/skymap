@@ -44,7 +44,9 @@ def bboxToRaDec(bbox, wcs):
 
 
 def percent(values, p=0.5):
-    """Return a value a faction of the way between the min and max values in a list."""
+    """Return a value a faction of the way between the min and max values in a
+    list.
+    """
     m = min(values)
     interval = max(values) - m
     return m + p*interval

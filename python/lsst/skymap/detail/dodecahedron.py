@@ -17,10 +17,12 @@ class Dodecahedron:
     def __init__(self, withFacesOnPoles=False):
         self._withFacesOnPoles = bool(withFacesOnPoles)
 
-        # Basis cartesian vectors describing the faces of a dodecahedron; the full set of vectors is obtained
-        # by choosing both signs of each nonzero component of each vector.
+        # Basis cartesian vectors describing the faces of a dodecahedron;
+        # the full set of vectors is obtained by choosing both signs of each
+        # nonzero component of each vector.
         # The orientation of the resulting dodecahedron, while very convenient
-        # for specifying face vectors, is not an orientation we want so it must be rotated.
+        # for specifying face vectors, is not an orientation we want so it
+        # must be rotated.
         g = (1.0 + math.sqrt(5.0)) / 2.0
         faceBases = (
             (0, 1, g),
