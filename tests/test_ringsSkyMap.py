@@ -136,7 +136,7 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
     def testFindTractIdArray(self):
         """Test findTractIdArray.
 
-        Test an array of positions to ensure that ``findTract` and
+        Test an array of positions to ensure that ``findTract`` and
         ``findTractIdArray`` give the same answers.
         """
         np.random.seed(12345)
@@ -187,7 +187,7 @@ class Version0HscRingsTestCase(HscRingsTestCase):
         numbering would remain unchanged.
         """
         # Check that the tract found for central coordinate of a tract is that
-        # tract
+        # tract.
         expect = [tract.getId() for tract in self.skymap]
         expect[self.skymap._ringNums[0] + 1] = 1  # Due to the bug
         got = [self.skymap.findTract(tract.getCtrCoord()).getId() for tract in self.skymap]
@@ -195,7 +195,7 @@ class Version0HscRingsTestCase(HscRingsTestCase):
 
         # Check that the tract central coordinates are unique
         # Round to integer arcminutes so differences are relatively immune to
-        # small numerical inaccuracies
+        # small numerical inaccuracies.
         centers = set([(int(coord.getRa().asArcminutes()), int(coord.getDec().asArcminutes())) for
                        coord in (tract.getCtrCoord() for tract in self.skymap)])
         self.assertEqual(len(centers), len(self.skymap) - 1)  # One tract is duplicated
