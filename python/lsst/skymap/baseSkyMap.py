@@ -429,7 +429,7 @@ class BaseSkyMap:
             name=self.SKYMAP_DATASET_TYPE_NAME,
             dimensions=["skymap"],
             storageClass="SkyMap",
-            universe=butler.registry.dimensions
+            universe=butler.dimensions
         )
         butler.registry.registerDatasetType(datasetType)
         with butler.transaction():
