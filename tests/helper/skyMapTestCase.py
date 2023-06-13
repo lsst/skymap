@@ -396,11 +396,16 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(got, expect)
 
     def assertTractPatchListOk(self, skyMap, coordList, knownTractId):
-        """Assert that findTractPatchList produces the correct results
+        """Assert that findTractPatchList produces the correct results.
 
-        @param[in] skyMap: sky map to test
-        @param[in] coordList: coordList of region to search for
-        @param[in] knownTractId: this tractId must appear in the found list
+        Parameters
+        ----------
+        skyMap : `BaseSkyMap`
+            Sky map to test.
+        coordList : `list` of `lsst.geom.SpherePoint`
+            Region to search for.
+        knownTractId : `int`
+            This tractId must appear in the found list.
         """
         tractPatchList = skyMap.findTractPatchList(coordList)
         tractPatchDict = dict((tp[0].getId(), tp[1]) for tp in tractPatchList)
