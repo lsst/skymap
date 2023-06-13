@@ -32,7 +32,7 @@ _TinyFloat = numpy.finfo(float).tiny
 
 
 def coordFromVec(vec, defRA=None):
-    """Convert an ICRS cartesian vector to an ICRS lsst.geom.SpherePoint
+    """Convert an ICRS cartesian vector to an ICRS `lsst.geom.SpherePoint`.
 
     Parameters
     ----------
@@ -45,7 +45,7 @@ def coordFromVec(vec, defRA=None):
     Raises
     ------
     RuntimeError
-        If vec too near a pole and defRA is None.
+        Raised if vec too near a pole and defRA is None.
     """
     if abs(vec[0]) < _TinyFloat and abs(vec[1]) < _TinyFloat:
         if defRA is None:
@@ -59,14 +59,14 @@ def coordFromVec(vec, defRA=None):
 
 
 def makeSkyPolygonFromBBox(bbox, wcs):
-    """Make an on-sky polygon from a bbox and a SkyWcs
+    """Make an on-sky polygon from a bbox and a SkyWcs.
 
     Parameters
     ----------
     bbox : `lsst.geom.Box2I` or `lsst.geom.Box2D`
-        Bounding box of region, in pixel coordinates
+        Bounding box of region, in pixel coordinates.
     wcs : `lsst.afw.geom.SkyWcs`
-        Celestial WCS
+        Celestial WCS.
 
     Returns
     -------

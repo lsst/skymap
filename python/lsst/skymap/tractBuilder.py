@@ -63,14 +63,14 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
         Parameters
         ----------
         minBBox : `lsst.geom.Box2I`
-            Minimum bounding box for tract
+            Minimum bounding box for tract.
         wcs : `lsst.afw.geom.SkyWcs`
-            Wcs object
+            Wcs object.
 
         Returns
         -------
-        bbox : `lsst.geom.Box2I
-            final bounding box, number of patches
+        bbox : `lsst.geom.Box2I`
+            final bounding box, number of patches.
         numPatches : `lsst.skymap.Index2D`
         """
         bbox = geom.Box2I(minBBox)
@@ -102,7 +102,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        index : `lsst.skymap.Index2D` or `Iterable` [`int`, `int`]
+        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` [`int`, `int`]
             Index of patch, as Index2D or pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
@@ -117,7 +117,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         raise NotImplementedError("Must be implemented by a subclass")
 

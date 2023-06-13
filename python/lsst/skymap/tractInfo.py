@@ -199,7 +199,7 @@ class TractInfo:
         Raises
         ------
         LookupError
-            If coord is not in tract or we cannot determine the
+            Raised if coord is not in tract or we cannot determine the
             pixel coordinate (which likely means the coord is off the tract).
         """
         try:
@@ -317,7 +317,7 @@ class TractInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         return self._tractBuilder.getPatchInfo(index, self._wcs)
 

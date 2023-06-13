@@ -62,7 +62,7 @@ class Dodecahedron:
 
         Returns
         -------
-        results : `np.ndarray`
+        results : `numpy.ndarray`
             Face center as a unit vector.
         """
         return self.faceVecList[ind][:]

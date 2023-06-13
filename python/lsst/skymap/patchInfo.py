@@ -222,7 +222,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         if self._numCells.x == 0 or self._numCells.y == 0:
             raise IndexError("Patch does not contain cells.")
@@ -279,7 +279,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         index = cellInfo.getIndex()
         return self.getSequentialCellIndexFromPair(index)
@@ -299,7 +299,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         if isinstance(index, Index2D):
             _index = index
@@ -322,7 +322,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         if self._numCells.x == 0 or self._numCells.y == 0:
             raise IndexError("Patch does not contain cells.")
