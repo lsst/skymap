@@ -50,8 +50,8 @@ class PatchInfo:
         Patch sequential index
     tractWcs : `lsst.afw.geom.SkyWcs`
         Tract WCS object.
-    cellInnerDimensions : `Iterable` [`int`, `int`] or `lsst.geom.Extent2I`, \
-            optional
+    cellInnerDimensions : `~collections.abc.Iterable` of 2 `int` or \
+            `lsst.geom.Extent2I`, optional
         Inner dimensions of each cell (x,y pixels).
     cellBorder : `int`, optional
         Cell border size (pixels).
@@ -210,8 +210,8 @@ class PatchInfo:
 
         Parameters
         ----------
-        index : `lsst.skymap.Index2D` or `int`
-            Index of cell, as `Index2D`, or `Iterable` [`int`, `int`];
+        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` of 2 `int`
+            Index of cell, as `Index2D` ,or two integers,
             or a sequential index as returned by getSequentialCellIndex;
             negative values are not supported.
 

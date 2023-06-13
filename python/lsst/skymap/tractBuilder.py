@@ -102,8 +102,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` \
-                [`int`, `int`]
+        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` of 2 `int`
             Index of patch, as Index2D or pair of ints;
             or a sequential index as returned by getSequentialPatchIndex;
             negative values are not supported.
@@ -148,7 +147,7 @@ class BaseTractBuilder(metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        index : `lsst.skymap.Index2D` or `Iterable` [`int`, `int`]
+        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` of 2 `int`
 
         Returns
         -------
