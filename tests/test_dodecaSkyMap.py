@@ -88,15 +88,17 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                     ctrCoord2 = tractInfo2.getCtrCoord()
                     vector2 = numpy.array(ctrCoord2.getVector())
 
-                    # sky tracts 0, 1 and 2 form a triangle of nearest neighbors
-                    # explore the boundary between tract 0 and tract 1
-                    # and also the boundary between tract 0 and tract 2
+                    # Sky tracts 0, 1 and 2 form a triangle of nearest
+                    # neighbors explore the boundary between tract 0 and tract
+                    # 1 and also the boundary between tract 0 and tract 2.
                     for deltaFrac in (-0.001, 0.001):
                         isNearest0 = deltaFrac > 0.0
 
                         for exploreBoundary1 in (True, False):
-                            # if exploreBoundary1, explore boundary between tract 0 and tract 1,
-                            # else explore the boundary between tract 0 and tract 2
+                            # If exploreBoundary1, explore boundary between
+                            # tract 0 and tract 1,
+                            # else explore the boundary between tract 0 and
+                            # tract 2.
 
                             if isNearest0:
                                 expectedTractId = tractId0
@@ -106,10 +108,12 @@ class DodecaSkyMapTestCase(skyMapTestCase.SkyMapTestCase):
                                 expectedTractId = tractId2
 
                             for farFrac in (0.0, 0.05, 0.3, (1.0/3.0) - 0.01):
-                                # farFrac is the fraction of the tract center vector point whose boundary
-                                # is not being explored; it must be less than 1/3;
-                                # remFrac is the remaining fraction, which is divided between tract 0
-                                # and the tract whose boundary is being explored
+                                # farFrac is the fraction of the tract center
+                                # vector point whose boundary is not being
+                                # explored; it must be less than 1/3;
+                                # remFrac is the remaining fraction, which is
+                                # divided between tract 0 and the tract whose
+                                # boundary is being explored
                                 remFrac = 1.0 - farFrac
                                 frac0 = (remFrac / 2.0) + deltaFrac
                                 boundaryFrac = (remFrac / 2.0) - deltaFrac

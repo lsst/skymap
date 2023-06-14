@@ -50,7 +50,8 @@ class PatchInfo:
         Patch sequential index
     tractWcs : `lsst.afw.geom.SkyWcs`
         Tract WCS object.
-    cellInnerDimensions : `Iterable` [`int`, `int`] or `lsst.geom.Extent2I`, optional
+    cellInnerDimensions : `~collections.abc.Iterable` of 2 `int` or \
+            `lsst.geom.Extent2I`, optional
         Inner dimensions of each cell (x,y pixels).
     cellBorder : `int`, optional
         Cell border size (pixels).
@@ -209,8 +210,8 @@ class PatchInfo:
 
         Parameters
         ----------
-        index : `lsst.skymap.Index2D` or `int`
-            Index of cell, as `Index2D`, or `Iterable` [`int`, `int`];
+        index : `lsst.skymap.Index2D` or `~collections.abc.Iterable` of 2 `int`
+            Index of cell, as `Index2D` ,or two integers,
             or a sequential index as returned by getSequentialCellIndex;
             negative values are not supported.
 
@@ -222,7 +223,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         if self._numCells.x == 0 or self._numCells.y == 0:
             raise IndexError("Patch does not contain cells.")
@@ -239,7 +240,8 @@ class PatchInfo:
                              (_index, self._numCells.x - 1, self._numCells.y - 1))
         # We offset the index by numCellsInPatchBorder because the cells
         # start outside the inner dimensions.
-        # The cells are defined relative to the patch bounding box (within the tract).
+        # The cells are defined relative to the patch bounding box (within the
+        # tract).
         patchInnerBBox = self.getInnerBBox()
         innerMin = Point2I(*[(_index[i] - self._numCellsInPatchBorder)*self._cellInnerDimensions[i]
                              + patchInnerBBox.getBegin()[i]
@@ -279,7 +281,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         index = cellInfo.getIndex()
         return self.getSequentialCellIndexFromPair(index)
@@ -299,7 +301,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         if isinstance(index, Index2D):
             _index = index
@@ -322,7 +324,7 @@ class PatchInfo:
         Raises
         ------
         IndexError
-            If index is out of range.
+            Raised if index is out of range.
         """
         if self._numCells.x == 0 or self._numCells.y == 0:
             raise IndexError("Patch does not contain cells.")

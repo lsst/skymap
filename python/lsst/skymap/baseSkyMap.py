@@ -73,7 +73,8 @@ class BaseSkyMapConfig(pexConfig.Config):
 
         This value is only used with the ``legacy`` tract builder,
         and is ignored otherwise.  In general, the config should be
-        accessed directly with config.tractBuilder["legacy"].patchInnerDimensions.
+        accessed directly with
+        ``config.tractBuilder["legacy"].patchInnerDimensions``.
 
         Returns
         -------
@@ -86,7 +87,8 @@ class BaseSkyMapConfig(pexConfig.Config):
 
         This value is only used with the ``legacy`` tract builder,
         and is ignored otherwise.  In general, the config should be
-        accessed directly with config.tractBuilder["legacy"].patchInnerDimensions.
+        accessed directly with
+        ``config.tractBuilder["legacy"].patchInnerDimensions``.
 
         Parameters
         ----------
@@ -117,7 +119,7 @@ class BaseSkyMapConfig(pexConfig.Config):
         accessed directly with config.tractBuilder["legacy"].patchBorder.
 
         Parameters
-        -------
+        ----------
         border: `int`
         """
         self.tractBuilder["legacy"].patchBorder = value
@@ -132,7 +134,7 @@ class BaseSkyMap:
 
     Parameters
     ----------
-    config : `BaseSkyMapConfig` or None (optional)
+    config : `BaseSkyMapConfig` or `None` (optional)
         The configuration for this SkyMap; if None use the default config.
 
     Notes
@@ -188,9 +190,10 @@ class BaseSkyMap:
         - The default implementation is not very efficient; subclasses may wish
           to override.
 
-        **Warning:**
-        If tracts do not cover the whole sky then the returned tract may not
-        include the coord.
+        .. warning::
+
+           If tracts do not cover the whole sky then the returned tract may not
+           include the coord.
         """
         distTractInfoList = []
         for i, tractInfo in enumerate(self):
@@ -201,25 +204,26 @@ class BaseSkyMap:
         return distTractInfoList[0][2]
 
     def findTractIdArray(self, ra, dec, degrees=False):
-        """Find array of tract IDs with vectorized operations (where supported).
+        """Find array of tract IDs with vectorized operations (where
+        supported).
 
         If a given sky map does not support vectorized operations, then a loop
         over findTract will be called.
 
         Parameters
         ----------
-        ra : `np.ndarray`
+        ra : `numpy.ndarray`
             Array of Right Ascension.  Units are radians unless
             degrees=True.
-        dec : `np.ndarray`
+        dec : `numpy.ndarray`
             Array of Declination.  Units are radians unless
             degrees=True.
         degrees : `bool`, optional
-            Input ra, dec arrays are degrees if True.
+            Input ra, dec arrays are degrees if `True`.
 
         Returns
         -------
-        tractId : `np.ndarray`
+        tractId : `numpy.ndarray`
             Array of tract IDs
 
         Notes
@@ -227,9 +231,10 @@ class BaseSkyMap:
         - If coord is equidistant between multiple sky tract centers then one
           is arbitrarily chosen.
 
-        **Warning:**
-        If tracts do not cover the whole sky then the returned tract may not
-        include the given ra/dec.
+        .. warning::
+
+           If tracts do not cover the whole sky then the returned tract may not
+           include the given ra/dec.
         """
         units = geom.degrees if degrees else geom.radians
         coords = [geom.SpherePoint(r*units, d*units) for r, d in zip(np.atleast_1d(ra),
@@ -255,7 +260,8 @@ class BaseSkyMap:
 
         Notes
         -----
-        **warning:**
+        .. warning::
+
             This uses a naive algorithm that may find some tracts and patches
             that do not overlap the region (especially if the region is not a
             rectangle aligned along patch x, y).
@@ -316,8 +322,8 @@ class BaseSkyMap:
 
         Parameters
         ----------
-        log : `lsst.log.Log`
-            Log object that information about skymap will be written
+        log : `logging.Logger`
+            Log object that information about skymap will be written.
         """
         log.info("sky map has %s tracts" % (len(self),))
         for tractInfo in self:
@@ -429,7 +435,7 @@ class BaseSkyMap:
             name=self.SKYMAP_DATASET_TYPE_NAME,
             dimensions=["skymap"],
             storageClass="SkyMap",
-            universe=butler.registry.dimensions
+            universe=butler.dimensions
         )
         butler.registry.registerDatasetType(datasetType)
         with butler.transaction():

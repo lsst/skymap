@@ -64,14 +64,15 @@ def plotSkyMap3d(skyMap):
     ax = fig.gca(projection="3d")
     ax.set_axis_off()
 
-    # make sure a complete 1x1x1 cube is shown -- what I really want is to constrain the aspect ratio
-    # but that is not yet supported for 3D plots
+    # Make sure a complete 1x1x1 cube is shown -- what I really want is to
+    # constrain the aspect ratio but that is not yet supported for 3D plots.
     for direction in (-1, 1):
         for point in numpy.diag(direction * numpy.array([1, 1, 1])):
             ax.plot([point[0]], [point[1]], [point[2]], 'w')
 
     for tractInfo in skyMap:
-        # display outer edge; scale to be approximately in the same plane as the inner region
+        # Display outer edge; scale to be approximately in the same plane as
+        # the inner region.
         wcs = tractInfo.getWcs()
         posBox = geom.Box2D(tractInfo.getBBox())
         xRange = posBox.getMinX(), posBox.getMaxX()
@@ -156,8 +157,8 @@ class PoleProjector(DefaultProjector):
 def makePlotter(Projector=DefaultProjector):
     """Make a function that will plot a SkyMap in 2D
 
-    The Projector is used to project the center of each tract and its boundaries
-    onto the plot.
+    The Projector is used to project the center of each tract and its
+    boundaries onto the plot.
     """
 
     def plotSkyMap2d(skyMap):

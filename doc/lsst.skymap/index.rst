@@ -41,6 +41,7 @@ Python API reference
    :no-main-docstr:
    :no-inheritance-diagram:
 .. automodapi:: lsst.skymap.detail
+   :noindex:
 .. automodapi:: lsst.skymap.cachingSkyMap
 .. automodapi:: lsst.skymap.healpixSkyMap
 .. automodapi:: lsst.skymap.ringsSkyMap

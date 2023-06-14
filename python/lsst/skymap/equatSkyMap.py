@@ -85,7 +85,8 @@ class EquatSkyMap(BaseSkyMap):
             # CRVal must have Dec=0 for symmetry about the equator
             crValCoord = geom.SpherePoint(midRA, geom.Angle(0.0))
 
-            # make initial WCS; don't worry about crPixPos because TractInfo will shift it as required
+            # Make initial WCS; don't worry about crPixPos because TractInfo
+            # will shift it as required.
             wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=crValCoord)
 
             self._tractInfoList.append(TractInfo(
