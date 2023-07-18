@@ -136,7 +136,7 @@ class SkyMapDimensionPacker(DimensionPacker):
 
     @classmethod
     @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v27.",
+        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
         version="v26.0",
         category=FutureWarning,
     )
@@ -151,7 +151,7 @@ class SkyMapDimensionPacker(DimensionPacker):
 
     @classmethod
     @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v27.",
+        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
         version="v26.0",
         category=FutureWarning,
     )
@@ -161,7 +161,7 @@ class SkyMapDimensionPacker(DimensionPacker):
 
     @classmethod
     @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v27.",
+        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
         version="v26.0",
         category=FutureWarning,
     )
