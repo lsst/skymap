@@ -134,9 +134,10 @@ class SkyMapDimensionPacker(DimensionPacker):
 
     ConfigClass = SkyMapDimensionPackerConfig
 
+    # TODO: remove on DM-38687.
     @classmethod
     @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v27.",
+        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
         version="v26.0",
         category=FutureWarning,
     )
@@ -149,9 +150,10 @@ class SkyMapDimensionPacker(DimensionPacker):
         except ValueError:
             raise NotImplementedError(f"band '{name}' not supported by this ID packer.")
 
+    # TODO: remove on DM-38687.
     @classmethod
     @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v27.",
+        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
         version="v26.0",
         category=FutureWarning,
     )
@@ -159,9 +161,10 @@ class SkyMapDimensionPacker(DimensionPacker):
         """Return an band name from its integer representation."""
         return cls.SUPPORTED_FILTERS[num]
 
+    # TODO: remove on DM-38687.
     @classmethod
     @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v27.",
+        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
         version="v26.0",
         category=FutureWarning,
     )
