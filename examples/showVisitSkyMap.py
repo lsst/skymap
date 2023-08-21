@@ -23,23 +23,19 @@
 
 
 import argparse
-import matplotlib.pyplot as pyplot
+import matplotlib
+import matplotlib.pyplot as plt
 
 import lsst.afw.cameraGeom as cameraGeom
+import lsst.daf.butler as dafButler
 import lsst.geom as geom
-import lsst.afw.geom as afwGeom
-import lsst.daf.persistence as dafPersist
-from lsst.pipe.base.argumentParser import IdValueAction, DataIdContainer
 
 
 def bboxToRaDec(bbox, wcs):
     """Get the corners of a BBox and convert them to lists of RA and Dec."""
-    corners = []
-    for corner in bbox.getCorners():
-        p = geom.Point2D(corner.getX(), corner.getY())
-        coord = wcs.pixelToSky(p)
-        corners.append([coord.getRa().asDegrees(), coord.getDec().asDegrees()])
-    ra, dec = zip(*corners)
+    sphPoints = wcs.pixelToSky(geom.Box2D(bbox).getCorners())
+    ra = [float(sph.getRa().asDegrees()) for sph in sphPoints]
+    dec = [float(sph.getDec().asDegrees()) for sph in sphPoints]
     return ra, dec
 
 
@@ -56,62 +52,78 @@ def get_cmap(n, name="hsv"):
     """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
     RGB color; the keyword argument name must be a standard mpl colormap name.
     """
-    return pyplot.cm.get_cmap(name, n)
+    return matplotlib.colormaps[name].resampled(n)
 
 
-def main(rootDir, tracts, visits, ccds=None, ccdKey="ccd", showPatch=False, saveFile=None, showCcds=False):
-    butler = dafPersist.Butler(rootDir)
-    camera = butler.get("camera")
+def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=None,
+         ccds=None, ccdKey="ccd", showPatch=False, saveFile=None, showCcds=False):
+    logger.info("Making butler for collections = {} in repo {}".format(collections, repo))
+    butler = dafButler.Butler(repo, collections=collections)
+    instrument = butler.registry.findDataset("camera").dataId["instrument"]
+    # Make a guess at the skymapName if not provided
+    if skymapName is None:
+        if instrument == "HSC":
+            skymapName = "hsc_rings_v1"
+        elif instrument == "LSSTCam-imSim":
+            skymapName = "DC2"
+        elif instrument == "LATISS":
+            skymapName = "latiss_v1"
+        elif instrument == "DECam":
+            skymapName = "decam_rings_v1"
+        else:
+            print("Unknown skymapName for instrument: {}.  Must specify --skymapName on command line".
+                  format(instrument))
+    print("instrument = {} skymapName = {}".format(instrument, skymapName))
+    camera = butler.get("camera", instrument=instrument)
+    skymap = butler.get("skyMap", instrument=instrument, skymap=skymapName)
 
     # draw the CCDs
     ras, decs = [], []
     bboxesPlotted = []
-    print("Number of visits = ", len(visits))
     cmap = get_cmap(len(visits))
     for i_v, visit in enumerate(visits):
-        print("%r visit=%r" % (i_v + 1, visit))
+        print("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visits)))
         inLegend = False
         color = cmap(i_v)
         for ccd in camera:
             bbox = ccd.getBBox()
-            ccdId = int(ccd.getSerial())
+            ccdId = int(ccd.getId())
 
-            if (ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.SCIENCE:
+            if (ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.DetectorType.SCIENCE:
                 dataId = {"visit": visit, ccdKey: ccdId}
                 try:
-                    md = butler.get("calexp_md", dataId)
-                    wcs = afwGeom.makeSkyWcs(md)
+                    wcs = butler.get("calexp.wcs", dataId)
+                except LookupError as e:
+                    print(e, " Skip and continuing...")
+                    continue
 
-                    ra, dec = bboxToRaDec(bbox, wcs)
-                    ras += ra
-                    decs += dec
-                    if not inLegend:
-                        pyplot.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color,
-                                    label=str(visit))
-                        inLegend = True
-                    else:
-                        pyplot.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color)
+                ra, dec = bboxToRaDec(bbox, wcs)
+                ras += ra
+                decs += dec
+                if not inLegend:
+                    plt.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color,
+                             label=str(visit))
+                    inLegend = True
+                else:
+                    plt.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color)
 
-                    # add CCD serial numbers
-                    if showCcds:
-                        minPoint = geom.Point2D(min(ra), min(dec))
-                        maxPoint = geom.Point2D(max(ra), max(dec))
-                        # Use doubles in Box2D to check overlap
-                        bboxDouble = geom.Box2D(minPoint, maxPoint)
-                        overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
-                        if all(overlaps):
-                            pyplot.text(percent(ra), percent(dec), str(ccdId), fontsize=6,
-                                        horizontalalignment="center", verticalalignment="center", color=color)
-                            pyplot.fill(ra, dec, fill=False, alpha=0.5, color=color, edgecolor=color)
-                        bboxesPlotted.append(bboxDouble)
-                except Exception:
-                    pass
+                # add CCD serial numbers
+                if showCcds:
+                    minPoint = geom.Point2D(min(ra), min(dec))
+                    maxPoint = geom.Point2D(max(ra), max(dec))
+                    # Use doubles in Box2D to check overlap
+                    bboxDouble = geom.Box2D(minPoint, maxPoint)
+                    overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
+                    if all(overlaps):
+                        plt.text(percent(ra), percent(dec), str(ccdId), fontsize=6,
+                                 horizontalalignment="center", verticalalignment="center", color=color)
+                        plt.fill(ra, dec, fill=False, alpha=0.5, color=color, edgecolor=color)
+                    bboxesPlotted.append(bboxDouble)
 
     buff = 0.1
     xlim = max(ras)+buff, min(ras)-buff
     ylim = min(decs)-buff, max(decs)+buff
 
-    skymap = butler.get("deepCoadd_skyMap")
     # draw the skymap
     if showPatch:
         alpha0 = 1.0
@@ -123,64 +135,65 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey="ccd", showPatch=False, save
                     for patch in tractInfo:
                         ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
                         if not inLegend:
-                            pyplot.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
+                            plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
                                         alpha=alpha, label=str(tract))
                             inLegend = True
                         else:
-                            pyplot.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
+                            plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
                                         alpha=alpha)
                         if xlim[1] < percent(ra) < xlim[0] and ylim[0] < percent(dec) < ylim[1]:
-                            pyplot.text(percent(ra), percent(dec),
+                            plt.text(percent(ra), percent(dec),
                                         ((str(patch.getIndex()))[1:-1].replace(" ", "")), fontsize=6,
                                         horizontalalignment="center", verticalalignment="center", alpha=alpha)
 
     # add labels and save
-    ax = pyplot.gca()
+    ax = plt.gca()
     ax.set_xlabel("R.A. (deg)")
     ax.set_ylabel("Decl. (deg)")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.legend(loc="center left", bbox_to_anchor=(1.0, 0.5), fancybox=True, shadow=True, fontsize=6)
-    fig = pyplot.gcf()
+    collectionStr = collections[0]
+    if len(collections) > 1:
+        for collection in collections[1:]:
+            collectionStr += "\n" + collection
+    ax.set_title("{}".format(collectionStr), fontsize=9)
+    fig = plt.gcf()
     if saveFile is not None:
         fig.savefig(saveFile)
     else:
         fig.show()
 
 
-def splitId(argName):
-    class SplitIdValueAction(IdValueAction):
-
-        def __call__(self, parser, namespace, values, option_string):
-            # Hack to use IdValueAction
-            keyValues = [argName + "=" + str(values[0])]
-            setattr(namespace, "config", "hack")
-            setattr(namespace, argName, DataIdContainer())
-            # Parse the data into namespace.argName.idList
-            IdValueAction.__call__(self, parser, namespace, keyValues, "--"+argName)
-            # Save the list into namespace.argName
-            setattr(namespace, argName,
-                    list({int(dataId[argName]) for dataId in getattr(namespace, argName).idList}))
-    return SplitIdValueAction
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("root", help="Root directory of data repository")
-    parser.add_argument("tracts", nargs=1, action=splitId("tracts"),
-                        help="Tract(s) to show", metavar="TRACT1[^TRACT2[^TRACT3...]")
-    parser.add_argument("visits", nargs=1, action=splitId("visits"),
-                        help="Visits to show", metavar="VISIT1[^VISIT2[^VISIT3...]")
-    parser.add_argument("-c", "--ccds", nargs=1, action=splitId("ccds"), default=None,
-                        help="CCDs to show", metavar="CCD1[^CCD2[^CCD3...]")
+    parser.add_argument("repo", type=str,
+                        help="URI or path to an existing data repository root or configuration file")
+    parser.add_argument("--collections", type=str, nargs="+",
+                        help="Blank-space separated list of collection names for butler instantiation",
+                        metavar=("COLLECTION1", "COLLECTION2"), required=True)
+    parser.add_argument("--skymapName", default=None, help="Name of the skymap for the collection")
+    parser.add_argument("--tracts", type=int, nargs="+", default=None,
+                        help=("Blank-space separated list of tract outlines to constrain search for "
+                        "visit overlap"), metavar=("TRACT1", "TRACT2"))
+    parser.add_argument("--visits", type=int, nargs="+", default=None,
+                        help="Blank-space separated list of visits to include",
+                        metavar=("VISIT1", "VISIT2"))
+    parser.add_argument("--bands", type=int, nargs="+", default=None,
+                        help="Blank-space separated list of bands to include",
+                        metavar="BAND1 [BAND2 [BAND3...]")
+    parser.add_argument("-c", "--ccds", nargs="+", type=int, default=None,
+                        help="Blank-space separated list of CCDs to show", metavar=("CCD1", "CCD2"))
     parser.add_argument("-p", "--showPatch", action="store_true", default=False,
                         help="Show the patch boundaries")
-    parser.add_argument("--saveFile", type=str, default=None,
+    parser.add_argument("--saveFile", type=str, default="showVisitSkyMap.png",
                         help="Filename to write the plot to")
-    parser.add_argument("--ccdKey", default="ccd", help="Data ID name of the CCD key")
+    parser.add_argument("--ccdKey", default="detector", help="Data ID name of the CCD key")
     parser.add_argument("--showCcds", action="store_true", default=False,
-                        help="Show ccd serial numbers on output image")
+                        help="Show ccd ID numbers on output image")
+    parser.add_argument("--visitVetoFile", type=str, default=None,
+                        help="Full path to single-column file containing a list of visits to veto")
     args = parser.parse_args()
-
-    main(args.root, args.tracts, visits=args.visits, ccds=args.ccds,
-         ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds)
+    main(args.repo, args.collections, skymapName=args.skymapName, tracts=args.tracts, visits=args.visits,
+         ccds=args.ccds, ccdKey=args.ccdKey, showPatch=args.showPatch, saveFile=args.saveFile,
+         showCcds=args.showCcds)
