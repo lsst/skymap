@@ -52,21 +52,21 @@ def percent(values, p=0.5):
     return m + p*interval
 
 
-def get_cmap(n, name='hsv'):
+def get_cmap(n, name="hsv"):
     """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
     RGB color; the keyword argument name must be a standard mpl colormap name.
     """
     return pyplot.cm.get_cmap(name, n)
 
 
-def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, saveFile=None, showCcds=False):
+def main(rootDir, tracts, visits, ccds=None, ccdKey="ccd", showPatch=False, saveFile=None, showCcds=False):
     butler = dafPersist.Butler(rootDir)
     camera = butler.get("camera")
 
     # draw the CCDs
     ras, decs = [], []
     bboxesPlotted = []
-    print('Number of visits = ', len(visits))
+    print("Number of visits = ", len(visits))
     cmap = get_cmap(len(visits))
     for i_v, visit in enumerate(visits):
         print("%r visit=%r" % (i_v + 1, visit))
@@ -77,7 +77,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
             ccdId = int(ccd.getSerial())
 
             if (ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.SCIENCE:
-                dataId = {'visit': visit, ccdKey: ccdId}
+                dataId = {"visit": visit, ccdKey: ccdId}
                 try:
                     md = butler.get("calexp_md", dataId)
                     wcs = afwGeom.makeSkyWcs(md)
@@ -101,7 +101,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
                         overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
                         if all(overlaps):
                             pyplot.text(percent(ra), percent(dec), str(ccdId), fontsize=6,
-                                        horizontalalignment='center', verticalalignment='center', color=color)
+                                        horizontalalignment="center", verticalalignment="center", color=color)
                             pyplot.fill(ra, dec, fill=False, alpha=0.5, color=color, edgecolor=color)
                         bboxesPlotted.append(bboxDouble)
                 except Exception:
@@ -123,16 +123,16 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
                     for patch in tractInfo:
                         ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
                         if not inLegend:
-                            pyplot.fill(ra, dec, fill=False, edgecolor='k', lw=1, linestyle='dashed',
+                            pyplot.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
                                         alpha=alpha, label=str(tract))
                             inLegend = True
                         else:
-                            pyplot.fill(ra, dec, fill=False, edgecolor='k', lw=1, linestyle='dashed',
+                            pyplot.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
                                         alpha=alpha)
                         if xlim[1] < percent(ra) < xlim[0] and ylim[0] < percent(dec) < ylim[1]:
                             pyplot.text(percent(ra), percent(dec),
                                         ((str(patch.getIndex()))[1:-1].replace(" ", "")), fontsize=6,
-                                        horizontalalignment='center', verticalalignment='center', alpha=alpha)
+                                        horizontalalignment="center", verticalalignment="center", alpha=alpha)
 
     # add labels and save
     ax = pyplot.gca()
@@ -140,7 +140,7 @@ def main(rootDir, tracts, visits, ccds=None, ccdKey='ccd', showPatch=False, save
     ax.set_ylabel("Decl. (deg)")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), fancybox=True, shadow=True, fontsize=6)
+    ax.legend(loc="center left", bbox_to_anchor=(1.0, 0.5), fancybox=True, shadow=True, fontsize=6)
     fig = pyplot.gcf()
     if saveFile is not None:
         fig.savefig(saveFile)
@@ -164,7 +164,7 @@ def splitId(argName):
     return SplitIdValueAction
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("root", help="Root directory of data repository")
     parser.add_argument("tracts", nargs=1, action=splitId("tracts"),
@@ -173,12 +173,12 @@ if __name__ == '__main__':
                         help="Visits to show", metavar="VISIT1[^VISIT2[^VISIT3...]")
     parser.add_argument("-c", "--ccds", nargs=1, action=splitId("ccds"), default=None,
                         help="CCDs to show", metavar="CCD1[^CCD2[^CCD3...]")
-    parser.add_argument("-p", "--showPatch", action='store_true', default=False,
+    parser.add_argument("-p", "--showPatch", action="store_true", default=False,
                         help="Show the patch boundaries")
     parser.add_argument("--saveFile", type=str, default=None,
                         help="Filename to write the plot to")
     parser.add_argument("--ccdKey", default="ccd", help="Data ID name of the CCD key")
-    parser.add_argument("--showCcds", action='store_true', default=False,
+    parser.add_argument("--showCcds", action="store_true", default=False,
                         help="Show ccd serial numbers on output image")
     args = parser.parse_args()
 
