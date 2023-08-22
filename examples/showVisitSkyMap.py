@@ -24,7 +24,9 @@
 
 import argparse
 import matplotlib
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from matplotlib.legend import Legend
 
 import lsst.afw.cameraGeom as cameraGeom
 import lsst.daf.butler as dafButler
@@ -81,6 +83,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
     ras, decs = [], []
     bboxesPlotted = []
     cmap = get_cmap(len(visits))
+    alphaEdge = 0.4
+    maxVisitForLegend = 20
     for i_v, visit in enumerate(visits):
         print("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visits)))
         inLegend = False
@@ -100,12 +104,13 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
                 ra, dec = bboxToRaDec(bbox, wcs)
                 ras += ra
                 decs += dec
-                if not inLegend:
-                    plt.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color,
+                if not inLegend and len(visits) <= maxVisitForLegend:
+                    plt.fill(ra, dec, fill=True, alpha=alphaEdge, facecolor="none", edgecolor=color,
                              label=str(visit))
                     inLegend = True
                 else:
-                    plt.fill(ra, dec, fill=True, alpha=0.2, color=color, edgecolor=color)
+                    plt.fill(ra, dec, fill=True, alpha=alphaEdge, facecolor="none", edgecolor=color)
+                plt.fill(ra, dec, fill=True, alpha=alphaEdge/2, color=color, edgecolor=color)
 
                 # add CCD serial numbers
                 if showCcds:
@@ -116,8 +121,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
                     overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
                     if all(overlaps):
                         plt.text(percent(ra), percent(dec), str(ccdId), fontsize=6,
-                                 horizontalalignment="center", verticalalignment="center", color=color)
-                        plt.fill(ra, dec, fill=False, alpha=0.5, color=color, edgecolor=color)
+                                 horizontalalignment="center", verticalalignment="center", color="darkblue")
                     bboxesPlotted.append(bboxDouble)
 
     buff = 0.1
@@ -125,42 +129,75 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
     ylim = min(decs)-buff, max(decs)+buff
 
     # draw the skymap
-    if showPatch:
-        alpha0 = 1.0
-        for i_t, tract in enumerate(tracts):
-            alpha = max(0.1, alpha0 - i_t*1.0/len(tracts))
-            inLegend = False
-            for tractInfo in skymap:
-                if tractInfo.getId() == tract:
-                    for patch in tractInfo:
-                        ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
-                        if not inLegend:
-                            plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
-                                        alpha=alpha, label=str(tract))
-                            inLegend = True
-                        else:
-                            plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
-                                        alpha=alpha)
-                        if xlim[1] < percent(ra) < xlim[0] and ylim[0] < percent(dec) < ylim[1]:
-                            plt.text(percent(ra), percent(dec),
-                                        ((str(patch.getIndex()))[1:-1].replace(" ", "")), fontsize=6,
-                                        horizontalalignment="center", verticalalignment="center", alpha=alpha)
+    alpha0 = 1.0
+    tractHandleList = []
+    tractStrList = []
+    for i_t, tract in enumerate(tracts):
+        alpha = max(0.1, alpha0 - i_t*1.0/len(tracts))
+        tractInfo = skymap[tract]
+        tCenter = tractInfo.ctr_coord
+        tCenterRa = tCenter.getRa().asDegrees()
+        tCenterDec = tCenter.getDec().asDegrees()
+        fracDeltaX = 0.02*abs((xlim[1] - xlim[0]))
+        fracDeltaY = 0.02*abs((ylim[1] - ylim[0]))
+        if (xlim[1] + fracDeltaX  < tCenterRa < xlim[0] - fracDeltaX
+            and ylim[0] + fracDeltaY < tCenterDec < ylim[1] - fracDeltaY):
+            plt.text(tCenterRa, tCenterDec, tract, fontsize=9, alpha=alpha)
+        ra, dec = bboxToRaDec(tractInfo.bbox, tractInfo.getWcs())
+        plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed", alpha=alpha)
+        tractArtist = mpatches.Patch(fill=False, edgecolor="k", linestyle="dashed", alpha=alpha)
+        tractHandleList.append(tractArtist)
+        tractStrList.append(str(tract))
+        if showPatch:
+            for patch in tractInfo:
+                ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
+                plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed",
+                         alpha=alpha)
+                if xlim[1] < percent(ra) < xlim[0] and ylim[0] < percent(dec) < ylim[1]:
+                    plt.text(percent(ra), percent(dec),
+                             ((str(patch.getIndex()))[1:-1].replace(" ", "")), fontsize=6,
+                             horizontalalignment="center", verticalalignment="center", alpha=alpha)
 
     # add labels and save
     ax = plt.gca()
-    ax.set_xlabel("R.A. (deg)")
-    ax.set_ylabel("Decl. (deg)")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-    ax.legend(loc="center left", bbox_to_anchor=(1.0, 0.5), fancybox=True, shadow=True, fontsize=6)
+    ax.axis("equal")
+    if abs(xlim[1] > 99.99):
+        ax.tick_params("x", labelrotation=45, pad=0, labelsize=8)
+    else:
+        ax.tick_params("x", labelrotation=0, pad=0, labelsize=8)
+    ax.tick_params("y", labelsize=8)
+    ax.set_xlabel("RA (deg)", fontsize=9)
+    ax.set_ylabel("Dec (deg)", fontsize=9)
+
+    if len(visits) > maxVisitForLegend:
+        nz = matplotlib.colors.Normalize()
+        colorBarScale = visits
+        nz.autoscale(colorBarScale)
+        cax, _ = matplotlib.colorbar.make_axes(plt.gca())
+        cax.tick_params(labelsize=7)
+        cb = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=nz, alpha=alphaEdge)
+        colorBarLabel = "visit number"
+        cb.set_label(colorBarLabel, rotation=-90, labelpad=16, fontsize=10)
+    else:
+        ax.legend(loc="center left", bbox_to_anchor=(1.15, 0.5), fancybox=True, shadow=True,
+                  fontsize=6, title="visits")
+
+    # Create the second legend and add the artist manually.
+    tractLegend = Legend(ax, tractHandleList, tractStrList, loc="center left", bbox_to_anchor=(1.0, 0.5),
+                         fancybox=True, shadow=True, fontsize=6, title="tracts")
+    ax.add_artist(tractLegend)
+
     collectionStr = collections[0]
     if len(collections) > 1:
         for collection in collections[1:]:
             collectionStr += "\n" + collection
     ax.set_title("{}".format(collectionStr), fontsize=9)
+
     fig = plt.gcf()
     if saveFile is not None:
-        fig.savefig(saveFile)
+        fig.savefig(saveFile, bbox_inches="tight", dpi=150)
     else:
         fig.show()
 
