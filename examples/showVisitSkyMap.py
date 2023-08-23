@@ -31,6 +31,10 @@ from matplotlib.legend import Legend
 import lsst.afw.cameraGeom as cameraGeom
 import lsst.daf.butler as dafButler
 import lsst.geom as geom
+import lsst.log as lsstLog
+import lsst.sphgeom as sphgeom
+
+logger = lsstLog.Log.getLogger("showVisitSkyMap.py")
 
 
 def bboxToRaDec(bbox, wcs):
@@ -73,9 +77,9 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
         elif instrument == "DECam":
             skymapName = "decam_rings_v1"
         else:
-            print("Unknown skymapName for instrument: {}.  Must specify --skymapName on command line".
-                  format(instrument))
-    print("instrument = {} skymapName = {}".format(instrument, skymapName))
+            logger.error("Unknown skymapName for instrument: %s.  Must specify --skymapName on command line.",
+                         instrument)
+    logger.info("instrument = {} skymapName = {}".format(instrument, skymapName))
     camera = butler.get("camera", instrument=instrument)
     skymap = butler.get("skyMap", instrument=instrument, skymap=skymapName)
 
@@ -86,7 +90,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
     alphaEdge = 0.4
     maxVisitForLegend = 20
     for i_v, visit in enumerate(visits):
-        print("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visits)))
+        logger.info("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visits)))
         inLegend = False
         color = cmap(i_v)
         for ccd in camera:
@@ -98,7 +102,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, bands=Non
                 try:
                     wcs = butler.get("calexp.wcs", dataId)
                 except LookupError as e:
-                    print(e, " Skip and continuing...")
+                    logger.warn("%s Skip and continuing...", e)
                     continue
 
                 ra, dec = bboxToRaDec(bbox, wcs)
