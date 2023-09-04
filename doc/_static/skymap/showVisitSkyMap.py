@@ -376,6 +376,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
 
     fig = plt.gcf()
     if saveFile is not None:
+        logger.info("Saving file in: %s", saveFile)
         fig.savefig(saveFile, bbox_inches="tight", dpi=150)
     else:
         fig.show()
