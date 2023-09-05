@@ -195,6 +195,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     alphaEdge = 0.7
     maxVisitForLegend = 20
     finalVisitList = []
+    includedBands = []
+    includedPhysicalFilters = []
     for i_v, visit in enumerate(visitIncludeList):
         print("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visitIncludeList)), end="\r")
         inLegend = False
@@ -205,6 +207,12 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         except LookupError as e:
             logger.warn("%s  Will try to get wcs from calexp.", e)
             visitSummary = None
+
+        band, physicalFilter = getBand(visitSummary=visitSummary, butler=butler, visit=visit)
+        if band not in includedBands:
+            includedBands.append(band)
+        if physicalFilter not in includedPhysicalFilters:
+            includedPhysicalFilters.append(physicalFilter)
 
         for ccdId in ccdIdList:
             raCorners, decCorners = getDetRaDecCorners(
@@ -368,10 +376,13 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     titleStr += "\nnVisit: {}".format(str(len(finalVisitList)))
     if minOverlapFraction is not None:
         titleStr += " (minOvlpFrac = {:.2f})".format(minOverlapFraction)
-    if bands is not None:
-        titleStr += "  bands: {}".format(str(bands).strip("[]\'"))
-    if physicalFilters is not None:
-        titleStr += "  physical filters: {}".format(str(physicalFilters).strip("[]\'"))
+    if len(includedBands) > 0:
+        titleStr += "  bands: {}".format(str(includedBands).translate({ord(i): None for i in "[]\'"}))
+    if len(includedPhysicalFilters) > 0:
+        if len(includedPhysicalFilters[0]) > 9:
+            titleStr += "\n"
+        titleStr += "  physical filters: {}".format(str(includedPhysicalFilters).translate(
+            {ord(i): None for i in "[]\'"}))
     ax.set_title("{}".format(titleStr), fontsize=8)
 
     fig = plt.gcf()
@@ -386,12 +397,10 @@ def makeWhereInStr(parameterName, parameterList, parameterType):
     """Create the string to be used in the where clause for registry lookup.
     """
     typeStr = "\'" if parameterType is str else ""
-    whereInStr = parameterName + " IN (" + typeStr + str(parameterList[0])
+    whereInStr = parameterName + " IN (" + typeStr + str(parameterList[0]) + typeStr
     if len(parameterList) > 1:
         for param in parameterList[1:]:
-            whereInStr += typeStr + ", " + typeStr + str(param) + typeStr
-    else:
-        whereInStr += typeStr
+            whereInStr += ", " + typeStr + str(param) + typeStr
     whereInStr += ")"
 
     return whereInStr
@@ -557,6 +566,36 @@ def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doL
             logger.warn("%s Skipping and continuing...", e)
 
     return raCorners, decCorners
+
+
+def getBand(visitSummary=None, butler=None, visit=None):
+    """Determine band and physical filter for given visit.
+
+    Parameters
+    ----------
+    visitSummary : `lsst.afw.table.ExposureCatalog` or `None`, optional
+        The visitSummary table for the visit for which to determine the band.
+    butler : `lsst.daf.butler.Butler` or `None`, optional
+        The butler from which to look up the Dimension Records. Only needed
+        if ``visitSummary`` is `None`.
+    visit : `int` or `None, optional
+        The visit number for which to determine the band. Only needed
+        if ``visitSummary`` is `None`.
+
+    Returns
+    -------
+    band, physicalFilter : `str`
+        The band and physical filter for the given visit.
+    """
+    if visitSummary is not None:
+        band = visitSummary[0]["band"]
+        physicalFilter = visitSummary[0]["physical_filter"]
+    else:
+        record = list(butler.registry.queryDimensionRecords("band", visit=visit))[0]
+        band = record.name
+        record = list(butler.registry.queryDimensionRecords("physical_filter", visit=visit))[0]
+        physicalFilter = record.name
+    return band, physicalFilter
 
 
 if __name__ == "__main__":
