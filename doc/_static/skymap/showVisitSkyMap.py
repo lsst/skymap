@@ -28,6 +28,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units
+from astropy.coordinates import SkyCoord
 from matplotlib.legend import Legend
 
 import lsst.afw.cameraGeom as cameraGeom
@@ -256,9 +257,14 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     midVisitDec = minVisitDec + 0.5*decVisitDiff
     midRa = np.atleast_1d((midVisitRa*units.deg).to(units.radian).value).astype(np.float64)
     midDec = np.atleast_1d((midVisitDec*units.deg).to(units.radian).value).astype(np.float64)
+    midSkyCoord = SkyCoord(midVisitRa*units.deg, midVisitDec*units.deg)
 
+    # Find a detector that contains the mid point in RA/Dec (or the closest
+    # one) to set the plot aspect ratio.
+    minDistToMidCood = 1e12
+    minSepVisit = None
+    minSepCcdId = None
     raToDecLimitRatio = None
-    # Find a detector that contains the mid point in RA/Dec
     for i_v, visit in enumerate(visits):
         try:
             visitSummary = butler.get("visitSummary", visit=visit)
@@ -274,10 +280,16 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
                                           geom.Angle(dec, geom.degrees))
                     detSphCorners.append(pt)
+                    ptSkyCoord = SkyCoord(ra*units.deg, dec*units.deg)
+                    separation = (midSkyCoord.separation(ptSkyCoord)).degree
+                    if separation < minDistToMidCood:
+                        minSepVisit = visit
+                        minSepCcdId = ccdId
+                        minDistToMidCood = separation
                 detConvexHull = sphgeom.ConvexPolygon(
                     [coord.getVector() for coord in detSphCorners])
                 if detConvexHull.contains(midRa, midDec):
-                    logger.info("visit/det overlapping mid point in RA/Dec: %d %d", visit, ccdId)
+                    logger.info("visit/det overlapping plot coord mid point in RA/Dec: %d %d", visit, ccdId)
                     raToDecLimitRatio = (max(raCorners) - min(raCorners))/(max(decCorners) - min(decCorners))
                     det = camera[ccdId]
                     width = det.getBBox().getWidth()
@@ -290,6 +302,31 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     break
         if raToDecLimitRatio is not None:
             break
+
+    if raToDecLimitRatio is None:
+        try:
+            visitSummary = butler.get("visitSummary", visit=minSepVisit)
+        except LookupError as e:
+            logger.warn("%s  Will try to get wcs from calexp.", e)
+            visitSummary = None
+        raCorners, decCorners = getDetRaDecCorners(
+            ccdKey, minSepCcdId, minSepVisit, visitSummary=visitSummary, butler=butler, doLogWarn=False)
+        for ra, dec in zip(raCorners, decCorners):
+            pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
+                                  geom.Angle(dec, geom.degrees))
+            detSphCorners.append(pt)
+        detConvexHull = sphgeom.ConvexPolygon([coord.getVector() for coord in detSphCorners])
+        logger.info("visit/det closest to plot coord mid point in RA/Dec (none actually overlat it): %d %d",
+                    minSepVisit, minSepCcdId)
+        raToDecLimitRatio = (max(raCorners) - min(raCorners))/(max(decCorners) - min(decCorners))
+        det = camera[minSepCcdId]
+        width = det.getBBox().getWidth()
+        height = det.getBBox().getHeight()
+        if raToDecLimitRatio > 1.0:
+            raToDecLimitRatio /= max(height/width, width/height)
+        else:
+            if raToDecLimitRatio < 1.0:
+                raToDecLimitRatio *= max(height/width, width/height)
 
     if trimToTracts is True:
         xlim, ylim = derivePlotLimits(tractLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
