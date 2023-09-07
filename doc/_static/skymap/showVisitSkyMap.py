@@ -232,8 +232,13 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     finalVisitList.append(visit)
                 # add CCD serial numbers
                 if showCcds:
-                    minPoint = geom.Point2D(min(raCorners), min(decCorners))
-                    maxPoint = geom.Point2D(max(raCorners), max(decCorners))
+                    overlapFrac = 0.2
+                    deltaRa = max(raCorners) - min(raCorners)
+                    deltaDec = max(decCorners) - min(decCorners)
+                    minPoint = geom.Point2D(min(raCorners) + overlapFrac*deltaRa,
+                                            min(decCorners) + overlapFrac*deltaDec)
+                    maxPoint = geom.Point2D(max(raCorners) - overlapFrac*deltaRa,
+                                            max(decCorners) - overlapFrac*deltaDec)
                     # Use doubles in Box2D to check overlap
                     bboxDouble = geom.Box2D(minPoint, maxPoint)
                     overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
