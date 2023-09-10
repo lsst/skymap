@@ -390,22 +390,30 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     ax.set_xlabel("RA (deg)", fontsize=9)
     ax.set_ylabel("Dec (deg)", fontsize=9)
 
+    visitScaleOffset = None
     if len(visitIncludeList) > maxVisitForLegend:
         nz = matplotlib.colors.Normalize()
         colorBarScale = finalVisitList
+        if max(finalVisitList) > 9999999:
+            visitScaleOffset = min(finalVisitList)
+            colorBarScale = [visit - visitScaleOffset for visit in finalVisitList]
         nz.autoscale(colorBarScale)
         cax, _ = matplotlib.colorbar.make_axes(plt.gca(), pad=0.03)
         cax.tick_params(labelsize=7)
-        cb = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=nz, alpha=alphaEdge)
+        cb = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=nz, alpha=alphaEdge,
+                                              format=lambda x, _: f"{x:.0f}")
         cb.ax.yaxis.get_offset_text().set_fontsize(7)
         colorBarLabel = "visit number"
+        if visitScaleOffset is not None:
+            colorBarLabel += " - {:d}".format(visitScaleOffset)
         cb.set_label(colorBarLabel, rotation=-90, labelpad=13, fontsize=9)
         tractLegend = Legend(ax, tractHandleList, tractStrList, loc="upper right",
                              fancybox=True, shadow=True, fontsize=5, title_fontsize=6, title="tracts")
         ax.add_artist(tractLegend)
     else:
-        ax.legend(loc="center left", bbox_to_anchor=(1.15, 0.5), fancybox=True, shadow=True,
-                  fontsize=6, title_fontsize=6, title="visits")
+        if len(visitIncludeList) > 0:
+            ax.legend(loc="center left", bbox_to_anchor=(1.15, 0.5), fancybox=True, shadow=True,
+                      fontsize=6, title_fontsize=6, title="visits")
         # Create the second legend and add the artist manually.
         tractLegend = Legend(ax, tractHandleList, tractStrList, loc="center left", bbox_to_anchor=(1.0, 0.5),
                              fancybox=True, shadow=True, fontsize=6, title_fontsize=6, title="tracts")
