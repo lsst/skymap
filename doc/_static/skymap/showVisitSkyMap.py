@@ -48,13 +48,26 @@ def bboxToRaDec(bbox, wcs):
     return ra, dec
 
 
-def percent(values, p=0.5):
-    """Return a value a faction of the way between the min and max values in a
+def getValueAtPercentile(values, percentile=0.5):
+    """Return a value a fraction of the way between the min and max values in a
     list.
+
+    Parameters
+    ----------
+    values : `list` [`float`]
+        The list of values under consideration.
+    percentile : `float`, optional
+        The percentile (expressed as a number between 0.0 and 1.0) at which
+        to determine the value in `values`.
+
+    Returns
+    -------
+    result : `float`
+        The value at the given percentile of ``values``.
     """
     m = min(values)
     interval = max(values) - m
-    return m + p*interval
+    return m + percentile*interval
 
 
 def get_cmap(n, name="hsv"):
@@ -243,8 +256,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     bboxDouble = geom.Box2D(minPoint, maxPoint)
                     overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
                     if all(overlaps):
-                        plt.text(percent(raCorners), percent(decCorners), str(ccdId), fontsize=6,
-                                 ha="center", va="center", color="darkblue")
+                        plt.text(getValueAtPercentile(raCorners), getValueAtPercentile(decCorners),
+                                 str(ccdId), fontsize=6, ha="center", va="center", color="darkblue")
                         bboxesPlotted.append(bboxDouble)
 
     logger.info("Final list of visits (N={}) satisfying where and minOverlapFraction clauses: {}"
@@ -383,10 +396,11 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                 ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
                 plt.fill(ra, dec, fill=False, edgecolor=patchColor, lw=0.5, linestyle=(0, (5, 6)),
                          alpha=alpha)
-                if (xlim[1] + fracDeltaX < percent(ra) < xlim[0] - fracDeltaX
-                        and ylim[0] + fracDeltaY < percent(dec) < ylim[1] - fracDeltaY):
-                    plt.text(percent(ra), percent(dec), str(patch.sequential_index), fontsize=5,
-                             color=patchColor, ha="center", va="center", alpha=alpha)
+                if (xlim[1] + fracDeltaX < getValueAtPercentile(ra) < xlim[0] - fracDeltaX
+                        and ylim[0] + fracDeltaY < getValueAtPercentile(dec) < ylim[1] - fracDeltaY):
+                    plt.text(getValueAtPercentile(ra), getValueAtPercentile(dec),
+                             str(patch.sequential_index), fontsize=5, color=patchColor,
+                             ha="center", va="center", alpha=alpha)
 
     # add labels and save
     ax = plt.gca()
