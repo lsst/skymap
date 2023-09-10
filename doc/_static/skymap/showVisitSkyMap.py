@@ -249,27 +249,38 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
 
     logger.info("Final list of visits (N={}) satisfying where and minOverlapFraction clauses: {}"
                 .format(len(finalVisitList), finalVisitList))
-    tractList = list(set(skymap.findTractIdArray(ras, decs, degrees=True)))
+
+    raToDecLimitRatio = None
+    if len(ras) > 0:
+        tractList = list(set(skymap.findTractIdArray(ras, decs, degrees=True)))
+        minVisitRa, maxVisitRa = min(ras), max(ras)
+        minVisitDec, maxVisitDec = min(decs), max(decs)
+        raVisitDiff = maxVisitRa - minVisitRa
+        decVisitDiff = maxVisitDec - minVisitDec
+        midVisitRa = minVisitRa + 0.5*raVisitDiff
+        midVisitDec = minVisitDec + 0.5*decVisitDiff
+        midRa = np.atleast_1d((midVisitRa*units.deg).to(units.radian).value).astype(np.float64)
+        midDec = np.atleast_1d((midVisitDec*units.deg).to(units.radian).value).astype(np.float64)
+        midSkyCoord = SkyCoord(midVisitRa*units.deg, midVisitDec*units.deg)
+    else:
+        if tracts is not None:
+            logger.info("No calexps were found, but --tracts list was provided, so will go ahead and "
+                        "plot the empty tracts.")
+            tractList = tracts
+            trimToTracts = True
+            raToDecLimitRatio = 1.0
+        else:
+            raise RuntimeError("No data to plot (if you want to plot empty tracts, include them as "
+                               "a blank-space separated list to the --tracts option.")
     tractList.sort()
     logger.info("List of tracts overlapping data:  {}".format(tractList))
     tractLimitsDict = getTractLimitsDict(skymap, tractList)
-
-    minVisitRa, maxVisitRa = min(ras), max(ras)
-    minVisitDec, maxVisitDec = min(decs), max(decs)
-    raVisitDiff = maxVisitRa - minVisitRa
-    decVisitDiff = maxVisitDec - minVisitDec
-    midVisitRa = minVisitRa + 0.5*raVisitDiff
-    midVisitDec = minVisitDec + 0.5*decVisitDiff
-    midRa = np.atleast_1d((midVisitRa*units.deg).to(units.radian).value).astype(np.float64)
-    midDec = np.atleast_1d((midVisitDec*units.deg).to(units.radian).value).astype(np.float64)
-    midSkyCoord = SkyCoord(midVisitRa*units.deg, midVisitDec*units.deg)
 
     # Find a detector that contains the mid point in RA/Dec (or the closest
     # one) to set the plot aspect ratio.
     minDistToMidCood = 1e12
     minSepVisit = None
     minSepCcdId = None
-    raToDecLimitRatio = None
     for i_v, visit in enumerate(visits):
         try:
             visitSummary = butler.get("visitSummary", visit=visit)
