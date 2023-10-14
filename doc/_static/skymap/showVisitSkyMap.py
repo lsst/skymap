@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#
 # This file is part of skymap.
 #
 # Developed for the LSST Data Management System.
