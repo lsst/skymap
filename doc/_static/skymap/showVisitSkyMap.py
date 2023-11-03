@@ -83,7 +83,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
     logger.info("Making butler for collections = {} in repo {}".format(collections, repo))
     butler = dafButler.Butler(repo, collections=collections)
-    instrument = butler.registry.findDataset("camera").dataId["instrument"]
+    instrument = butler.find_dataset("camera").dataId["instrument"]
     detectorSkipList = []
     # Make a guess at the skymapName if not provided
     if skymapName is None:
