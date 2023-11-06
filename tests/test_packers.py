@@ -24,7 +24,7 @@ import unittest
 import lsst.utils.tests
 
 try:
-    from lsst.daf.butler import DimensionUniverse, DimensionGraph, DataCoordinate
+    from lsst.daf.butler import DimensionUniverse, DataCoordinate
     HAVE_DAF_BUTLER = True
 except ImportError:
     HAVE_DAF_BUTLER = False
@@ -37,8 +37,8 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
 
     def setUp(self):
         self.universe = DimensionUniverse()
-        self.fixed = DataCoordinate.fromFullValues(
-            DimensionGraph(universe=self.universe, names=["skymap"]),
+        self.fixed = DataCoordinate.from_full_values(
+            self.universe.conform(["skymap"]),
             values=("unimportant",),
         ).expanded(
             records={
@@ -52,7 +52,7 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
         )
 
     def testWithoutFilter(self):
-        dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch"])
+        dimensions = self.universe.conform(["tract", "patch"])
         dataId = DataCoordinate.standardize(
             skymap=self.fixed["skymap"],
             tract=2,
@@ -65,7 +65,7 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(packer.unpack(packedId), dataId)
 
     def testWithFilter(self):
-        dimensions = DimensionGraph(universe=self.universe, names=["tract", "patch", "band"])
+        dimensions = self.universe.conform(["tract", "patch", "band"])
         dataId = DataCoordinate.standardize(
             skymap=self.fixed["skymap"],
             tract=2,
@@ -82,12 +82,12 @@ class SkyMapDimensionPackerTestCase(lsst.utils.tests.TestCase):
         with self.assertRaises(ValueError):
             SkyMapDimensionPacker(
                 self.fixed,
-                DimensionGraph(universe=self.universe, names=["tract", "patch", "visit"]),
+                self.universe.conform(["tract", "patch", "visit"]),
             )
         with self.assertRaises(ValueError):
             SkyMapDimensionPacker(
                 self.fixed,
-                DimensionGraph(universe=self.universe, names=["tract", "patch", "detector"]),
+                self.universe.conform(["tract", "patch", "detector"]),
             )
 
     def test_from_config(self):
