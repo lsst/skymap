@@ -31,7 +31,7 @@ import numpy as np
 
 import lsst.geom as geom
 import lsst.pex.config as pexConfig
-from lsst.geom import SpherePoint, Angle, arcseconds, degrees
+from lsst.geom import Angle, arcseconds, degrees
 from . import detail
 from .tractBuilder import tractBuilderRegistry
 
@@ -449,14 +449,11 @@ class BaseSkyMap:
                 for tractInfo in self:
                     tractId = tractInfo.getId()
                     tractRegion = tractInfo.getOuterSkyPolygon()
-                    centroid = SpherePoint(tractRegion.getCentroid())
                     tractWcs = tractInfo.getWcs()
                     tractRecord = dict(
                         skymap=name,
                         tract=tractId,
                         region=tractRegion,
-                        ra=centroid.getRa().asDegrees(),
-                        dec=centroid.getDec().asDegrees(),
                     )
                     butler.registry.insertDimensionData("tract", tractRecord)
 
