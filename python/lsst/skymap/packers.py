@@ -26,7 +26,7 @@ __all__ = ("SkyMapDimensionPacker",)
 from collections.abc import Mapping
 
 from lsst.pex.config import Config, Field, DictField, ConfigurableField
-from lsst.daf.butler import DimensionPacker, DimensionGraph, DataCoordinate
+from lsst.daf.butler import DimensionPacker, DimensionGraph, DimensionGroup, DataCoordinate
 from deprecated.sphinx import deprecated
 
 
@@ -75,7 +75,8 @@ class SkyMapDimensionPacker(DimensionPacker):
         Data ID that identifies just the ``skymap`` dimension.  Must have
         dimension records attached unless ``n_tracts`` and ``n_patches`` are
         not `None`.
-    dimensions : `lsst.daf.butler.DimensionGraph`, optional
+    dimensions : `lsst.daf.butler.DimensionGraph`, or \
+            `lsst.daf.butler.DimensionGroup`, optional
         The dimensions of data IDs packed by this instance.  Must include
         ``{skymap, tract, patch}``, and may include ``band``.  If not provided,
         this will be set to include ``band`` if ``n_bands != 0``.
@@ -174,7 +175,7 @@ class SkyMapDimensionPacker(DimensionPacker):
     def __init__(
         self,
         fixed: DataCoordinate,
-        dimensions: DimensionGraph | None = None,
+        dimensions: DimensionGroup | DimensionGraph | None = None,
         bands: Mapping[str, int] | None = None,
         n_bands: int | None = None,
         n_tracts: int | None = None,
@@ -188,7 +189,7 @@ class SkyMapDimensionPacker(DimensionPacker):
             dimension_names = ["tract", "patch"]
             if n_bands != 0:
                 dimension_names.append("band")
-            dimensions = fixed.universe.extract(dimension_names)
+            dimensions = fixed.universe.conform(dimension_names)
         else:
             if "band" not in dimensions.names:
                 n_bands = 0
@@ -266,7 +267,7 @@ class SkyMapDimensionPacker(DimensionPacker):
         this role easily for backwards compatibility reasons.
         """
         return cls(
-            data_id.subset(data_id.universe.extract(["skymap"])),
+            data_id.subset(data_id.universe.conform(["skymap"])),
             n_bands=config.n_bands,
             bands=config.bands,
             n_tracts=config.n_tracts,
@@ -311,4 +312,4 @@ class SkyMapDimensionPacker(DimensionPacker):
                 self._bands_list = list(self._bands)
             d["band"] = self._bands_list[index]
         d["tract"], d["patch"] = divmod(packedId, self._n_patches)
-        return DataCoordinate.standardize(d, graph=self.dimensions)
+        return DataCoordinate.standardize(d, dimensions=self.dimensions)
