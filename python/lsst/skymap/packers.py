@@ -27,7 +27,6 @@ from collections.abc import Mapping
 
 from lsst.pex.config import Config, Field, DictField, ConfigurableField
 from lsst.daf.butler import DimensionPacker, DimensionGraph, DimensionGroup, DataCoordinate
-from deprecated.sphinx import deprecated
 
 
 class SkyMapDimensionPackerConfig(Config):
@@ -134,43 +133,6 @@ class SkyMapDimensionPacker(DimensionPacker):
     """
 
     ConfigClass = SkyMapDimensionPackerConfig
-
-    # TODO: remove on DM-38687.
-    @classmethod
-    @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
-        version="v26.0",
-        category=FutureWarning,
-    )
-    def getIntFromFilter(cls, name):
-        """Return an integer that represents the band with the given
-        name.
-        """
-        try:
-            return cls.SUPPORTED_FILTERS.index(name)
-        except ValueError:
-            raise NotImplementedError(f"band '{name}' not supported by this ID packer.")
-
-    # TODO: remove on DM-38687.
-    @classmethod
-    @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
-        version="v26.0",
-        category=FutureWarning,
-    )
-    def getFilterNameFromInt(cls, num):
-        """Return an band name from its integer representation."""
-        return cls.SUPPORTED_FILTERS[num]
-
-    # TODO: remove on DM-38687.
-    @classmethod
-    @deprecated(
-        reason="This classmethod cannot reflect all __init__ args and will be removed after v26.",
-        version="v26.0",
-        category=FutureWarning,
-    )
-    def getMaxIntForFilters(cls):
-        return len(cls.SUPPORTED_FILTERS)
 
     def __init__(
         self,
