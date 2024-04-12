@@ -144,7 +144,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             for visit in visitListTemp:
                 if visit in visitVetoList:
                     visits.remove(visit)
-        logger.info("List of visits (N={}) excluding veto list: {}".format(len(visits), visits))
+            logger.info("List of visits (N={}) excluding veto list: {}".format(len(visits), visits))
+        logger.info("List of visits (N={}): {}".format(len(visits), visits))
 
     ccdIdList = []
     for ccd in camera:
@@ -201,7 +202,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     else:
         visitIncludeList = visits
 
-    # draw the CCDs
+    # Draw the CCDs.
     ras, decs = [], []
     bboxesPlotted = []
     cmap = get_cmap(len(visitIncludeList))
@@ -290,7 +291,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
 
     # Find a detector that contains the mid point in RA/Dec (or the closest
     # one) to set the plot aspect ratio.
-    minDistToMidCood = 1e12
+    minDistToMidCoord = 1e12
     minSepVisit = None
     minSepCcdId = None
     for i_v, visit in enumerate(visits):
@@ -310,10 +311,10 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     detSphCorners.append(pt)
                     ptSkyCoord = SkyCoord(ra*units.deg, dec*units.deg)
                     separation = (midSkyCoord.separation(ptSkyCoord)).degree
-                    if separation < minDistToMidCood:
+                    if separation < minDistToMidCoord:
                         minSepVisit = visit
                         minSepCcdId = ccdId
-                        minDistToMidCood = separation
+                        minDistToMidCoord = separation
                 detConvexHull = sphgeom.ConvexPolygon(
                     [coord.getVector() for coord in detSphCorners])
                 if detConvexHull.contains(midRa, midDec):
@@ -344,7 +345,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                                   geom.Angle(dec, geom.degrees))
             detSphCorners.append(pt)
         detConvexHull = sphgeom.ConvexPolygon([coord.getVector() for coord in detSphCorners])
-        logger.info("visit/det closest to plot coord mid point in RA/Dec (none actually overlat it): %d %d",
+        logger.info("visit/det closest to plot coord mid point in RA/Dec (none actually overlap it): %d %d",
                     minSepVisit, minSepCcdId)
         raToDecLimitRatio = (max(raCorners) - min(raCorners))/(max(decCorners) - min(decCorners))
         det = camera[minSepCcdId]
@@ -401,7 +402,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                              str(patch.sequential_index), fontsize=5, color=patchColor,
                              ha="center", va="center", alpha=alpha)
 
-    # add labels and save
+    # Add labels and save.
     ax = plt.gca()
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
