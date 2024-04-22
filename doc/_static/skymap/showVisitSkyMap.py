@@ -93,6 +93,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             detectorSkipList = [9]  # detector 9 has long been dead for HSC
         elif instrument == "LSSTCam-imSim":
             skymapName = "DC2"
+        elif instrument == "LSSTComCamSim":
+            skymapName = "ops_rehersal_prep_2k_v1"
         elif instrument == "LATISS":
             skymapName = "latiss_v1"
         elif instrument == "DECam":
