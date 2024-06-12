@@ -22,6 +22,7 @@
 
 __all__ = ['HealpixSkyMapConfig', 'HealpixSkyMap']
 
+from deprecated.sphinx import deprecated
 import struct
 import numpy
 
@@ -33,6 +34,9 @@ from .cachingSkyMap import CachingSkyMap
 from .tractInfo import TractInfo
 
 
+# TODO: Remove with DM-44799
+@deprecated("angToCoord has been deprecated and will be removed after v28.",
+            category=FutureWarning, version=28)
 def angToCoord(thetaphi):
     """Convert hpgeom ang to an lsst.geom.SpherePoint
 
@@ -43,6 +47,9 @@ def angToCoord(thetaphi):
     return geom.SpherePoint(float(thetaphi[1]), float(thetaphi[0] - 0.5*numpy.pi), geom.radians)
 
 
+# TODO: Remove with DM-44799
+@deprecated("coordToAnge has been deprecated and will be removed after v28.",
+            category=FutureWarning, version=28)
 def coordToAng(coord):
     """Convert an lsst.geom.SpherePoint to a hpgeom ang (theta, phi)
 
@@ -51,6 +58,9 @@ def coordToAng(coord):
     return (coord.getLatitude().asRadians() + 0.5*numpy.pi, coord.getLongitude().asRadians())
 
 
+# TODO: Remove with DM-44799
+@deprecated("HealpixTractInfo has been deprecated and will be removed after v28.",
+            category=FutureWarning, version=28)
 class HealpixTractInfo(TractInfo):
     """Tract for the HealpixSkyMap"""
 
@@ -62,6 +72,9 @@ class HealpixTractInfo(TractInfo):
                                                vertexList, tractOverlap, wcs)
 
 
+# TODO: Remove with DM-44799
+@deprecated("HealpixSkyMapConfig has been deprecated and will be removed after v28.",
+            category=FutureWarning, version=28)
 class HealpixSkyMapConfig(CachingSkyMap.ConfigClass):
     """Configuration for the HealpixSkyMap"""
     log2NSide = Field(dtype=int, default=0, doc="Number of sides, expressed in powers of 2")
@@ -71,6 +84,9 @@ class HealpixSkyMapConfig(CachingSkyMap.ConfigClass):
         self.rotation = 45  # HEALPixels are oriented at 45 degrees
 
 
+# TODO: Remove with DM-44799
+@deprecated("HealpixSkyMap has been deprecated and will be removed after v28.",
+            category=FutureWarning, version=28)
 class HealpixSkyMap(CachingSkyMap):
     """HEALPix-based sky map pixelization.
 

@@ -8,10 +8,12 @@ import hpgeom
 from lsst.skymap.healpixSkyMap import HealpixSkyMap
 
 
+# TODO: Remove with DM-44799
 class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
 
     def setUp(self):
-        config = HealpixSkyMap.ConfigClass()
+        with self.assertWarns(FutureWarning):
+            config = HealpixSkyMap.ConfigClass()
         nside = 2**config.log2NSide
         self.setAttributes(
             SkyMapClass=HealpixSkyMap,
@@ -21,6 +23,60 @@ class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
             numNeighbors=1,
             neighborAngularSeparation=hpgeom.max_pixel_radius(nside) * geom.degrees,
         )
+
+    def getSkyMap(self, config=None):
+        with self.assertWarns(FutureWarning):
+            skymap = super().getSkyMap(config=config)
+        return skymap
+
+    def getConfig(self):
+        with self.assertWarns(FutureWarning):
+            config = super().getConfig()
+        return config
+
+    # def testRegistry(self):
+    #     with self.assertWarns(FutureWarning):
+    #         super().testRegistry()
+
+    def testBasicAttributes(self):
+        with self.assertWarns(FutureWarning):
+            super().testBasicAttributes()
+
+    def testPickle(self):
+        with self.assertWarns(FutureWarning):
+            super().testPickle()
+
+    def testTractSeparation(self):
+        with self.assertWarns(FutureWarning):
+            super().testTractSeparation()
+
+    def testFindPatchList(self):
+        with self.assertWarns(FutureWarning):
+            super().testFindPatchList()
+
+    def testFindTractPatchList(self):
+        with self.assertWarns(FutureWarning):
+            super().testFindTractPatchList()
+
+    def testTractContains(self):
+        with self.assertWarns(FutureWarning):
+            super().testTractContains()
+
+    def testTractInfoGetPolygon(self):
+        with self.assertWarns(FutureWarning):
+            super().testTractInfoGetPolygon()
+
+    def testPatchInfoGetPolygon(self):
+        with self.assertWarns(FutureWarning):
+            super().testPatchInfoGetPolygon()
+
+    def testDm14809(self):
+        with self.assertWarns(FutureWarning):
+            super().testDm14809()
+
+    def testNumbering(self):
+        with self.assertWarns(FutureWarning):
+            super().testNumbering()
 
     def testSha1Compare(self):
         """Test that HealpixSkyMap's extra state is included in its hash."""
