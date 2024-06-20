@@ -70,6 +70,10 @@ class HealpixTestCase(skyMapTestCase.SkyMapTestCase):
         with self.assertWarns(FutureWarning):
             super().testPatchInfoGetPolygon()
 
+    def testTractInfoGetRegion(self):
+        with self.assertWarns(FutureWarning):
+            super().testTractInfoGetRegion()
+
     def testDm14809(self):
         with self.assertWarns(FutureWarning):
             super().testDm14809()
