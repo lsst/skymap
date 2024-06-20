@@ -28,6 +28,7 @@ import numpy as np
 
 from lsst.pex.config import Field
 import lsst.geom as geom
+import lsst.sphgeom as sphgeom
 from .cachingSkyMap import CachingSkyMap
 from .tractInfo import ExplicitTractInfo
 
@@ -136,9 +137,63 @@ class RingsSkyMap(CachingSkyMap):
 
         center = geom.SpherePoint(ra, dec, geom.radians)
         wcs = self._wcsFactory.makeWcs(crPixPos=geom.Point2D(0, 0), crValCoord=center)
-        return ExplicitTractInfo(index, self._tractBuilder, center,
-                                 0.5*self._ringSize*geom.radians, self.config.tractOverlap*geom.degrees,
-                                 wcs)
+
+        raMin, raMax, decMin, decMax = self.getRaDecRange(index)
+
+        innerBoxCorners = [
+            sphgeom.LonLat(lon=sphgeom.NormalizedAngle(raMin), lat=sphgeom.Angle(decMin)),
+            sphgeom.LonLat(lon=sphgeom.NormalizedAngle(raMax), lat=sphgeom.Angle(decMax)),
+        ]
+
+        return ExplicitTractInfo(
+            index,
+            self._tractBuilder,
+            center,
+            0.5*self._ringSize*geom.radians,
+            self.config.tractOverlap*geom.degrees,
+            wcs,
+            innerBoxCorners=innerBoxCorners,
+        )
+
+    def getRaDecRange(self, index):
+        """Get the ra and dec ranges for the inner region of a
+        specified tract index.
+
+        Parameters
+        ----------
+        index : `int`
+            Tract index number.
+
+        Returns
+        -------
+        raMin, raMax, decMin, decMax : `lsst.geom.Angle`
+            RA/Dec boundaries of the inner region.
+        """
+        ringNum, tractNum = self.getRingIndices(index)
+
+        if ringNum == -1:
+            # South polar cap.
+            decMin = (-np.pi/2.)*geom.radians
+            decMax = (-np.pi/2. + (ringNum + 1.5)*self._ringSize)*geom.radians
+            raMin = 0.0*geom.radians
+            raMax = 2.*np.pi*geom.radians
+        elif ringNum == self.config.numRings:
+            # North polar cap.
+            decMin = (-np.pi/2. + (ringNum + 0.5)*self._ringSize)*geom.radians
+            decMax = (np.pi/2.)*geom.radians
+            raMin = 0.0*geom.radians
+            raMax = 2.*np.pi*geom.radians
+        else:
+            decMin = (-np.pi/2. + (ringNum + 0.5)*self._ringSize)*geom.radians
+            decMax = (-np.pi/2. + (ringNum + 1.5)*self._ringSize)*geom.radians
+
+            deltaStart = ((tractNum - 0.5)*2.*np.pi/self._ringNums[ringNum])*geom.radians
+            deltaStop = ((tractNum + 0.5)*2.*np.pi/self._ringNums[ringNum])*geom.radians
+
+            raMin = (self._raStart + deltaStart).wrap()
+            raMax = (self._raStart + deltaStop).wrap()
+
+        return raMin, raMax, decMin, decMax
 
     def _decToRingNum(self, dec):
         """Calculate ring number from Declination.
