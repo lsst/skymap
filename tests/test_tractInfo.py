@@ -33,7 +33,10 @@ class TractInfoTestCase(lsst.utils.tests.TestCase):
         self.assertEqual(tractInfo.patch_inner_dimensions, tractInfo.getPatchInnerDimensions())
         self.assertEqual(tractInfo.tract_overlap, tractInfo.getTractOverlap())
         self.assertEqual(tractInfo.vertex_list, tractInfo.getVertexList())
-        self.assertEqual(tractInfo.inner_sky_polygon, tractInfo.getInnerSkyPolygon())
+        # TODO: Remove with DM-44799
+        with self.assertWarns(FutureWarning):
+            self.assertEqual(tractInfo.inner_sky_polygon, tractInfo.getInnerSkyPolygon())
+        self.assertEqual(tractInfo.inner_sky_region, tractInfo.getInnerSkyRegion())
         self.assertEqual(tractInfo.outer_sky_polygon, tractInfo.getOuterSkyPolygon())
         self.assertEqual(tractInfo.wcs, tractInfo.getWcs())
 
