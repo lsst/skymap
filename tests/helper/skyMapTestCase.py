@@ -26,6 +26,7 @@ import copy
 import numpy as np
 
 import lsst.geom as geom
+import lsst.sphgeom as sphgeom
 import lsst.utils.tests
 
 from lsst.skymap import skyMapRegistry
@@ -356,11 +357,26 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
         skyMap = self.getSkyMap()
         for tractInfo in skyMap:
             centerCoord = tractInfo.getCtrCoord()
-            self.assertPolygonOk(polygon=tractInfo.getInnerSkyPolygon(),
-                                 vertexList=tractInfo.getVertexList(),
-                                 centerCoord=centerCoord)
+            # TODO: Remove with DM-44799
+            with self.assertWarns(FutureWarning):
+                self.assertPolygonOk(polygon=tractInfo.getInnerSkyPolygon(),
+                                     vertexList=tractInfo.getVertexList(),
+                                     centerCoord=centerCoord)
             self.assertBBoxPolygonOk(polygon=tractInfo.getOuterSkyPolygon(),
                                      bbox=tractInfo.getBBox(), wcs=tractInfo.getWcs())
+
+    def testTractInfoGetRegion(self):
+        skyMap = self.getSkyMap()
+        for tractInfo in skyMap:
+            centerCoord = tractInfo.getCtrCoord()
+            region = tractInfo.getInnerSkyRegion()
+            if isinstance(region, sphgeom.Box):
+                self.assertRegionOk(region=region,
+                                    centerCoord=centerCoord)
+            else:
+                self.assertRegionOk(region=region,
+                                    centerCoord=centerCoord,
+                                    vertexList=tractInfo.getVertexList())
 
     def testPatchInfoGetPolygon(self):
         skyMap = self.getSkyMap()
@@ -467,6 +483,25 @@ class SkyMapTestCase(lsst.utils.tests.TestCase):
             cornerShiftedOut = vertex.offset(bearing=bearingToCenter, amount=-shiftAngle)
             self.assertTrue(polygon.contains(cornerShiftedIn.getVector()))
             self.assertFalse(polygon.contains(cornerShiftedOut.getVector()))
+
+    def assertRegionOk(self, region, centerCoord, vertexList=[]):
+        """Assert that an on-sky region is appropriate.
+
+        region : `lsst.sphgeom.Region`
+            On-sky region.
+        centerCoord : `lsst.geom.SpherePoint`
+            A coord approximately in the center of the region
+        vertexList : `iterable` of `lsst.geom.SpherePoint`, optional
+            Vertices to test.
+        """
+        shiftAngle = 0.01*geom.arcseconds
+        self.assertTrue(region.contains(centerCoord.getVector()))
+        for vertex in vertexList:
+            bearingToCenter = vertex.bearingTo(centerCoord)
+            cornerShiftedIn = vertex.offset(bearing=bearingToCenter, amount=shiftAngle)
+            cornerShiftedOut = vertex.offset(bearing=bearingToCenter, amount=-shiftAngle)
+            self.assertTrue(region.contains(cornerShiftedIn.getVector()))
+            self.assertFalse(region.contains(cornerShiftedOut.getVector()))
 
 
 def getCornerCoords(wcs, bbox):

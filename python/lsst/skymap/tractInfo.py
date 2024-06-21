@@ -23,10 +23,11 @@
 __all__ = ["TractInfo"]
 
 import numpy as np
+from deprecated.sphinx import deprecated
 
 import lsst.pex.exceptions
 import lsst.geom as geom
-from lsst.sphgeom import ConvexPolygon
+from lsst.sphgeom import ConvexPolygon, Box
 
 from .detail import makeSkyPolygonFromBBox, Index2D
 
@@ -51,6 +52,10 @@ class TractInfo:
     wcs : `lsst.afw.image.SkyWcs`
         WCS for tract. The reference pixel will be shifted as required so that
         the lower left-hand pixel (index 0,0) has pixel position 0.0, 0.0.
+    innerBoxCorners : `list` [`lsst.sphgeom.LonLat`], optional
+        If set then the ``inner_sky_region`` will be a `lsst.sphgeom.Box` with
+        these corners as opposed to a `lsst.sphgeom.ConvexPolygon` built from
+        the ``vertex_list``.
 
     Notes
     -----
@@ -79,12 +84,13 @@ class TractInfo:
     - It is not enforced that ctrCoord is the center of vertexCoordList, but
       SkyMap relies on it.
     """
-    def __init__(self, id, tractBuilder, ctrCoord, vertexCoordList, tractOverlap, wcs):
+    def __init__(self, id, tractBuilder, ctrCoord, vertexCoordList, tractOverlap, wcs, innerBoxCorners=None):
         self._id = id
         self._ctrCoord = ctrCoord
         self._vertexCoordList = tuple(vertexCoordList)
         self._tractOverlap = tractOverlap
         self._tractBuilder = tractBuilder
+        self._innerBoxCorners = innerBoxCorners
 
         minBBox = self._minimumBoundingBox(wcs)
         initialBBox, self._numPatches = self._tractBuilder.setupPatches(minBBox, wcs)
@@ -348,6 +354,10 @@ class TractInfo:
 
     vertex_list = property(getVertexList)
 
+    # TODO: Remove with DM-44799
+    @deprecated(reason="getInnerSkyPolygon()/inner_sky_polygon has been deprecated in favor of "
+                       "inner_sky_region, and will be removed after v28.",
+                category=FutureWarning, version=28)
     def getInnerSkyPolygon(self):
         """Get inner on-sky region as a sphgeom.ConvexPolygon.
         """
@@ -355,6 +365,17 @@ class TractInfo:
         return ConvexPolygon.convexHull(skyUnitVectors)
 
     inner_sky_polygon = property(getInnerSkyPolygon)
+
+    def getInnerSkyRegion(self):
+        """Get inner on-sky region.
+        """
+        if self._innerBoxCorners:
+            return Box(point1=self._innerBoxCorners[0], point2=self._innerBoxCorners[1])
+        else:
+            skyUnitVectors = [sp.getVector() for sp in self.getVertexList()]
+            return ConvexPolygon.convexHull(skyUnitVectors)
+
+    inner_sky_region = property(getInnerSkyRegion)
 
     def getOuterSkyPolygon(self):
         """Get outer on-sky region as a sphgeom.ConvexPolygon
@@ -412,14 +433,43 @@ class ExplicitTractInfo(TractInfo):
 
     A tract is placed at the explicitly defined coordinates, with the nominated
     radius.  The tracts are square (i.e., the radius is really a half-size).
+
+    Parameters
+    ----------
+    id : : `int`
+        tract ID
+    tractBuilder : Subclass of `lsst.skymap.BaseTractBuilder`
+        Object used to compute patch geometry.
+    ctrCoord : `lsst.geom.SpherePoint`
+        ICRS sky coordinate of center of inner region of tract; also used as
+        the CRVAL for the WCS.
+    radius : `lsst.geom.Angle`
+        Radius of the tract.
+    tractOverlap : `lsst.geom.Angle`
+        Minimum overlap between adjacent sky tracts; this defines the minimum
+        distance the tract extends beyond the inner region in all directions.
+    wcs : `lsst.afw.image.SkyWcs`
+        WCS for tract. The reference pixel will be shifted as required so that
+        the lower left-hand pixel (index 0,0) has pixel position 0.0, 0.0.
+    innerBoxCorners : `list` [`lsst.sphgeom.LonLat`], optional
+        If set then the ``inner_sky_region`` will be a `lsst.sphgeom.Box` with
+        these corners as oppsed to a `lsst.sphgeom.ConvexPolygon` built from
+        the ``vertex_list``.
     """
-    def __init__(self, id, tractBuilder, ctrCoord, radius, tractOverlap, wcs):
+    def __init__(self, id, tractBuilder, ctrCoord, radius, tractOverlap, wcs, innerBoxCorners=None):
         # We don't want TractInfo setting the bbox on the basis of vertices,
         # but on the radius.
         vertexList = []
         self._radius = radius
-        super(ExplicitTractInfo, self).__init__(id, tractBuilder, ctrCoord,
-                                                vertexList, tractOverlap, wcs)
+        super(ExplicitTractInfo, self).__init__(
+            id,
+            tractBuilder,
+            ctrCoord,
+            vertexList,
+            tractOverlap,
+            wcs,
+            innerBoxCorners=innerBoxCorners,
+        )
         # Shrink the box slightly to make sure the vertices are in the tract
         bboxD = geom.BoxD(self.getBBox())
         bboxD.grow(-0.001)

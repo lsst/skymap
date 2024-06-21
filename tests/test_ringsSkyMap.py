@@ -57,6 +57,23 @@ class RingsTestCase(skyMapTestCase.SkyMapTestCase):
             for coord in vertices:
                 self.assertIn(tract.getId(), [tt.getId() for tt in skymap.findAllTracts(coord)])
 
+    def testInnerSkyRegion(self):
+        """Test that the inner_sky_region covers the inner sky region."""
+        skymap = self.getSkyMap()
+        for tract in skymap:
+            innerSkyRegion = tract.inner_sky_region
+            bbox = tract.bbox
+            wcs = tract.wcs
+            x = np.linspace(bbox.getMinX(), bbox.getMaxX(), 100)
+            y = np.linspace(bbox.getMinY(), bbox.getMaxY(), 100)
+            xx, yy = np.meshgrid(x, y)
+
+            ra, dec = wcs.pixelToSkyArray(xx.ravel(), yy.ravel())
+            np.testing.assert_array_equal(
+                innerSkyRegion.contains(ra, dec),
+                skymap.findTractIdArray(ra, dec) == tract.getId(),
+            )
+
 
 class NonzeroRaStartRingsTestCase(RingsTestCase):
     """Test that setting raStart != 0 works"""
