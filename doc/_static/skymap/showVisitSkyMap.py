@@ -22,6 +22,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 from astropy import units
 from astropy.coordinates import SkyCoord
 import matplotlib
@@ -33,10 +34,9 @@ import numpy as np
 import lsst.afw.cameraGeom as cameraGeom
 import lsst.daf.butler as dafButler
 import lsst.geom as geom
-import lsst.log as lsstLog
 import lsst.sphgeom as sphgeom
 
-logger = lsstLog.Log.getLogger("showVisitSkyMap.py")
+logger = logging.getLogger("lsst.skymap.bin.showVisitSkyMap")
 
 
 def bboxToRaDec(bbox, wcs):
@@ -806,6 +806,7 @@ if __name__ == "__main__":
                         help="Force the axis limit scaling to focal plane based projection (takes "
                         "precedence over --doUnscaledLimitRatio.")
     args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO)
     main(args.repo, args.collections, skymapName=args.skymapName, tracts=args.tracts, visits=args.visits,
          physicalFilters=args.physicalFilters, bands=args.bands, ccds=args.ccds, ccdKey=args.ccdKey,
          showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds,
