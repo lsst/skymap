@@ -82,7 +82,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
          forceScaledLimitRatio=False):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
-    logger.info("Making butler for collections = {} in repo {}".format(collections, repo))
+    logger.info("Making butler for collections = %s in repo %s", collections, repo)
     butler = dafButler.Butler(repo, collections=collections)
     instrument = butler.find_dataset("camera").dataId["instrument"]
     detectorSkipList = []
@@ -102,7 +102,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         else:
             logger.error("Unknown skymapName for instrument: %s.  Must specify --skymapName on command line.",
                          instrument)
-    logger.info("instrument = {} skymapName = {}".format(instrument, skymapName))
+    logger.info("instrument = %s skymapName = %s", instrument, skymapName)
     camera = butler.get("camera", instrument=instrument)
     skymap = butler.get("skyMap", instrument=instrument, skymap=skymapName)
 
@@ -123,7 +123,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         whereStr = "instrument=\'" + instrument + "\' AND skymap=\'" + skymapName + "\' AND " + whereStr
     else:
         whereStr = "instrument=\'" + instrument + "\' AND skymap=\'" + skymapName + "\'"
-    logger.info("Applying the following where clause in dataId search: {} ".format(whereStr))
+    logger.info("Applying the following where clause in dataId search: %s", whereStr)
 
     visitVetoList = []
     if visitVetoFile is not None:
@@ -139,16 +139,17 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             if visit not in visits and visit not in visitVetoList:
                 visits.append(visit)
         visits.sort()
-        logger.info("List of visits (N={}) satisfying where and veto clauses: {}".format(len(visits),
-                                                                                         visits))
+        logger.info(
+            "List of visits (N=%d) satisfying where and veto clauses: %s", len(visits), visits
+        )
     else:
         if len(visitVetoList) > 1:
             visitListTemp = visits.copy()
             for visit in visitListTemp:
                 if visit in visitVetoList:
                     visits.remove(visit)
-            logger.info("List of visits (N={}) excluding veto list: {}".format(len(visits), visits))
-        logger.info("List of visits (N={}): {}".format(len(visits), visits))
+            logger.info("List of visits (N=%d) excluding veto list: %s}", len(visits), visits)
+        logger.info("List of visits (N=%d): %s", len(visits), visits)
 
     ccdIdList = []
     for ccd in camera:
@@ -263,8 +264,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                                  str(ccdId), fontsize=6, ha="center", va="center", color="darkblue")
                         bboxesPlotted.append(bboxDouble)
 
-    logger.info("Final list of visits (N={}) satisfying where and minOverlapFraction clauses: {}"
-                .format(len(finalVisitList), finalVisitList))
+    logger.info("Final list of visits (N=%d) satisfying where and minOverlapFraction clauses: %s",
+                len(finalVisitList), finalVisitList)
 
     raToDecLimitRatio = None
     if len(ras) > 0:
@@ -288,7 +289,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             raise RuntimeError("No data to plot (if you want to plot empty tracts, include them as "
                                "a blank-space separated list to the --tracts option.")
     tractList.sort()
-    logger.info("List of tracts overlapping data:  {}".format(tractList))
+    logger.info("List of tracts overlapping data:  %s", tractList)
     tractLimitsDict = getTractLimitsDict(skymap, tractList)
 
     if forceScaledLimitRatio:
@@ -421,7 +422,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     else:
         tractOutlineList = tractList
     tractOutlineList.sort()
-    logger.info("List of tract outlines being plotted: {}".format(tractOutlineList))
+    logger.info("List of tract outlines being plotted: %s", tractOutlineList)
     for i_t, tract in enumerate(tractOutlineList):
         alpha = max(0.1, alpha0 - i_t*1.0/len(tractOutlineList))
         tractInfo = skymap[tract]
