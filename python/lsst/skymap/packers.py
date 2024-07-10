@@ -26,7 +26,7 @@ __all__ = ("SkyMapDimensionPacker",)
 from collections.abc import Mapping
 
 from lsst.pex.config import Config, Field, DictField, ConfigurableField
-from lsst.daf.butler import DimensionPacker, DimensionGraph, DimensionGroup, DataCoordinate
+from lsst.daf.butler import DimensionPacker, DimensionGroup, DataCoordinate
 
 
 class SkyMapDimensionPackerConfig(Config):
@@ -74,8 +74,7 @@ class SkyMapDimensionPacker(DimensionPacker):
         Data ID that identifies just the ``skymap`` dimension.  Must have
         dimension records attached unless ``n_tracts`` and ``n_patches`` are
         not `None`.
-    dimensions : `lsst.daf.butler.DimensionGraph`, or \
-            `lsst.daf.butler.DimensionGroup`, optional
+    dimensions : `lsst.daf.butler.DimensionGroup`, optional
         The dimensions of data IDs packed by this instance.  Must include
         ``{skymap, tract, patch}``, and may include ``band``.  If not provided,
         this will be set to include ``band`` if ``n_bands != 0``.
@@ -137,7 +136,7 @@ class SkyMapDimensionPacker(DimensionPacker):
     def __init__(
         self,
         fixed: DataCoordinate,
-        dimensions: DimensionGroup | DimensionGraph | None = None,
+        dimensions: DimensionGroup | None = None,
         bands: Mapping[str, int] | None = None,
         n_bands: int | None = None,
         n_tracts: int | None = None,
