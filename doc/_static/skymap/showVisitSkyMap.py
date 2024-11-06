@@ -76,8 +76,9 @@ def get_cmap(n, name="hsv"):
     return matplotlib.colormaps[name].resampled(n)
 
 
-def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalFilters=None, bands=None,
-         ccds=None, ccdKey="detector", showPatch=False, saveFile=None, showCcds=False, visitVetoFile=None,
+def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=None,
+         physicalFilters=None, bands=None, ccds=None, ccdKey="detector", showPatch=False,
+         saveFile=None, showCcds=False, visitVetoFile=None,
          minOverlapFraction=None, trimToTracts=False, doUnscaledLimitRatio=False,
          forceScaledLimitRatio=False):
     if minOverlapFraction is not None and tracts is None:
@@ -111,6 +112,14 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         tractStr = makeWhereInStr("tract", tracts, int)
         whereStr += tractStr
 
+    if patches is not None:
+        patchStr = makeWhereInStr("patch", patches, int)
+        whereStr += " AND " + patchStr
+
+    if visits is not None:
+        visitStr = makeWhereInStr("exposure", visits, int)
+        whereStr += visitStr
+
     if physicalFilters is not None:
         physicalFilterStr = makeWhereInStr("physical_filter", physicalFilters, str)
         whereStr += " AND " + physicalFilterStr if len(whereStr) else " " + physicalFilterStr
@@ -131,8 +140,17 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             content = f.readlines()
             visitVetoList = [int(visit.strip()) for visit in content]
 
+    # Guess at data type (OG calexp vs. new initial_pvi)
+    datasetTypesToTry = ["calexp", "initial_pvi"]
+    for datasetType in datasetTypesToTry:
+        dataRefs = list(butler.registry.queryDatasets(datasetType, where=whereStr).expanded())
+        print(datasetType, len(dataRefs))
+        if len(dataRefs) > 0:
+            break
+    if len(dataRefs) == 0:
+        raise RuntimeError("No visits of any of {} found.".format(datasetTypesToTry))
+    logger.info("Determined that the visit-level image datasetType is {}".format(datasetType))
     if visits is None:
-        dataRefs = list(butler.registry.queryDatasets("calexp", where=whereStr).expanded())
         visits = []
         for dataRef in dataRefs:
             visit = dataRef.dataId.visit.id
@@ -170,7 +188,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             try:
                 visitSummary = butler.get("visitSummary", visit=visit)
             except LookupError as e:
-                logger.warn("%s  Will try to get wcs from calexp.", e)
+                logger.warn("%s  Will try to get wcs from exposure.", e)
                 visitSummary = None
             if tracts is not None:
                 for tract in tracts:
@@ -181,8 +199,8 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     for ccdId in ccdIdList:
                         if ccdId not in ccdOverlapList:
                             raCorners, decCorners = getDetRaDecCorners(
-                                ccdKey, ccdId, visit, visitSummary=visitSummary, butler=butler,
-                                doLogWarn=False)
+                                ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary,
+                                butler=butler, doLogWarn=False)
                             if raCorners is not None and decCorners is not None:
                                 detSphCorners = []
                                 for ra, dec in zip(raCorners, decCorners):
@@ -211,7 +229,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     bboxesPlotted = []
     cmap = get_cmap(len(visitIncludeList))
     alphaEdge = 0.7
-    maxVisitForLegend = 20
+    maxVisitForLegend = 30  # 20
     finalVisitList = []
     includedBands = []
     includedPhysicalFilters = []
@@ -223,7 +241,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         try:
             visitSummary = butler.get("visitSummary", visit=visit)
         except Exception as e:
-            logger.warn("%s  Will try to get wcs from calexp.", e)
+            logger.warn("%s  Will try to get wcs from exposure.", e)
             visitSummary = None
 
         band, physicalFilter = getBand(visitSummary=visitSummary, butler=butler, visit=visit)
@@ -234,7 +252,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
 
         for ccdId in ccdIdList:
             raCorners, decCorners = getDetRaDecCorners(
-                ccdKey, ccdId, visit, visitSummary=visitSummary, butler=butler)
+                ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary, butler=butler)
             if raCorners is not None and decCorners is not None:
                 ras += raCorners
                 decs += decCorners
@@ -281,7 +299,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         midSkyCoord = SkyCoord(midVisitRa*units.deg, midVisitDec*units.deg)
     else:
         if tracts is not None:
-            logger.info("No calexps were found, but --tracts list was provided, so will go ahead and "
+            logger.info("No exposures were found, but --tracts list was provided, so will go ahead and "
                         "plot the empty tracts.")
             tractList = tracts
             trimToTracts = True
@@ -337,11 +355,13 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             try:
                 visitSummary = butler.get("visitSummary", visit=visit)
             except Exception as e:
-                logger.warn("%s  Will try to get wcs from calexp.", e)
+                logger.warn("%s  Will try to get wcs from exposure.", e)
                 visitSummary = None
             for ccdId in ccdIdList:
                 raCorners, decCorners = getDetRaDecCorners(
-                    ccdKey, ccdId, visit, visitSummary=visitSummary, butler=butler, doLogWarn=False)
+                    ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary,
+                    butler=butler, doLogWarn=False
+                )
                 if raCorners is not None and decCorners is not None:
                     detSphCorners = []
                     for ra, dec in zip(raCorners, decCorners):
@@ -379,10 +399,12 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             try:
                 visitSummary = butler.get("visitSummary", visit=minSepVisit)
             except Exception as e:
-                logger.warn("%s  Will try to get wcs from calexp.", e)
+                logger.warn("%s  Will try to get wcs from exposure.", e)
                 visitSummary = None
             raCorners, decCorners = getDetRaDecCorners(
-                ccdKey, minSepCcdId, minSepVisit, visitSummary=visitSummary, butler=butler, doLogWarn=False)
+                ccdKey, minSepCcdId, datasetType, minSepVisit, visitSummary=visitSummary,
+                butler=butler, doLogWarn=False
+            )
             for ra, dec in zip(raCorners, decCorners):
                 pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
                                       geom.Angle(dec, geom.degrees))
@@ -710,7 +732,7 @@ def setLimitsToEqualRatio(xMin, xMax, yMin, yMax):
     return xMin, xMax, yMin, yMax
 
 
-def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doLogWarn=True):
+def getDetRaDecCorners(ccdKey, ccdId, datasetType, visit, visitSummary=None, butler=None, doLogWarn=True):
     """Compute the RA/Dec corners lists for a given detector in a visit.
     """
     raCorners, decCorners = None, None
@@ -725,11 +747,16 @@ def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doL
             decCorners = list(row["decCorners"])
     else:
         try:
-            dataId = {"visit": visit, ccdKey: ccdId}
-            wcs = butler.get("calexp.wcs", dataId)
-            bbox = butler.get("calexp.bbox", dataId)
+            if datasetType == "raw":
+                dataId = {"exposure": visit, ccdKey: ccdId}
+            else:
+                dataId = {"visit": visit, ccdKey: ccdId}
+            exp = butler.get(datasetType, dataId)
+            wcs = exp.getWcs()
+            bbox = exp.getBBox()
             raCorners, decCorners = bboxToRaDec(bbox, wcs)
-        except LookupError as e:
+        # except LookupError as e:
+        except Exception as e:
             logger.warn("%s Skipping and continuing...", e)
 
     return raCorners, decCorners
@@ -774,8 +801,11 @@ if __name__ == "__main__":
                         metavar=("COLLECTION1", "COLLECTION2"), required=True)
     parser.add_argument("--skymapName", default=None, help="Name of the skymap for the collection")
     parser.add_argument("--tracts", type=int, nargs="+", default=None,
-                        help=("Blank-space separated list of tract outlines to constrain search for "
+                        help=("Blank-space separated list of tracts to constrain search for "
                               "visit overlap"), metavar=("TRACT1", "TRACT2"))
+    parser.add_argument("--patches", type=int, nargs="+", default=None,
+                        help=("Blank-space separated list of patches to constrain search for "
+                              "visit overlap"), metavar=("PATCH1", "PATCH2"))
     parser.add_argument("--visits", type=int, nargs="+", default=None,
                         help="Blank-space separated list of visits to include",
                         metavar=("VISIT1", "VISIT2"))
@@ -808,8 +838,9 @@ if __name__ == "__main__":
                         "precedence over --doUnscaledLimitRatio.")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    main(args.repo, args.collections, skymapName=args.skymapName, tracts=args.tracts, visits=args.visits,
-         physicalFilters=args.physicalFilters, bands=args.bands, ccds=args.ccds, ccdKey=args.ccdKey,
+    main(args.repo, args.collections, skymapName=args.skymapName, tracts=args.tracts,
+         patches=args.patches, visits=args.visits, physicalFilters=args.physicalFilters,
+         bands=args.bands, ccds=args.ccds, ccdKey=args.ccdKey,
          showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds,
          visitVetoFile=args.visitVetoFile, minOverlapFraction=args.minOverlapFraction,
          trimToTracts=args.trimToTracts, doUnscaledLimitRatio=args.doUnscaledLimitRatio,
