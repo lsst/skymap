@@ -22,3 +22,4 @@ pytest_session.txt
 tests/.tests
 tests/.cache
 version.py
+python/*.dist-info/
