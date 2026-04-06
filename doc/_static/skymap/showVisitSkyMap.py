@@ -21,6 +21,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import sys
 import argparse
 import logging
 from astropy import units
@@ -35,6 +36,30 @@ import lsst.afw.cameraGeom as cameraGeom
 import lsst.daf.butler as dafButler
 import lsst.geom as geom
 import lsst.sphgeom as sphgeom
+
+# from lsst.utils.plotting import (
+#     get_multiband_plot_colors,
+#     get_multiband_plot_symbols,
+#     get_multiband_plot_linestyles
+# )
+
+from lsst.utils.plotting import publication_plots, make_figure, set_rubin_plotstyle
+
+# publication_plots.set_rubin_plotstyle()
+
+bands_dict = publication_plots.get_band_dicts()
+# bandColorDict = bands_dict["colors"]
+# Force to unpushed updated color scheme.
+bandColorDict ={"u": "#48A8D4",
+                "g": "#31DE1F",
+                "r": "#B52626",
+                "i": "#2915A4",
+                "z": "#AD03EA",
+                "y": "#2D0201",
+}
+bandSymbolDict = bands_dict["symbols"]
+bandLinestyleDict = bands_dict["line_styles"]
+set_rubin_plotstyle()
 
 logger = logging.getLogger("lsst.skymap.bin.showVisitSkyMap")
 
@@ -78,9 +103,9 @@ def get_cmap(n, name="hsv"):
 
 def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=None,
          physicalFilters=None, bands=None, ccds=None, ccdKey="detector", showPatch=False,
-         saveFile=None, showCcds=False, visitVetoFile=None,
+         saveFile=None, showCcds=False, showCcdsAll=True, visitVetoFile=None,
          minOverlapFraction=None, trimToTracts=False, doUnscaledLimitRatio=False,
-         forceScaledLimitRatio=False):
+         forceScaledLimitRatio=False, plotFailsOnly=False):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
     logger.info("Making butler for collections = %s in repo %s", collections, repo)
@@ -100,6 +125,10 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
             skymapName = "latiss_v1"
         elif instrument == "DECam":
             skymapName = "decam_rings_v1"
+        elif instrument == "LSSTComCam":
+            skymapName = "lsst_cells_v1"
+        elif instrument == "LSSTCam":
+            skymapName = "lsst_cells_v1"
         else:
             logger.error("Unknown skymapName for instrument: %s.  Must specify --skymapName on command line.",
                          instrument)
@@ -118,7 +147,10 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
 
     if visits is not None:
         visitStr = makeWhereInStr("exposure", visits, int)
-        whereStr += visitStr
+        if len(whereStr) < 1:
+            whereStr += visitStr
+        else:
+            whereStr += " AND " + visitStr
 
     if physicalFilters is not None:
         physicalFilterStr = makeWhereInStr("physical_filter", physicalFilters, str)
@@ -128,11 +160,55 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
         bandStr = makeWhereInStr("band", bands, str)
         whereStr += " AND " + bandStr if len(whereStr) else " " + bandStr
 
+    if "Trifid-Lagoon" in collections[0]:
+        whereStr += " AND detector NOT IN (120,121,122,78,79,80,0,20,27,65,123,161,168,188,158,68,169,187,19) AND detector<189 AND exposure NOT IN (2025050400538)"
+        detectorSkipList = [120,121,122,78,79,80,0,20,27,65,
+                            123,161,168,188,158,68,169,187,19]
+        # whereStr += " AND detector NOT IN (0,20,27,65,123,161,168,188,78,79,80,121,122,169,187,120,158,30,68,1,19,170,186,117,155,33,71,2,18,165,185,124,160,28,64,3,23,125,118,119) AND detector<189 AND exposure NOT IN (2025050400538)"
+        # detectorSkipList = [0,20,27,65,123,161,168,188,78,79,80,
+        #                     121,122,169,187,120,158,30,68,
+        #                     1,19,170,186,117,155,33,71,
+        #                     2,18,165,185,124,160,28,64,
+        #                     3,23,125,118,119]
+
+    elif "202508" in collections[0]:
+        whereStr += " AND detector NOT IN (0,20,65,161,188,168,123,27,1,19,68,158,187,169,120,30) AND detector<189"
+        detectorSkipList = [0,20,65,161,188,168,123,27,1,19,68,158,187,169,120,30]
+    elif instrument == "LSSTCam":
+        whereStr += " AND detector NOT IN (120,121,122,78,79,80,0,20,27,65,123,161,168,188) AND detector<189"
+        detectorSkipList = [120,121,122,78,79,80,0,20,27,65,123,161,168,188]
+
     if len(whereStr) > 1:
         whereStr = "instrument=\'" + instrument + "\' AND skymap=\'" + skymapName + "\' AND " + whereStr
     else:
         whereStr = "instrument=\'" + instrument + "\' AND skymap=\'" + skymapName + "\'"
+
     logger.info("Applying the following where clause in dataId search: %s", whereStr)
+
+    getIdsFromIsr = False  # True
+    isrVisits = []
+    isrDetectors = None
+    if getIdsFromIsr:
+        isrDataRefs = list(butler.registry.queryDatasets("post_isr_image", where=whereStr).expanded())
+        print("Number of post_isr_image datasets in {}: {}".format(collections[0], len(isrDataRefs)))
+        isrDataIds = []
+        isrDetectors = []
+        for isrDataRef in isrDataRefs:
+            exposure = isrDataRef.dataId["exposure"]
+            if exposure not in isrVisits:
+                isrVisits.append(exposure)
+            detector = isrDataRef.dataId["detector"]
+            if detector not in isrDetectors:
+                isrDetectors.append(detector)
+            isrDataIds.append((exposure, detector))
+
+    if len(isrVisits) > 0 :
+        isrVisitStr = makeWhereInStr("exposure", isrVisits, int)
+        if len(whereStr) < 1:
+            whereStr += isrVisitStr
+        else:
+            whereStr += " AND " + isrVisitStr
+        visits = isrVisits
 
     visitVetoList = []
     if visitVetoFile is not None:
@@ -140,21 +216,46 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
             content = f.readlines()
             visitVetoList = [int(visit.strip()) for visit in content]
 
-    # Guess at data type (OG calexp vs. new initial_pvi)
-    datasetTypesToTry = ["calexp", "initial_pvi"]
+    # imageTypes = ["science", "acq"]
+    # imageTypes = ["science"]
+    imageTypes = None
+    if imageTypes is not None:
+        imageTypeStr = makeWhereInStr("exposure.observation_type", imageTypes, str)
+        rawWhereStr = whereStr + " AND " + imageTypeStr if len(whereStr) else " " + imageTypeStr
+    else:
+        rawWhereStr = whereStr
+    # rawWhereStr += " AND exposure.exposure_time>25.0"
+    if len(isrVisits) == 0:
+        rawDataRefs = list(butler.registry.queryDatasets("raw", where=rawWhereStr).expanded())
+        logger.info("Limiting search to query: %s", rawWhereStr)
+        rawVisits = []
+        for rawDataRef in rawDataRefs:
+            rawVisit = rawDataRef.dataId.exposure.id
+            if rawVisit not in rawVisits and rawVisit not in visitVetoList:
+                rawVisits.append(rawVisit)
+    else:
+        rawVisits = isrVisits
+        rawDataRefs = isrDataRefs
+
+    rawVisits.sort()
+    logger.info("Number of raw visits satisfying where and veto clauses: %d (nDatId: %d)",
+                len(rawVisits), len(rawDataRefs))
+
+    # Guess at data type (OG calexp vs. new initial_pvi vs. newer preliminary_visit_image)
+    datasetTypesToTry = ["preliminary_visit_image", "calexp", "initial_pvi"]
     for datasetType in datasetTypesToTry:
         dataRefs = list(butler.registry.queryDatasets(datasetType, where=whereStr).expanded())
-        print(datasetType, len(dataRefs))
+        logger.info("Number of %s dataset = %d", datasetType, len(dataRefs))
         if len(dataRefs) > 0:
             break
-    if len(dataRefs) == 0:
+    if len(dataRefs) == 0 and tracts == None:
         raise RuntimeError("No visits of any of {} found.".format(datasetTypesToTry))
-    logger.info("Determined that the visit-level image datasetType is {}".format(datasetType))
+    logger.info("Determined that the visit-level image datasetType is %s", datasetType)
     if visits is None:
         visits = []
         for dataRef in dataRefs:
             visit = dataRef.dataId.visit.id
-            if visit not in visits and visit not in visitVetoList:
+            if visit not in visits and visit not in visitVetoList and visit in rawVisits:
                 visits.append(visit)
         visits.sort()
         logger.info(
@@ -164,18 +265,28 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
         if len(visitVetoList) > 1:
             visitListTemp = visits.copy()
             for visit in visitListTemp:
-                if visit in visitVetoList:
+                if visit in visitVetoList or visit not in rawVisits:
                     visits.remove(visit)
-            logger.info("List of visits (N=%d) excluding veto list: %s}", len(visits), visits)
+            logger.info("List of visits (N=%d) excluding veto list: %s", len(visits), visits)
         logger.info("List of visits (N=%d): %s", len(visits), visits)
 
-    ccdIdList = []
-    for ccd in camera:
-        ccdId = ccd.getId()
-        if ((ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.DetectorType.SCIENCE
+    if datasetType == "preliminary_visit_image":
+        visitSummaryStr = "preliminary_visit_summary"  # "visit_summary"
+    else:
+        visitSummaryStr = "visitSummary"
+
+    if isrDetectors is None:
+        ccdIdList = []
+        for ccd in camera:
+            ccdId = ccd.getId()
+            if ((ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.DetectorType.SCIENCE
                 and ccdId not in detectorSkipList):
-            ccdIdList.append(ccdId)
-    ccdIdList.sort()
+                ccdIdList.append(ccdId)
+        ccdIdList.sort()
+    else:
+        ccdIdList = isrDetectors
+    print("ccdIdList: {}".format(ccdIdList))
+    print("detectorSkipList: {}".format(detectorSkipList))
     nDetTot = len(ccdIdList)
 
     visitIncludeList = []
@@ -183,12 +294,13 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
     # consideration. If this fraction does not exceed minOverlapFraction,
     # skip this visit.
     if minOverlapFraction is not None:
+        nDataIdsFound = 0
         for i_v, visit in enumerate(visits):
             ccdOverlapList = []
             try:
-                visitSummary = butler.get("visitSummary", visit=visit)
+                visitSummary = butler.get(visitSummaryStr, visit=visit)
             except LookupError as e:
-                logger.warn("%s  Will try to get wcs from exposure.", e)
+                logger.warning("%s  Will try to get wcs from exposure.", e)
                 visitSummary = None
             if tracts is not None:
                 for tract in tracts:
@@ -202,6 +314,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
                                 ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary,
                                 butler=butler, doLogWarn=False)
                             if raCorners is not None and decCorners is not None:
+                                nDataIdsFound += 1
                                 detSphCorners = []
                                 for ra, dec in zip(raCorners, decCorners):
                                     pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
@@ -224,24 +337,35 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
     else:
         visitIncludeList = visits
 
+    print("len(visitIncludeList) = {}".format(len(visitIncludeList)))
+    # for finalVisit in visitIncludeList:
+    #    print("LSSTCam {}".format(finalVisit))
+    # raise("Remove me....")
+
     # Draw the CCDs.
     ras, decs = [], []
+    rasRaw, decsRaw = [], []
     bboxesPlotted = []
     cmap = get_cmap(len(visitIncludeList))
     alphaEdge = 0.7
-    maxVisitForLegend = 30  # 20
+    maxVisitForLegend = 150  # 25  # 46  # 20
     finalVisitList = []
     includedBands = []
     includedPhysicalFilters = []
+    nDataIdFound = 0
+    nRawDataId = 0
+    rawDataIdList = []
+    dataIdFoundList = []
+    noRawDataIdList = []
+    failedDataIdList = []
+    removededDataIdList = []
+    failedVisitList = []
     for i_v, visit in enumerate(visitIncludeList):
         print("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visitIncludeList)), end="\r")
-        inLegend = False
-        color = cmap(i_v)
-        fillKwargs = {"fill": False, "alpha": alphaEdge, "facecolor": None, "edgecolor": color, "lw": 0.6}
         try:
-            visitSummary = butler.get("visitSummary", visit=visit)
+            visitSummary = butler.get(visitSummaryStr, visit=visit)
         except Exception as e:
-            logger.warn("%s  Will try to get wcs from exposure.", e)
+            logger.warning("%s  Will try to get wcs from exposure.", e)
             visitSummary = None
 
         band, physicalFilter = getBand(visitSummary=visitSummary, butler=butler, visit=visit)
@@ -249,41 +373,248 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
             includedBands.append(band)
         if physicalFilter not in includedPhysicalFilters:
             includedPhysicalFilters.append(physicalFilter)
+        # color = cmap(i_v)
+        color = bandColorDict[band]
+        linestyle = bandLinestyleDict[band]
+        fillKwargs = {"fill": False, "alpha": alphaEdge, "facecolor": None, "edgecolor": color, "lw": 0.6}
+        inLegend = False
+        iDataId = 0
+        halfWay = int(maxVisitForLegend/2) - 1
 
+        doPlotRawOutlines = False  # True
         for ccdId in ccdIdList:
-            raCorners, decCorners = getDetRaDecCorners(
-                ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary, butler=butler)
-            if raCorners is not None and decCorners is not None:
-                ras += raCorners
-                decs += decCorners
-                if not inLegend and len(visitIncludeList) <= maxVisitForLegend:
-                    plt.fill(raCorners, decCorners, label=str(visit), **fillKwargs)
-                    inLegend = True
-                else:
-                    plt.fill(raCorners, decCorners, **fillKwargs)
-                plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4, color=color,
-                         edgecolor=color)
+            if getIdsFromIsr:
+                if (visit, ccdId) not in isrDataIds:
+                    # logger.info("Skipping {} {}".format(visit, ccdId))
+                    continue
+
+            # Plot raw WCSs
+            raCornersRaw, decCornersRaw = getDetRaDecCorners(
+                ccdKey, ccdId, "raw", visit, visitSummary=visitSummary, butler=butler)
+            if raCornersRaw is not None and decCornersRaw is not None:
+                nRawDataId += 1
+                rawDataIdList.append({"visit": visit, "detector": ccdId})
+                rasRaw += raCornersRaw
+                decsRaw += decCornersRaw
+                if doPlotRawOutlines:
+                    if not plotFailsOnly:
+                        plt.fill(raCornersRaw, decCornersRaw, fill=False, alpha=alphaEdge, color=color,
+                                 edgecolor=color, ls=":", lw=0.8)
+                # Always plot gray outline of raws when plotting failures only.
+                if plotFailsOnly:
+                    plt.fill(raCornersRaw, decCornersRaw, fill=True, alpha=0.4, color="lightgray",
+                             edgecolor="lightgray", ls=":", lw=0.8)
+                    plt.fill(raCornersRaw, decCornersRaw, fill=False, alpha=1.0, color="lightgray",
+                             edgecolor="lightgray", ls=":", lw=0.8)
                 if visit not in finalVisitList:
                     finalVisitList.append(visit)
-                # add CCD serial numbers
-                if showCcds:
-                    overlapFrac = 0.2
-                    deltaRa = max(raCorners) - min(raCorners)
-                    deltaDec = max(decCorners) - min(decCorners)
-                    minPoint = geom.Point2D(min(raCorners) + overlapFrac*deltaRa,
-                                            min(decCorners) + overlapFrac*deltaDec)
-                    maxPoint = geom.Point2D(max(raCorners) - overlapFrac*deltaRa,
-                                            max(decCorners) - overlapFrac*deltaDec)
-                    # Use doubles in Box2D to check overlap
-                    bboxDouble = geom.Box2D(minPoint, maxPoint)
-                    overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
-                    if all(overlaps):
-                        plt.text(getValueAtPercentile(raCorners), getValueAtPercentile(decCorners),
-                                 str(ccdId), fontsize=6, ha="center", va="center", color="darkblue")
-                        bboxesPlotted.append(bboxDouble)
 
-    logger.info("Final list of visits (N=%d) satisfying where and minOverlapFraction clauses: %s",
-                len(finalVisitList), finalVisitList)
+            # dataIdExists = butler.exists(datasetType, visit=visit, detector=ccdId)
+            dataIdFailed = False
+            row = []
+            if visitSummary is not None:
+                row = visitSummary[visitSummary["id"] == ccdId]
+                if len(row) > 0:
+                    ra = row["ra"][0]
+                    dec = row["dec"][0]
+                    psfSigma = row["psfSigma"][0]
+                    zeroPoint = row["zeroPoint"][0]
+                    effTime = row["effTime"][0]
+                    if (~np.isfinite(ra) or ~np.isfinite(dec) or ~np.isfinite(psfSigma)
+                        or ~np.isfinite(zeroPoint) or ~np.isfinite(effTime)):
+                        dataIdFailed = True
+                else:
+                    dataIdFailed = True
+            else:
+                try:
+                    exp = butler.get(datasetType, visit=visit, detector=ccdId)
+                    wcs = exp.getWcs()
+                    photoCalib = exp.getPhotoCalib()
+                    if wcs is None or photoCalib is None:
+                        dataIdFailed = True
+                except Exception as e:
+                    print(e)
+                    dataIdFailed = True
+
+            if not dataIdFailed and not plotFailsOnly:
+                iDataId += 1
+                raCorners, decCorners = getDetRaDecCorners(
+                    ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary, butler=butler)
+                if raCorners is not None and decCorners is not None:
+                    nDataIdFound += 1
+                    dataIdFoundList.append({"visit": visit, "detector": ccdId})
+                    ras += raCorners
+                    decs += decCorners
+                    if not inLegend:
+                        if i_v < halfWay or i_v > len(visitIncludeList) - halfWay:
+                            plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4,
+                                     color=color,
+                                     edgecolor=color, ls=linestyle, lw=0.8, label="{} {}".
+                                     format(str(visit), band))
+                        elif i_v == halfWay:
+                            plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4, color=color,
+                                     edgecolor=color, ls=linestyle, lw=0.8, label="[...]")
+                        else:
+                            plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4, color=color,
+                                     edgecolor=color, ls=linestyle, lw=0.8)
+                    else:
+                        plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4, color=color,
+                                 edgecolor=color, ls=linestyle, lw=0.8)
+                    inLegend = True
+
+                    # if not inLegend and len(visitIncludeList) <= maxVisitForLegend:
+                    #     plt.fill(raCorners, decCorners, label="{} {}".format(str(visit), band),
+                    #              **fillKwargs)
+                    #     inLegend = True
+                    # else:
+                    #     plt.fill(raCorners, decCorners, **fillKwargs)
+                    # plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4, color=color,
+                    #          edgecolor=color)
+                    if visit not in finalVisitList:
+                        finalVisitList.append(visit)
+                    # add CCD serial numbers
+                    if showCcds or showCcdsAll and not plotFailsOnly:
+                        overlapFrac = 0.2
+                        deltaRa = max(raCorners) - min(raCorners)
+                        deltaDec = max(decCorners) - min(decCorners)
+                        minPoint = geom.Point2D(min(raCorners) + overlapFrac*deltaRa,
+                                                min(decCorners) + overlapFrac*deltaDec)
+                        maxPoint = geom.Point2D(max(raCorners) - overlapFrac*deltaRa,
+                                                max(decCorners) - overlapFrac*deltaDec)
+                        # Use doubles in Box2D to check overlap
+                        bboxDouble = geom.Box2D(minPoint, maxPoint)
+                        overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
+                        if showCcdsAll:
+                            plt.text(getValueAtPercentile(raCorners), getValueAtPercentile(decCorners),
+                                     str(ccdId), fontsize=6, ha="center", va="center",
+                                     color=color, alpha=1.0)
+                            bboxesPlotted.append(bboxDouble)
+                        else:
+                            if all(overlaps):
+                                plt.text(getValueAtPercentile(raCorners), getValueAtPercentile(decCorners),
+                                         str(ccdId), fontsize=6, ha="center", va="center",
+                                         color=color, alpha=1.0)
+                                # str(ccdId), fontsize=6, ha="center", va="center", color="darkblue")
+                                bboxesPlotted.append(bboxDouble)
+                else:
+                    # if visit not in noRawVisitList:
+                    #     noRawVisitList.append(visit)
+                    noRawDataIdList.append({"visit": visit, "detector": ccdId})
+            else:
+                # raCorners, decCorners = getDetRaDecCorners(
+                #     ccdKey, ccdId, datasetType, visit, visitSummary=visitSummary, butler=butler)
+                # if raCorners == None or decCorners == None:
+                if dataIdFailed:
+                    if visit not in failedVisitList:
+                        failedVisitList.append(visit)
+                    failedDataIdList.append({"visit": visit, "detector": ccdId})
+
+    logger.info("Final list of visits (nVisit=%d nDataId=%d) satisfying where and minOverlapFraction "
+                "clauses: %s", len(finalVisitList), nDataIdFound, finalVisitList)
+
+    if plotFailsOnly:
+        nNoIcExp = 0
+        maxFailedVisitForLegend = 25
+        logger.warning("Only plotting failed detectors...")
+        visitSummary = None
+        rasFailed, decsFailed = [], []
+        # Plot raw WCS of the failed (i.e. raw exists but calexp does not) dataIds only.
+        # for rawDataId in rawDataIdList:
+        for iFailed, failedDataId in enumerate(failedDataIdList):
+            visit = failedDataId["visit"]
+            ccdId = failedDataId["detector"]
+            band, physicalFilter = getBand(visitSummary=None, butler=butler, visit=visit)
+            # color = "teal"  # cmap(i_v)
+            color = bandColorDict[band]
+            # marker = bandSymbolDict[band]
+            linestyle = bandLinestyleDict[band]
+            print("Working on failed visit %d detector %d band %s [%d of %d]" % (
+                visit, ccdId, band, iFailed + 1, len(failedDataIdList)), end="\r")
+            # Plot raw WCSs
+            raCornersFailed, decCornersFailed = getDetRaDecCorners(
+                ccdKey, ccdId, "raw", visit, butler=butler)
+                # ccdKey, ccdId, "raw", visit, visitSummary=visitSummary, butler=butler)
+            # print(visit, ccdId, raCornersFailed, decCornersFailed)
+            if raCornersFailed is not None and decCornersFailed is not None:
+                rasFailed += raCornersFailed
+                decsFailed += decCornersFailed
+                # See if icExp exists to see if it failed there, noting that it
+                # may actually have been removed/pruned due to PSF funkyness
+                # rather than a true calibration fail.
+                icExpExists = butler.exists("icExp", visit=visit, detector=ccdId)
+                if icExpExists:
+                    halfWay = int(maxFailedVisitForLegend/2) - 1
+                    if iFailed < halfWay or iFailed > len(failedDataIdList) - halfWay:
+                            plt.fill(raCornersFailed, decCornersFailed, fill=True, alpha=alphaEdge/4,
+                                     color=color, edgecolor=color, ls=linestyle, lw=0.8, label="{} {} {}".
+                                     format(str(visit), ccdId, band))
+                    elif iFailed == halfWay:
+                        plt.fill(raCornersFailed, decCornersFailed, fill=True, alpha=alphaEdge/4,
+                                 color=color, edgecolor=color, ls=linestyle, lw=0.8, label="[...]")
+                    else:
+                        plt.fill(raCornersFailed, decCornersFailed, fill=True, alpha=alphaEdge/4,
+                                 color=color, edgecolor=color, ls=linestyle, lw=0.8)
+                else:
+                    nNoIcExp += 1
+                    if iFailed < maxFailedVisitForLegend:
+                        plt.fill(raCornersFailed, decCornersFailed, fill=True, alpha=alphaEdge/4,
+                                 color=color, edgecolor="darkblue", lw=1.2, zorder=100, label="{} {} {}".
+                                 format(str(visit), ccdId, band))
+                    elif iFailed == maxFailedVisitForLegend:
+                        plt.fill(raCornersFailed, decCornersFailed, fill=True, alpha=alphaEdge/4,
+                                 color=color, edgecolor="darkblue", lw=1.2, zorder=100, label="etc...")
+                    else:
+                        plt.fill(raCornersFailed, decCornersFailed, fill=True, alpha=alphaEdge/4,
+                                 color=color, edgecolor="darkblue", lw=1.2, zorder=100)
+
+            # add CCD serial numbers
+            if showCcds or showCcdsAll:
+                overlapFrac = 0.2
+                deltaRa = max(raCornersFailed) - min(raCornersFailed)
+                deltaDec = max(decCornersFailed) - min(decCornersFailed)
+                minPoint = geom.Point2D(min(raCornersFailed) + overlapFrac*deltaRa,
+                                        min(decCornersFailed) + overlapFrac*deltaDec)
+                maxPoint = geom.Point2D(max(raCornersFailed) - overlapFrac*deltaRa,
+                                        max(decCornersFailed) - overlapFrac*deltaDec)
+                # Use doubles in Box2D to check overlap
+                bboxDouble = geom.Box2D(minPoint, maxPoint)
+                overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
+                if showCcdsAll:
+                    plt.text(getValueAtPercentile(raCornersFailed),
+                             getValueAtPercentile(decCornersFailed),
+                             str(ccdId), fontsize=6, ha="center", va="center", color=color, alpha=1.0)
+                    bboxesPlotted.append(bboxDouble)
+                else:
+                    if all(overlaps):
+                        plt.text(getValueAtPercentile(raCornersFailed),
+                                 getValueAtPercentile(decCornersFailed),
+                                 str(ccdId), fontsize=6, ha="center", va="center", color=color, alpha=1.0)
+                        # str(ccdId), fontsize=6, ha="center", va="center", color="darkblue")
+                        bboxesPlotted.append(bboxDouble)
+        finalVisitList = failedVisitList
+        ras = rasRaw  # rasFailed
+        decs = decsRaw  # decsFailed
+
+        if len(failedDataIdList)%5 == 0 and len(ras) > 0:
+            logger.info("Saving interim plot at N = {} detectors added.".format(len(failedDataIdList)))
+            savePlot(repo, butler, collections, skymap, camera, tracts, visits, ras, decs, plotFailsOnly,
+                     finalVisitList, nDataIdFound, nRawDataId, ccdIdList, ccdKey, datasetType,
+                     failedDataIdList, minOverlapFraction, includedBands, includedPhysicalFilters,
+                     trimToTracts, showPatch, forceScaledLimitRatio, doUnscaledLimitRatio, visitSummaryStr,
+                     visitIncludeList, cmap, alphaEdge, maxVisitForLegend, saveFile)
+
+    savePlot(repo, butler, collections, skymap, camera, tracts, visits, ras, decs, plotFailsOnly,
+             finalVisitList, nDataIdFound, nRawDataId, ccdIdList, ccdKey, datasetType,
+             failedDataIdList, minOverlapFraction, includedBands, includedPhysicalFilters,
+             trimToTracts, showPatch, forceScaledLimitRatio, doUnscaledLimitRatio, visitSummaryStr,
+             visitIncludeList, cmap, alphaEdge, maxVisitForLegend, saveFile)
+
+
+def savePlot(repo, butler, collections, skymap, camera, tracts, visits, ras, decs, plotFailsOnly,
+             finalVisitList, nDataIdFound, nRawDataId, ccdIdList, ccdKey, datasetType,
+             failedDataIdList, minOverlapFraction, includedBands, includedPhysicalFilters,
+             trimToTracts, showPatch, forceScaledLimitRatio, doUnscaledLimitRatio, visitSummaryStr,
+             visitIncludeList, cmap, alphaEdge, maxVisitForLegend, saveFile):
 
     raToDecLimitRatio = None
     if len(ras) > 0:
@@ -304,8 +635,11 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
             tractList = tracts
             trimToTracts = True
         else:
-            raise RuntimeError("No data to plot (if you want to plot empty tracts, include them as "
-                               "a blank-space separated list to the --tracts option.")
+            logger.warning("No data to plot (if you want to plot empty tracts, include them as "
+                           "a blank-space separated list to the --tracts option.")
+            return None
+            # raise RuntimeError("No data to plot (if you want to plot empty tracts, include them as "
+            #                    "a blank-space separated list to the --tracts option.")
     tractList.sort()
     logger.info("List of tracts overlapping data:  %s", tractList)
     tractLimitsDict = getTractLimitsDict(skymap, tractList)
@@ -353,9 +687,9 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
         minSepCcdId = None
         for i_v, visit in enumerate(visits):
             try:
-                visitSummary = butler.get("visitSummary", visit=visit)
+                visitSummary = butler.get(visitSummaryStr, visit=visit)
             except Exception as e:
-                logger.warn("%s  Will try to get wcs from exposure.", e)
+                logger.warning("%s  Will try to get wcs from exposure.", e)
                 visitSummary = None
             for ccdId in ccdIdList:
                 raCorners, decCorners = getDetRaDecCorners(
@@ -397,9 +731,9 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
 
         if raToDecLimitRatio is None and minSepVisit is not None:
             try:
-                visitSummary = butler.get("visitSummary", visit=minSepVisit)
+                visitSummary = butler.get(visitSummaryStr, visit=minSepVisit)
             except Exception as e:
-                logger.warn("%s  Will try to get wcs from exposure.", e)
+                logger.warning("%s  Will try to get wcs from exposure.", e)
                 visitSummary = None
             raCorners, decCorners = getDetRaDecCorners(
                 ccdKey, minSepCcdId, datasetType, minSepVisit, visitSummary=visitSummary,
@@ -427,8 +761,11 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
     if trimToTracts is True:
         xlim, ylim = derivePlotLimits(tractLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
     else:
-        visitLimitsDict = {"allVisits": {"ras": [minVisitRa, maxVisitRa], "decs": [minVisitDec, maxVisitDec]}}
+        visitLimitsDict = {"allVisits": {"ras": [minVisitRa, maxVisitRa],
+                                         "decs": [minVisitDec, maxVisitDec]}}
         xlim, ylim = derivePlotLimits(visitLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
+    # xlim = 167.5, 163.5
+    # ylim = -61.5, -59.5
 
     if doUnscaledLimitRatio:
         boxAspectRatio = abs((ylim[1] - ylim[0])/(xlim[1] - xlim[0]))
@@ -444,7 +781,11 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
     else:
         tractOutlineList = tractList
     tractOutlineList.sort()
-    logger.info("List of tract outlines being plotted: %s", tractOutlineList)
+    logger.info("List of tract outlines that would get plotted...: %s", tractOutlineList)
+    plotTractOutlines = True  # False
+    if not plotTractOutlines:
+        tractOutlineList = []
+        logger.info("...but not plotting them on this run!")
     for i_t, tract in enumerate(tractOutlineList):
         alpha = max(0.1, alpha0 - i_t*1.0/len(tractOutlineList))
         tractInfo = skymap[tract]
@@ -470,13 +811,14 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
         if showPatch:
             patchColor = "k"
             for patch in tractInfo:
+                patchFontSize = 5 if patch.sequential_index < 1000 else 4
                 ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
                 plt.fill(ra, dec, fill=False, edgecolor=patchColor, lw=0.5, linestyle=(0, (5, 6)),
                          alpha=alpha)
                 if (xlim[1] + fracDeltaX < getValueAtPercentile(ra) < xlim[0] - fracDeltaX
                         and ylim[0] + fracDeltaY < getValueAtPercentile(dec) < ylim[1] - fracDeltaY):
                     plt.text(getValueAtPercentile(ra), getValueAtPercentile(dec),
-                             str(patch.sequential_index), fontsize=5, color=patchColor,
+                             str(patch.sequential_index), fontsize=patchFontSize, color=patchColor,
                              ha="center", va="center", alpha=alpha)
 
     # Add labels and save.
@@ -485,15 +827,16 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
     ax.set_ylim(ylim)
     ax.set_box_aspect(boxAspectRatio)
     if abs(xlim[1] > 99.99):
-        ax.tick_params("x", labelrotation=45, pad=0, labelsize=8)
+        ax.tick_params("x", labelrotation=45, pad=5, labelsize=8)
     else:
-        ax.tick_params("x", labelrotation=0, pad=0, labelsize=8)
+        ax.tick_params("x", labelrotation=0, pad=5, labelsize=8)
     ax.tick_params("y", labelsize=8)
-    ax.set_xlabel("RA (deg)", fontsize=9)
-    ax.set_ylabel("Dec (deg)", fontsize=9)
+    ax.set_xlabel("R.A. (deg)", fontsize=9)
+    ax.set_ylabel("Dec. (deg)", fontsize=9)
 
     visitScaleOffset = None
-    if len(visitIncludeList) > maxVisitForLegend:
+    # if 0:
+    if len(visitIncludeList) > maxVisitForLegend and not plotFailsOnly:
         nz = matplotlib.colors.Normalize()
         colorBarScale = finalVisitList
         if max(finalVisitList) > 9999999:
@@ -513,32 +856,47 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
                              shadow=True, fontsize=5, title_fontsize=6, title="tracts")
         ax.add_artist(tractLegend)
     else:
-        if len(visitIncludeList) > 0:
-            xBboxAnchor = min(1.25, max(1.03, boxAspectRatio*1.15))
-            ax.legend(loc="center left", bbox_to_anchor=(xBboxAnchor, 0.5), fancybox=True,
-                      shadow=True, fontsize=6, title_fontsize=6, title="visits")
-        # Create the second legend and add the artist manually.
-        tractLegend = Legend(ax, tractHandleList, tractStrList, loc="center left", bbox_to_anchor=(1.0, 0.5),
-                             fancybox=True, shadow=True, fontsize=6, title_fontsize=6, title="tracts")
-        ax.add_artist(tractLegend)
+        doPlotLegend = True  # False
+        if doPlotLegend:
+            if len(visitIncludeList) > 0:
+                labelStr = "visits" if not plotFailsOnly else "failed visits"
+                xBboxAnchor = min(1.25, max(1.03, boxAspectRatio*1.15))
+                ax.legend(loc="center left", bbox_to_anchor=(xBboxAnchor, 0.5), fancybox=True,
+                          shadow=True, fontsize=6, title_fontsize=6, title=labelStr)
+            # Create the second legend and add the artist manually.
+            tractLegend = Legend(ax, tractHandleList, tractStrList, loc="center left",
+                                 bbox_to_anchor=(1.0, 0.5),
+                                 fancybox=True, shadow=True, fontsize=6, title_fontsize=6, title="tracts")
+            ax.add_artist(tractLegend)
 
     titleStr = repo + "\n" + collections[0]
     if len(collections) > 1:
         for collection in collections[1:]:
             titleStr += "\n" + collection
-    titleStr += "\nnVisit: {}".format(str(len(finalVisitList)))
+    if not plotFailsOnly:
+        titleStr += "\nnVisit: {} nDataId: {} (nRaw: {})".format(
+            str(len(finalVisitList)), str(nDataIdFound), nRawDataId)
+    else:
+        # titleStr += "\nNO icExp: N={} NO calexp: N={}".format(nNoIcExp, len(failedDataIdList) - nNoIcExp)
+        titleStr += "\nFailed calibrateImage: N={}".format(len(failedDataIdList))
+    logger.info("DataIds that failed calibrateImage (N=%d): {%s}", len(failedDataIdList), failedDataIdList)
     if minOverlapFraction is not None:
         titleStr += " (minOvlpFrac = {:.2f})".format(minOverlapFraction)
     if len(includedBands) > 0:
-        titleStr += "  bands: {}".format(str(includedBands).translate({ord(i): None for i in "[]\'"}))
+        titleStr += "\nbands: {}".format(str(includedBands).translate({ord(i): None for i in "[]\'"}))
     if len(includedPhysicalFilters) > 0:
         if len(includedPhysicalFilters[0]) > 9:
             titleStr += "\n"
         titleStr += "  physical filters: {}".format(str(includedPhysicalFilters).translate(
             {ord(i): None for i in "[]\'"}))
-    ax.set_title("{}".format(titleStr), fontsize=8)
+
+    doPlotTitle = True  # False
+    if doPlotTitle:
+        ax.set_title("{}".format(titleStr), fontsize=8)
 
     fig = plt.gcf()
+    # fig = make_figure()
+
     if boxAspectRatio > 1.0:
         minInches = max(4.0, 0.3*abs(xlim[1] - xlim[0]))
         xInches = minInches
@@ -550,6 +908,9 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, patches=N
         yInches = minInches
         fig.set_size_inches(xInches, yInches)
     if saveFile is not None:
+        if plotFailsOnly:
+            if "fail" not in saveFile:
+                saveFile = saveFile[0:-4] + "_failed.png"
         logger.info("Saving file in: %s", saveFile)
         fig.savefig(saveFile, bbox_inches="tight", dpi=150)
     else:
@@ -736,28 +1097,44 @@ def getDetRaDecCorners(ccdKey, ccdId, datasetType, visit, visitSummary=None, but
     """Compute the RA/Dec corners lists for a given detector in a visit.
     """
     raCorners, decCorners = None, None
-    if visitSummary is not None:
+    if visitSummary is not None and datasetType != "raw":
         row = visitSummary.find(ccdId)
         if row is None:
             if doLogWarn:
-                logger.warn("No row found for %d in visitSummary of visit %d. "
+                logger.warning("No row found for %d in visitSummary of visit %d. "
                             "Skipping and continuing...", ccdId, visit)
         else:
             raCorners = list(row["raCorners"])
             decCorners = list(row["decCorners"])
+            if any(~np.isfinite(raCorners)) or any(~np.isfinite(decCorners)):
+                logger.warning("Got nans for RA/Dec corners for %d in visitSummary of visit %d. "
+                               "Skipping and continuing...", ccdId, visit)
+                raCorners, decCorners = None, None
     else:
         try:
-            if datasetType == "raw":
-                dataId = {"exposure": visit, ccdKey: ccdId}
+            if datasetType == "raw" or datasetType == "preliminary_visit_image":
+                if datasetType == "raw":
+                    dataId = {"exposure": visit, ccdKey: ccdId}
+                else:
+                    dataId = {"visit": visit, ccdKey: ccdId}
+                exp = butler.get(datasetType, dataId)
+                wcs = exp.getWcs()
+                bbox = exp.getBBox()
+            elif datasetType == "xpreliminary_visit_image":
+                wcs = None
             else:
                 dataId = {"visit": visit, ccdKey: ccdId}
-            exp = butler.get(datasetType, dataId)
-            wcs = exp.getWcs()
-            bbox = exp.getBBox()
-            raCorners, decCorners = bboxToRaDec(bbox, wcs)
+                wcs = butler.get(datasetType + ".wcs", dataId)
+                bbox = butler.get(datasetType + ".bbox", dataId)
+            if wcs is not None:
+                raCorners, decCorners = bboxToRaDec(bbox, wcs)
+            else:
+                logger.warning("WCS is None on %s detector %d of visit %d. "
+                               "Skipping and continuing...", datasetType, ccdId, visit)
+                raCorners, decCorners = None, None
         # except LookupError as e:
         except Exception as e:
-            logger.warn("%s Skipping and continuing...", e)
+            logger.warning("%s Skipping and continuing...", e)
 
     return raCorners, decCorners
 
@@ -823,7 +1200,10 @@ if __name__ == "__main__":
                         help="Filename to write the plot to")
     parser.add_argument("--ccdKey", default="detector", help="Data ID name of the CCD key")
     parser.add_argument("--showCcds", action="store_true", default=False,
-                        help="Show ccd ID numbers on output image")
+                        help="Show ccd ID numbers on output image.  Will try to avoid overlapping labels "
+                        "by selectively skipping some.")
+    parser.add_argument("--showCcdsAll", action="store_true", default=False,
+                        help="Show all ccd ID numbers on output image")
     parser.add_argument("--visitVetoFile", type=str, default=None,
                         help="Full path to single-column file containing a list of visits to veto")
     parser.add_argument("--minOverlapFraction", type=float, default=None,
@@ -836,12 +1216,16 @@ if __name__ == "__main__":
     parser.add_argument("--forceScaledLimitRatio", action="store_true", default=False,
                         help="Force the axis limit scaling to focal plane based projection (takes "
                         "precedence over --doUnscaledLimitRatio.")
+    parser.add_argument("--plotFailsOnly", action="store_true", default=False,
+                        help="Only plot the raw WCS outlines for failed (i.e. no calexp) detectors.")
+
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     main(args.repo, args.collections, skymapName=args.skymapName, tracts=args.tracts,
          patches=args.patches, visits=args.visits, physicalFilters=args.physicalFilters,
          bands=args.bands, ccds=args.ccds, ccdKey=args.ccdKey,
-         showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds,
+         showPatch=args.showPatch, saveFile=args.saveFile,
+         showCcds=args.showCcds, showCcdsAll=args.showCcdsAll,
          visitVetoFile=args.visitVetoFile, minOverlapFraction=args.minOverlapFraction,
          trimToTracts=args.trimToTracts, doUnscaledLimitRatio=args.doUnscaledLimitRatio,
-         forceScaledLimitRatio=args.forceScaledLimitRatio)
+         forceScaledLimitRatio=args.forceScaledLimitRatio, plotFailsOnly=args.plotFailsOnly)
