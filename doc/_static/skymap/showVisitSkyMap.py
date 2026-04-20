@@ -127,6 +127,7 @@ def main(
     ccds=None,
     ccdKey="detector",
     showPatch=False,
+    showPatchSelectedTractsOnly=False,
     saveFile=None,
     showCcds=False,
     visitVetoFile=None,
@@ -613,6 +614,11 @@ def main(
     else:
         tractOutlineList = tractList
     tractOutlineList.sort()
+    selectedPatchTracts = set(tracts) if tracts is not None else None
+    if showPatchSelectedTractsOnly and selectedPatchTracts is None:
+        logger.info(
+            "--showPatchSelectedTractsOnly was set without --tracts; showing patches for all plotted tracts."
+        )
     logger.info("List of tract outlines being plotted: %s", tractOutlineList)
     for i_t, tract in enumerate(tractOutlineList):
         alpha = max(0.1, alpha0 - i_t * 1.0 / len(tractOutlineList))
@@ -648,7 +654,9 @@ def main(
         tractArtist = matplotlib.patches.Patch(fill=False, edgecolor="k", linestyle="dashed", alpha=alpha)
         tractHandleList.append(tractArtist)
         tractStrList.append(str(tract))
-        if showPatch:
+        if showPatch and (
+            not showPatchSelectedTractsOnly or selectedPatchTracts is None or tract in selectedPatchTracts
+        ):
             patchColor = "k"
             for patch in tractInfo:
                 ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
@@ -1102,6 +1110,12 @@ if __name__ == "__main__":
         "-p", "--showPatch", action="store_true", default=False, help="Show the patch boundaries"
     )
     parser.add_argument(
+        "--showPatchSelectedTractsOnly",
+        action="store_true",
+        default=False,
+        help="When showing patches, only draw patch boundaries for the tracts passed to --tracts.",
+    )
+    parser.add_argument(
         "--saveFile", type=str, default="showVisitSkyMap.png", help="Filename to write the plot to"
     )
     parser.add_argument("--ccdKey", default="detector", help="Data ID name of the CCD key")
@@ -1168,6 +1182,7 @@ if __name__ == "__main__":
         ccds=args.ccds,
         ccdKey=args.ccdKey,
         showPatch=args.showPatch,
+        showPatchSelectedTractsOnly=args.showPatchSelectedTractsOnly,
         saveFile=args.saveFile,
         showCcds=args.showCcds,
         visitVetoFile=args.visitVetoFile,
