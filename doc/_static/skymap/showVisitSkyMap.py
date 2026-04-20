@@ -247,6 +247,8 @@ def main(
             ccdIdList.append(ccdId)
     ccdIdList.sort()
     nDetTot = len(ccdIdList)
+    missingVisitSummaryRows = {}
+    nonFiniteDetectorCorners = {}
 
     visitIncludeList = []
     # Determine the fraction of detectors that overlap any tract under
@@ -341,8 +343,18 @@ def main(
                 visitSummary=visitSummary,
                 butler=butler,
                 imageDatasetType=imageDatasetTypeUsed,
+                missingVisitSummaryRows=missingVisitSummaryRows,
             )
             if raCorners is not None and decCorners is not None:
+                cornerPairs = list(zip(raCorners, decCorners))
+                finiteCornerPairs = [
+                    (ra, dec) for ra, dec in cornerPairs if np.isfinite(ra) and np.isfinite(dec)
+                ]
+                if len(finiteCornerPairs) < len(cornerPairs):
+                    nonFiniteDetectorCorners.setdefault(visit, set()).add(ccdId)
+                    # Skip plotting malformed polygons for this detector.
+                    continue
+
                 ras += raCorners
                 decs += decCorners
                 if not inLegend and len(visitIncludeList) <= maxVisitForLegend:
@@ -379,6 +391,23 @@ def main(
                         )
                         bboxesPlotted.append(bboxDouble)
 
+        if visit in missingVisitSummaryRows:
+            missingDetectors = sorted(missingVisitSummaryRows[visit])
+            logger.warning(
+                "visit summary table for visit %d missing detector rows: %s",
+                visit,
+                missingDetectors,
+            )
+
+        if visit in nonFiniteDetectorCorners:
+            badDetectors = sorted(nonFiniteDetectorCorners[visit])
+            logger.warning(
+                "Non-finite detector corners for visit %d (N=%d): %s",
+                visit,
+                len(badDetectors),
+                badDetectors,
+            )
+
     logger.info(
         "Final list of visits (N=%d) satisfying where and minOverlapFraction clauses: %s",
         len(finalVisitList),
@@ -387,16 +416,37 @@ def main(
 
     raToDecLimitRatio = None
     if len(ras) > 0:
-        tractList = list(set(skymap.findTractIdArray(ras, decs, degrees=True)))
-        minVisitRa, maxVisitRa = min(ras), max(ras)
-        minVisitDec, maxVisitDec = min(decs), max(decs)
-        raVisitDiff = maxVisitRa - minVisitRa
-        decVisitDiff = maxVisitDec - minVisitDec
-        midVisitRa = minVisitRa + 0.5 * raVisitDiff
-        midVisitDec = minVisitDec + 0.5 * decVisitDiff
-        midRa = np.atleast_1d((midVisitRa * units.deg).to(units.radian).value).astype(np.float64)
-        midDec = np.atleast_1d((midVisitDec * units.deg).to(units.radian).value).astype(np.float64)
-        midSkyCoord = SkyCoord(midVisitRa * units.deg, midVisitDec * units.deg)
+        finiteCoordPairs = [(ra, dec) for ra, dec in zip(ras, decs) if np.isfinite(ra) and np.isfinite(dec)]
+        droppedCoordCount = len(ras) - len(finiteCoordPairs)
+        if droppedCoordCount > 0:
+            logger.warning(
+                "Dropping %d non-finite detector corner coordinates before tract lookup",
+                droppedCoordCount,
+            )
+        if len(finiteCoordPairs) == 0:
+            if tracts is not None:
+                logger.info(
+                    "No finite detector corners found, but --tracts list was provided, so will go ahead and "
+                    "plot the empty tracts."
+                )
+                tractList = tracts
+                trimToTracts = True
+            else:
+                raise RuntimeError("No finite detector corners available for tract lookup")
+        else:
+            ras, decs = zip(*finiteCoordPairs)
+            ras = list(ras)
+            decs = list(decs)
+            tractList = list(set(skymap.findTractIdArray(ras, decs, degrees=True)))
+            minVisitRa, maxVisitRa = min(ras), max(ras)
+            minVisitDec, maxVisitDec = min(decs), max(decs)
+            raVisitDiff = maxVisitRa - minVisitRa
+            decVisitDiff = maxVisitDec - minVisitDec
+            midVisitRa = minVisitRa + 0.5 * raVisitDiff
+            midVisitDec = minVisitDec + 0.5 * decVisitDiff
+            midRa = np.atleast_1d((midVisitRa * units.deg).to(units.radian).value).astype(np.float64)
+            midDec = np.atleast_1d((midVisitDec * units.deg).to(units.radian).value).astype(np.float64)
+            midSkyCoord = SkyCoord(midVisitRa * units.deg, midVisitDec * units.deg)
     else:
         if tracts is not None:
             logger.info(
@@ -921,7 +971,14 @@ def setLimitsToEqualRatio(xMin, xMax, yMin, yMax):
 
 
 def getDetRaDecCorners(
-    ccdKey, ccdId, visit, visitSummary=None, butler=None, imageDatasetType="calexp", doLogWarn=True
+    ccdKey,
+    ccdId,
+    visit,
+    visitSummary=None,
+    butler=None,
+    imageDatasetType="calexp",
+    doLogWarn=True,
+    missingVisitSummaryRows=None,
 ):
     """Compute the RA/Dec corners lists for a given detector in a visit."""
     raCorners, decCorners = None, None
@@ -929,11 +986,14 @@ def getDetRaDecCorners(
         row = visitSummary.find(ccdId)
         if row is None:
             if doLogWarn:
-                logger.warning(
-                    "No row found for %d in visit summary table for visit %d. Skipping and continuing...",
-                    ccdId,
-                    visit,
-                )
+                if missingVisitSummaryRows is not None:
+                    missingVisitSummaryRows.setdefault(visit, set()).add(ccdId)
+                else:
+                    logger.warning(
+                        "No row found for %d in visit summary table for visit %d. Skipping and continuing...",
+                        ccdId,
+                        visit,
+                    )
         else:
             raCorners = list(row["raCorners"])
             decCorners = list(row["decCorners"])
