@@ -69,9 +69,12 @@ def getValueAtPercentile(values, percentile=0.5):
     return m + percentile * interval
 
 
-def get_cmap(n, name="hsv"):
+def get_cmap(n, name="gist_rainbow"):
     """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
-    RGB color; the keyword argument name must be a standard mpl colormap name.
+    RGB color.
+
+    Uses ``gist_rainbow`` by default: vivid, non-cyclic, so first and last
+    colors are visually distinct.
     """
     return matplotlib.colormaps[name].resampled(n)
 
@@ -315,6 +318,7 @@ def main(
     alphaEdge = 0.7
     maxVisitForLegend = 20
     finalVisitList = []
+    finalVisitColorIndices = []
     includedBands = []
     includedPhysicalFilters = []
     for i_v, visit in enumerate(visitIncludeList):
@@ -366,6 +370,7 @@ def main(
                 plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge / 4, color=color, edgecolor=color)
                 if visit not in finalVisitList:
                     finalVisitList.append(visit)
+                    finalVisitColorIndices.append(i_v)
                 # add CCD serial numbers
                 if showCcds:
                     overlapFrac = 0.2
@@ -691,24 +696,18 @@ def main(
     ax.set_xlabel("RA (deg)", fontsize=9)
     ax.set_ylabel("Dec (deg)", fontsize=9)
 
-    visitScaleOffset = None
     if len(visitIncludeList) > maxVisitForLegend:
-        nz = matplotlib.colors.Normalize()
-        colorBarScale = finalVisitList
-        if max(finalVisitList) > 9999999:
-            visitScaleOffset = min(finalVisitList)
-            colorBarScale = [visit - visitScaleOffset for visit in finalVisitList]
-        nz.autoscale(colorBarScale)
+        nVisits = len(finalVisitList)
+        nz = matplotlib.colors.Normalize(vmin=0, vmax=len(visitIncludeList) - 1)
         cax, _ = matplotlib.colorbar.make_axes(plt.gca(), pad=0.03)
         cax.tick_params(labelsize=7)
-        cb = matplotlib.colorbar.ColorbarBase(
-            cax, cmap=cmap, norm=nz, alpha=alphaEdge, format=lambda x, _: f"{x:.0f}"
-        )
+        cb = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=nz, alpha=alphaEdge)
+        nTicks = min(8, nVisits)
+        tickPositions = [finalVisitColorIndices[int(round(x))] for x in np.linspace(0, nVisits - 1, nTicks)]
+        cb.set_ticks(tickPositions)
+        cb.set_ticklabels([str(finalVisitList[int(round(x))]) for x in np.linspace(0, nVisits - 1, nTicks)])
         cb.ax.yaxis.get_offset_text().set_fontsize(7)
-        colorBarLabel = "visit number"
-        if visitScaleOffset is not None:
-            colorBarLabel += " - {:d}".format(visitScaleOffset)
-        cb.set_label(colorBarLabel, rotation=-90, labelpad=13, fontsize=9)
+        cb.set_label("visit", rotation=-90, labelpad=13, fontsize=9)
         tractLegend = Legend(
             ax,
             tractHandleList,
