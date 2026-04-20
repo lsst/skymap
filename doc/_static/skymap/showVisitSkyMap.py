@@ -76,6 +76,46 @@ def get_cmap(n, name="hsv"):
     return matplotlib.colormaps[name].resampled(n)
 
 
+def queryImageDatasets(butler, whereStr, imageDatasetType=None):
+    """Query image datasets with support for current and legacy names."""
+    datasetTypes = (
+        [imageDatasetType]
+        if imageDatasetType is not None
+        else [
+            "visit_image",
+            "preliminary_visit_image",
+            "calexp",
+        ]
+    )
+    lastDatasetType = None
+    for datasetType in datasetTypes:
+        lastDatasetType = datasetType
+        logger.info("Querying image dataset type: %s", datasetType)
+        dataRefs = list(butler.registry.queryDatasets(datasetType, where=whereStr).expanded())
+        if len(dataRefs) > 0:
+            return datasetType, dataRefs
+    return lastDatasetType, []
+
+
+def getVisitSummaryForVisit(butler, visit, visitSummaryDatasetType=None):
+    """Fetch visit summary for a visit, supporting legacy and newer names."""
+    datasetTypes = (
+        [visitSummaryDatasetType]
+        if visitSummaryDatasetType is not None
+        else [
+            "visit_summary",
+            "preliminary_visit_summary",
+            "visitSummary",
+        ]
+    )
+    for datasetType in datasetTypes:
+        try:
+            return butler.get(datasetType, visit=visit), datasetType
+        except LookupError:
+            pass
+    raise LookupError(f"Visit summary for visit {visit!r} not found in any of {datasetTypes!r}.")
+
+
 def main(
     repo,
     collections,
@@ -94,6 +134,8 @@ def main(
     trimToTracts=False,
     doUnscaledLimitRatio=False,
     forceScaledLimitRatio=False,
+    imageDatasetType=None,
+    visitSummaryDatasetType=None,
 ):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
@@ -145,6 +187,13 @@ def main(
         whereStr = f"instrument='{instrument}' AND skymap='{skymapName}'"
     logger.info("Querying the butler with the following dataId where clause: %s", whereStr)
 
+    imageDatasetTypeUsed, imageDataRefs = queryImageDatasets(
+        butler, whereStr, imageDatasetType=imageDatasetType
+    )
+    logger.info("Using image dataset type: %s", imageDatasetTypeUsed)
+
+    visitSummaryDatasetTypeUsed = visitSummaryDatasetType
+
     visitVetoList = []
     if visitVetoFile is not None:
         with open(visitVetoFile) as f:
@@ -152,9 +201,8 @@ def main(
             visitVetoList = [int(visit.strip()) for visit in content]
 
     if visits is None:
-        dataRefs = list(butler.registry.queryDatasets("calexp", where=whereStr).expanded())
         visits = []
-        for dataRef in dataRefs:
+        for dataRef in imageDataRefs:
             visit = dataRef.dataId.visit.id
             if visit not in visits and visit not in visitVetoList:
                 visits.append(visit)
@@ -168,6 +216,25 @@ def main(
                     visits.remove(visit)
             logger.info("List of visits (N=%d) excluding veto list: %s}", len(visits), visits)
         logger.info("List of visits (N=%d): %s", len(visits), visits)
+
+    if len(visits) > 0:
+        try:
+            _, visitSummaryDatasetTypeUsed = getVisitSummaryForVisit(
+                butler, visits[0], visitSummaryDatasetType=visitSummaryDatasetType
+            )
+            logger.info("Using visit summary dataset type: %s", visitSummaryDatasetTypeUsed)
+        except LookupError:
+            if visitSummaryDatasetType is None:
+                logger.info(
+                    "No visit summary dataset type found for auto-detection; "
+                    "will fall back to detector-level WCS/bbox lookups."
+                )
+            else:
+                logger.info(
+                    "Configured visit summary dataset type '%s' was not found for sampled visit; "
+                    "will fall back to detector-level WCS/bbox lookups.",
+                    visitSummaryDatasetType,
+                )
 
     ccdIdList = []
     for ccd in camera:
@@ -189,9 +256,11 @@ def main(
         for i_v, visit in enumerate(visits):
             ccdOverlapList = []
             try:
-                visitSummary = butler.get("visitSummary", visit=visit)
+                visitSummary, _ = getVisitSummaryForVisit(
+                    butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+                )
             except LookupError as e:
-                logger.warning("%s  Will try to get wcs from the detectors.", e)
+                logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
                 visitSummary = None
             if tracts is not None:
                 for tract in tracts:
@@ -206,6 +275,7 @@ def main(
                                 visit,
                                 visitSummary=visitSummary,
                                 butler=butler,
+                                imageDatasetType=imageDatasetTypeUsed,
                                 doLogWarn=False,
                             )
                             if raCorners is not None and decCorners is not None:
@@ -250,9 +320,11 @@ def main(
         color = cmap(i_v)
         fillKwargs = {"fill": False, "alpha": alphaEdge, "facecolor": None, "edgecolor": color, "lw": 0.6}
         try:
-            visitSummary = butler.get("visitSummary", visit=visit)
+            visitSummary, _ = getVisitSummaryForVisit(
+                butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+            )
         except Exception as e:
-            logger.warning("%s  Will try to get wcs from the detectors.", e)
+            logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
             visitSummary = None
 
         band, physicalFilter = getBand(visitSummary=visitSummary, butler=butler, visit=visit)
@@ -268,6 +340,7 @@ def main(
                 visit,
                 visitSummary=visitSummary,
                 butler=butler,
+                imageDatasetType=imageDatasetTypeUsed,
             )
             if raCorners is not None and decCorners is not None:
                 ras += raCorners
@@ -337,7 +410,11 @@ def main(
                 "No data to plot (if you want to plot empty tracts, include them as "
                 "a blank-space separated list to the --tracts option)."
             )
-    tractList.sort()
+    tractList, invalidTracts = sanitizeTractList(skymap, tractList)
+    if len(invalidTracts) > 0:
+        logger.warning("Ignoring invalid tract ids: %s", invalidTracts)
+    if len(tractList) == 0:
+        raise RuntimeError("No valid tract ids found for plotting")
     logger.info("List of tracts overlapping data:  %s", tractList)
     tractLimitsDict = getTractLimitsDict(skymap, tractList)
 
@@ -383,9 +460,11 @@ def main(
         minSepCcdId = None
         for i_v, visit in enumerate(visits):
             try:
-                visitSummary = butler.get("visitSummary", visit=visit)
+                visitSummary, _ = getVisitSummaryForVisit(
+                    butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+                )
             except Exception as e:
-                logger.warning("%s  Will try to get wcs from the detectors.", e)
+                logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
                 visitSummary = None
             for ccdId in ccdIdList:
                 raCorners, decCorners = getDetRaDecCorners(
@@ -394,6 +473,7 @@ def main(
                     visit,
                     visitSummary=visitSummary,
                     butler=butler,
+                    imageDatasetType=imageDatasetTypeUsed,
                     doLogWarn=False,
                 )
                 if raCorners is not None and decCorners is not None:
@@ -429,9 +509,11 @@ def main(
 
         if raToDecLimitRatio is None and minSepVisit is not None:
             try:
-                visitSummary = butler.get("visitSummary", visit=minSepVisit)
+                visitSummary, _ = getVisitSummaryForVisit(
+                    butler, minSepVisit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+                )
             except Exception as e:
-                logger.warning("%s  Will try to get wcs from the detectors.", e)
+                logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
                 visitSummary = None
             raCorners, decCorners = getDetRaDecCorners(
                 ccdKey,
@@ -439,6 +521,7 @@ def main(
                 minSepVisit,
                 visitSummary=visitSummary,
                 butler=butler,
+                imageDatasetType=imageDatasetTypeUsed,
                 doLogWarn=False,
             )
             for ra, dec in zip(raCorners, decCorners):
@@ -656,6 +739,24 @@ def makeWhereInStr(parameterName, parameterList, parameterType):
     return whereInStr
 
 
+def sanitizeTractList(skymap, tractList):
+    """Split tract ids into valid and invalid entries for the given skymap."""
+    validTracts = []
+    invalidTracts = []
+    for tract in tractList:
+        tractInt = int(tract)
+        try:
+            _ = skymap[tractInt]
+        except IndexError:
+            invalidTracts.append(tractInt)
+            continue
+        if tractInt not in validTracts:
+            validTracts.append(tractInt)
+    validTracts.sort()
+    invalidTracts.sort()
+    return validTracts, invalidTracts
+
+
 def getTractLimitsDict(skymap, tractList):
     """Return a dict containing tract limits needed for outline plotting.
 
@@ -819,7 +920,9 @@ def setLimitsToEqualRatio(xMin, xMax, yMin, yMax):
     return xMin, xMax, yMin, yMax
 
 
-def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doLogWarn=True):
+def getDetRaDecCorners(
+    ccdKey, ccdId, visit, visitSummary=None, butler=None, imageDatasetType="calexp", doLogWarn=True
+):
     """Compute the RA/Dec corners lists for a given detector in a visit."""
     raCorners, decCorners = None, None
     if visitSummary is not None:
@@ -827,7 +930,7 @@ def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doL
         if row is None:
             if doLogWarn:
                 logger.warning(
-                    "No row found for %d in visitSummary of visit %d. Skipping and continuing...",
+                    "No row found for %d in visit summary table for visit %d. Skipping and continuing...",
                     ccdId,
                     visit,
                 )
@@ -839,8 +942,8 @@ def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doL
             raise RuntimeError("A butler instance is required when visitSummary is not provided")
         try:
             dataId = {"visit": visit, ccdKey: ccdId}
-            wcs = butler.get("calexp.wcs", dataId)
-            bbox = butler.get("calexp.bbox", dataId)
+            wcs = butler.get(f"{imageDatasetType}.wcs", dataId)
+            bbox = butler.get(f"{imageDatasetType}.bbox", dataId)
             raCorners, decCorners = bboxToRaDec(bbox, wcs)
         except LookupError as e:
             logger.warning("%s Skipping and continuing...", e)
@@ -977,6 +1080,21 @@ if __name__ == "__main__":
         help="Force the axis limit scaling to focal plane based projection (takes "
         "precedence over --doUnscaledLimitRatio.",
     )
+    parser.add_argument(
+        "--imageDatasetType",
+        type=str,
+        default=None,
+        help=(
+            "Image dataset type used for visit discovery and WCS/bbox fallback; "
+            "defaults to commonly used detector storage types."
+        ),
+    )
+    parser.add_argument(
+        "--visitSummaryDatasetType",
+        type=str,
+        default=None,
+        help=("Visit summary dataset type to use; defaults to commonly used visit summary types."),
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
     main(
@@ -997,4 +1115,6 @@ if __name__ == "__main__":
         trimToTracts=args.trimToTracts,
         doUnscaledLimitRatio=args.doUnscaledLimitRatio,
         forceScaledLimitRatio=args.forceScaledLimitRatio,
+        imageDatasetType=args.imageDatasetType,
+        visitSummaryDatasetType=args.visitSummaryDatasetType,
     )
