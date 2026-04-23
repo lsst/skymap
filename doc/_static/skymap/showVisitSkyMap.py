@@ -23,25 +23,25 @@
 
 import argparse
 import logging
-from astropy import units
-from astropy.coordinates import SkyCoord
+
 import matplotlib
 import matplotlib.patheffects as pathEffects
 import matplotlib.pyplot as plt
-from matplotlib.legend import Legend
 import numpy as np
-
-import lsst.afw.cameraGeom as cameraGeom
-import lsst.daf.butler as dafButler
-import lsst.geom as geom
-import lsst.sphgeom as sphgeom
+from astropy import units
+from astropy.coordinates import SkyCoord
+from lsst.afw.cameraGeom import FIELD_ANGLE, FOCAL_PLANE, DetectorType
+from lsst.daf.butler import Butler
+from lsst.geom import Angle, Box2D, Point2D, SpherePoint, degrees
+from lsst.sphgeom import ConvexPolygon
+from matplotlib.legend import Legend
 
 logger = logging.getLogger("lsst.skymap.bin.showVisitSkyMap")
 
 
 def bboxToRaDec(bbox, wcs):
     """Get the corners of a BBox and convert them to lists of RA and Dec."""
-    sphPoints = wcs.pixelToSky(geom.Box2D(bbox).getCorners())
+    sphPoints = wcs.pixelToSky(Box2D(bbox).getCorners())
     ra = [float(sph.getRa().asDegrees()) for sph in sphPoints]
     dec = [float(sph.getDec().asDegrees()) for sph in sphPoints]
     return ra, dec
@@ -66,25 +66,91 @@ def getValueAtPercentile(values, percentile=0.5):
     """
     m = min(values)
     interval = max(values) - m
-    return m + percentile*interval
+    return m + percentile * interval
 
 
-def get_cmap(n, name="hsv"):
+def get_cmap(n, name="gist_rainbow"):
     """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
-    RGB color; the keyword argument name must be a standard mpl colormap name.
+    RGB color.
+
+    Uses ``gist_rainbow`` by default: vivid, non-cyclic, so first and last
+    colors are visually distinct.
     """
     return matplotlib.colormaps[name].resampled(n)
 
 
-def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalFilters=None, bands=None,
-         ccds=None, ccdKey="detector", showPatch=False, saveFile=None, showCcds=False, visitVetoFile=None,
-         minOverlapFraction=None, trimToTracts=False, doUnscaledLimitRatio=False,
-         forceScaledLimitRatio=False):
+def queryImageDatasets(butler, whereStr, imageDatasetType=None):
+    """Query image datasets with support for current and legacy names."""
+    datasetTypes = (
+        [imageDatasetType]
+        if imageDatasetType is not None
+        else [
+            "visit_image",
+            "preliminary_visit_image",
+            "calexp",
+        ]
+    )
+    for datasetType in datasetTypes:
+        logger.info("Querying image dataset type: %s", datasetType)
+        dataRefs = list(butler.registry.queryDatasets(datasetType, where=whereStr).expanded())
+        if len(dataRefs) > 0:
+            return datasetType, dataRefs
+    logger.warning("No visit-level data found for any of the tested dataset types; unable to plot visits.")
+    return None, []
+
+
+def getVisitSummaryForVisit(butler, visit, visitSummaryDatasetType=None):
+    """Fetch visit summary for a visit, supporting legacy and newer names."""
+    datasetTypes = (
+        [visitSummaryDatasetType]
+        if visitSummaryDatasetType is not None
+        else [
+            "visit_summary",
+            "preliminary_visit_summary",
+            "visitSummary",
+        ]
+    )
+    for datasetType in datasetTypes:
+        try:
+            return butler.get(datasetType, visit=visit), datasetType
+        except LookupError:
+            pass
+    raise LookupError(f"Visit summary for visit {visit!r} not found in any of {datasetTypes!r}.")
+
+
+def main(
+    repo,
+    collections,
+    skymapName=None,
+    tracts=None,
+    visits=None,
+    physicalFilters=None,
+    bands=None,
+    ccds=None,
+    ccdKey="detector",
+    showPatch=False,
+    showPatchSelectedTractsOnly=False,
+    saveFile=None,
+    showCcds=False,
+    visitVetoFile=None,
+    minOverlapFraction=None,
+    trimToTracts=False,
+    doUnscaledLimitRatio=False,
+    forceScaledLimitRatio=False,
+    imageDatasetType=None,
+    visitSummaryDatasetType=None,
+    dpi=150,
+):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
-    logger.info("Making butler for collections = %s in repo %s", collections, repo)
-    butler = dafButler.Butler(repo, collections=collections)
-    instrument = butler.find_dataset("camera").dataId["instrument"]
+    if dpi <= 0:
+        raise RuntimeError("--dpi must be > 0")
+    logger.info("Instantiating butler for repo '%s' with collections = %s", repo, collections)
+    butler = Butler.from_config(repo, collections=collections)
+    cameraDataset = butler.find_dataset("camera")
+    if cameraDataset is None:
+        raise RuntimeError("Could not find required dataset type: camera")
+    instrument = str(cameraDataset.dataId["instrument"])
     detectorSkipList = []
     # Make a guess at the skymapName if not provided
     if skymapName is None:
@@ -100,9 +166,11 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         elif instrument == "DECam":
             skymapName = "decam_rings_v1"
         else:
-            logger.error("Unknown skymapName for instrument: %s.  Must specify --skymapName on command line.",
-                         instrument)
-    logger.info("instrument = %s skymapName = %s", instrument, skymapName)
+            raise RuntimeError(
+                f"Unknown skymapName for instrument: {instrument}. Must specify --skymapName on command line."
+            )
+
+    logger.info("Using instrument = '%s' and skymapName = '%s'", instrument, skymapName)
     camera = butler.get("camera", instrument=instrument)
     skymap = butler.get("skyMap", instrument=instrument, skymap=skymapName)
 
@@ -120,10 +188,17 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         whereStr += " AND " + bandStr if len(whereStr) else " " + bandStr
 
     if len(whereStr) > 1:
-        whereStr = "instrument=\'" + instrument + "\' AND skymap=\'" + skymapName + "\' AND " + whereStr
+        whereStr = f"instrument='{instrument}' AND skymap='{skymapName}' AND {whereStr}"
     else:
-        whereStr = "instrument=\'" + instrument + "\' AND skymap=\'" + skymapName + "\'"
-    logger.info("Applying the following where clause in dataId search: %s", whereStr)
+        whereStr = f"instrument='{instrument}' AND skymap='{skymapName}'"
+    logger.info("Querying the butler with the following dataId where clause: %s", whereStr)
+
+    imageDatasetTypeUsed, imageDataRefs = queryImageDatasets(
+        butler, whereStr, imageDatasetType=imageDatasetType
+    )
+    logger.info("Using image dataset type: %s", imageDatasetTypeUsed)
+
+    visitSummaryDatasetTypeUsed = visitSummaryDatasetType
 
     visitVetoList = []
     if visitVetoFile is not None:
@@ -132,16 +207,13 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             visitVetoList = [int(visit.strip()) for visit in content]
 
     if visits is None:
-        dataRefs = list(butler.registry.queryDatasets("calexp", where=whereStr).expanded())
         visits = []
-        for dataRef in dataRefs:
+        for dataRef in imageDataRefs:
             visit = dataRef.dataId.visit.id
             if visit not in visits and visit not in visitVetoList:
                 visits.append(visit)
         visits.sort()
-        logger.info(
-            "List of visits (N=%d) satisfying where and veto clauses: %s", len(visits), visits
-        )
+        logger.info("List of visits (N=%d) satisfying where and veto clauses: %s", len(visits), visits)
     else:
         if len(visitVetoList) > 1:
             visitListTemp = visits.copy()
@@ -151,14 +223,38 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             logger.info("List of visits (N=%d) excluding veto list: %s}", len(visits), visits)
         logger.info("List of visits (N=%d): %s", len(visits), visits)
 
+    if len(visits) > 0:
+        try:
+            _, visitSummaryDatasetTypeUsed = getVisitSummaryForVisit(
+                butler, visits[0], visitSummaryDatasetType=visitSummaryDatasetType
+            )
+            logger.info("Using visit summary dataset type: %s", visitSummaryDatasetTypeUsed)
+        except LookupError:
+            if visitSummaryDatasetType is None:
+                logger.info(
+                    "No visit summary dataset type found for auto-detection; "
+                    "will fall back to detector-level WCS/bbox lookups."
+                )
+            else:
+                logger.info(
+                    "Configured visit summary dataset type '%s' was not found for sampled visit; "
+                    "will fall back to detector-level WCS/bbox lookups.",
+                    visitSummaryDatasetType,
+                )
+
     ccdIdList = []
     for ccd in camera:
         ccdId = ccd.getId()
-        if ((ccds is None or ccdId in ccds) and ccd.getType() == cameraGeom.DetectorType.SCIENCE
-                and ccdId not in detectorSkipList):
+        if (
+            (ccds is None or ccdId in ccds)
+            and ccd.getType() == DetectorType.SCIENCE
+            and ccdId not in detectorSkipList
+        ):
             ccdIdList.append(ccdId)
     ccdIdList.sort()
     nDetTot = len(ccdIdList)
+    missingVisitSummaryRows = {}
+    nonFiniteDetectorCorners = {}
 
     visitIncludeList = []
     # Determine the fraction of detectors that overlap any tract under
@@ -168,38 +264,49 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         for i_v, visit in enumerate(visits):
             ccdOverlapList = []
             try:
-                visitSummary = butler.get("visitSummary", visit=visit)
+                visitSummary, _ = getVisitSummaryForVisit(
+                    butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+                )
             except LookupError as e:
-                logger.warn("%s  Will try to get wcs from calexp.", e)
+                logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
                 visitSummary = None
             if tracts is not None:
                 for tract in tracts:
                     tractInfo = skymap[tract]
-                    sphCorners = tractInfo.wcs.pixelToSky(geom.Box2D(tractInfo.bbox).getCorners())
-                    tractConvexHull = sphgeom.ConvexPolygon.convexHull(
-                        [coord.getVector() for coord in sphCorners])
+                    sphCorners = tractInfo.wcs.pixelToSky(Box2D(tractInfo.bbox).getCorners())
+                    tractConvexHull = ConvexPolygon.convexHull([coord.getVector() for coord in sphCorners])
                     for ccdId in ccdIdList:
                         if ccdId not in ccdOverlapList:
                             raCorners, decCorners = getDetRaDecCorners(
-                                ccdKey, ccdId, visit, visitSummary=visitSummary, butler=butler,
-                                doLogWarn=False)
+                                ccdKey,
+                                ccdId,
+                                visit,
+                                visitSummary=visitSummary,
+                                butler=butler,
+                                imageDatasetType=imageDatasetTypeUsed,
+                                doLogWarn=False,
+                            )
                             if raCorners is not None and decCorners is not None:
                                 detSphCorners = []
                                 for ra, dec in zip(raCorners, decCorners):
-                                    pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
-                                                          geom.Angle(dec, geom.degrees))
+                                    pt = SpherePoint(Angle(ra, degrees), Angle(dec, degrees))
                                     detSphCorners.append(pt)
-                                detConvexHull = sphgeom.ConvexPolygon.convexHull(
-                                    [coord.getVector() for coord in detSphCorners])
+                                detConvexHull = ConvexPolygon.convexHull(
+                                    [coord.getVector() for coord in detSphCorners]
+                                )
                                 if tractConvexHull.contains(detConvexHull):
                                     ccdOverlapList.append(ccdId)
 
-                    if len(ccdOverlapList)/nDetTot >= minOverlapFraction:
+                    if len(ccdOverlapList) / nDetTot >= minOverlapFraction:
                         break
-                if len(ccdOverlapList)/nDetTot < minOverlapFraction:
-                    logger.info("Fraction of detectors overlaping any tract for visit %d (%.2f) < "
-                                "minimum required (%.2f).  Skipping visit...",
-                                visit, len(ccdOverlapList)/nDetTot, minOverlapFraction)
+                if len(ccdOverlapList) / nDetTot < minOverlapFraction:
+                    logger.info(
+                        "Fraction of detectors overlapping any tract for visit %d (%.2f) < "
+                        "minimum required (%.2f).  Skipping visit...",
+                        visit,
+                        len(ccdOverlapList) / nDetTot,
+                        minOverlapFraction,
+                    )
                 else:
                     if visit not in visitIncludeList:
                         visitIncludeList.append(visit)
@@ -213,6 +320,7 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     alphaEdge = 0.7
     maxVisitForLegend = 20
     finalVisitList = []
+    finalVisitColorIndices = []
     includedBands = []
     includedPhysicalFilters = []
     for i_v, visit in enumerate(visitIncludeList):
@@ -221,9 +329,11 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         color = cmap(i_v)
         fillKwargs = {"fill": False, "alpha": alphaEdge, "facecolor": None, "edgecolor": color, "lw": 0.6}
         try:
-            visitSummary = butler.get("visitSummary", visit=visit)
+            visitSummary, _ = getVisitSummaryForVisit(
+                butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+            )
         except Exception as e:
-            logger.warn("%s  Will try to get wcs from calexp.", e)
+            logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
             visitSummary = None
 
         band, physicalFilter = getBand(visitSummary=visitSummary, butler=butler, visit=visit)
@@ -234,8 +344,24 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
 
         for ccdId in ccdIdList:
             raCorners, decCorners = getDetRaDecCorners(
-                ccdKey, ccdId, visit, visitSummary=visitSummary, butler=butler)
+                ccdKey,
+                ccdId,
+                visit,
+                visitSummary=visitSummary,
+                butler=butler,
+                imageDatasetType=imageDatasetTypeUsed,
+                missingVisitSummaryRows=missingVisitSummaryRows,
+            )
             if raCorners is not None and decCorners is not None:
+                cornerPairs = list(zip(raCorners, decCorners))
+                finiteCornerPairs = [
+                    (ra, dec) for ra, dec in cornerPairs if np.isfinite(ra) and np.isfinite(dec)
+                ]
+                if len(finiteCornerPairs) < len(cornerPairs):
+                    nonFiniteDetectorCorners.setdefault(visit, set()).add(ccdId)
+                    # Skip plotting malformed polygons for this detector.
+                    continue
+
                 ras += raCorners
                 decs += decCorners
                 if not inLegend and len(visitIncludeList) <= maxVisitForLegend:
@@ -243,52 +369,110 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
                     inLegend = True
                 else:
                     plt.fill(raCorners, decCorners, **fillKwargs)
-                plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge/4, color=color,
-                         edgecolor=color)
+                plt.fill(raCorners, decCorners, fill=True, alpha=alphaEdge / 4, color=color, edgecolor=color)
                 if visit not in finalVisitList:
                     finalVisitList.append(visit)
+                    finalVisitColorIndices.append(i_v)
                 # add CCD serial numbers
                 if showCcds:
                     overlapFrac = 0.2
                     deltaRa = max(raCorners) - min(raCorners)
                     deltaDec = max(decCorners) - min(decCorners)
-                    minPoint = geom.Point2D(min(raCorners) + overlapFrac*deltaRa,
-                                            min(decCorners) + overlapFrac*deltaDec)
-                    maxPoint = geom.Point2D(max(raCorners) - overlapFrac*deltaRa,
-                                            max(decCorners) - overlapFrac*deltaDec)
+                    minPoint = Point2D(
+                        min(raCorners) + overlapFrac * deltaRa, min(decCorners) + overlapFrac * deltaDec
+                    )
+                    maxPoint = Point2D(
+                        max(raCorners) - overlapFrac * deltaRa, max(decCorners) - overlapFrac * deltaDec
+                    )
                     # Use doubles in Box2D to check overlap
-                    bboxDouble = geom.Box2D(minPoint, maxPoint)
+                    bboxDouble = Box2D(minPoint, maxPoint)
                     overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
                     if all(overlaps):
-                        plt.text(getValueAtPercentile(raCorners), getValueAtPercentile(decCorners),
-                                 str(ccdId), fontsize=6, ha="center", va="center", color="darkblue")
+                        plt.text(
+                            getValueAtPercentile(raCorners),
+                            getValueAtPercentile(decCorners),
+                            str(ccdId),
+                            fontsize=6,
+                            ha="center",
+                            va="center",
+                            color="darkblue",
+                        )
                         bboxesPlotted.append(bboxDouble)
 
-    logger.info("Final list of visits (N=%d) satisfying where and minOverlapFraction clauses: %s",
-                len(finalVisitList), finalVisitList)
+        if visit in missingVisitSummaryRows:
+            missingDetectors = sorted(missingVisitSummaryRows[visit])
+            logger.warning(
+                "visit summary table for visit %d missing detector rows: %s",
+                visit,
+                missingDetectors,
+            )
+
+        if visit in nonFiniteDetectorCorners:
+            badDetectors = sorted(nonFiniteDetectorCorners[visit])
+            logger.warning(
+                "Non-finite detector corners for visit %d (N=%d): %s",
+                visit,
+                len(badDetectors),
+                badDetectors,
+            )
+
+    logger.info(
+        "Final list of visits (N=%d) satisfying where and minOverlapFraction clauses: %s",
+        len(finalVisitList),
+        finalVisitList,
+    )
 
     raToDecLimitRatio = None
     if len(ras) > 0:
-        tractList = list(set(skymap.findTractIdArray(ras, decs, degrees=True)))
-        minVisitRa, maxVisitRa = min(ras), max(ras)
-        minVisitDec, maxVisitDec = min(decs), max(decs)
-        raVisitDiff = maxVisitRa - minVisitRa
-        decVisitDiff = maxVisitDec - minVisitDec
-        midVisitRa = minVisitRa + 0.5*raVisitDiff
-        midVisitDec = minVisitDec + 0.5*decVisitDiff
-        midRa = np.atleast_1d((midVisitRa*units.deg).to(units.radian).value).astype(np.float64)
-        midDec = np.atleast_1d((midVisitDec*units.deg).to(units.radian).value).astype(np.float64)
-        midSkyCoord = SkyCoord(midVisitRa*units.deg, midVisitDec*units.deg)
+        finiteCoordPairs = [(ra, dec) for ra, dec in zip(ras, decs) if np.isfinite(ra) and np.isfinite(dec)]
+        droppedCoordCount = len(ras) - len(finiteCoordPairs)
+        if droppedCoordCount > 0:
+            logger.warning(
+                "Dropping %d non-finite detector corner coordinates before tract lookup",
+                droppedCoordCount,
+            )
+        if len(finiteCoordPairs) == 0:
+            if tracts is not None:
+                logger.info(
+                    "No finite detector corners found, but --tracts list was provided, so will go ahead and "
+                    "plot the empty tracts."
+                )
+                tractList = tracts
+                trimToTracts = True
+            else:
+                raise RuntimeError("No finite detector corners available for tract lookup")
+        else:
+            ras, decs = zip(*finiteCoordPairs)
+            ras = list(ras)
+            decs = list(decs)
+            tractList = list(set(skymap.findTractIdArray(ras, decs, degrees=True)))
+            minVisitRa, maxVisitRa = min(ras), max(ras)
+            minVisitDec, maxVisitDec = min(decs), max(decs)
+            raVisitDiff = maxVisitRa - minVisitRa
+            decVisitDiff = maxVisitDec - minVisitDec
+            midVisitRa = minVisitRa + 0.5 * raVisitDiff
+            midVisitDec = minVisitDec + 0.5 * decVisitDiff
+            midRa = np.atleast_1d((midVisitRa * units.deg).to(units.radian).value).astype(np.float64)
+            midDec = np.atleast_1d((midVisitDec * units.deg).to(units.radian).value).astype(np.float64)
+            midSkyCoord = SkyCoord(midVisitRa * units.deg, midVisitDec * units.deg)
     else:
         if tracts is not None:
-            logger.info("No calexps were found, but --tracts list was provided, so will go ahead and "
-                        "plot the empty tracts.")
+            logger.info(
+                "No detectors were found, but --tracts list was provided, so will go ahead and "
+                "plot the empty tracts."
+            )
             tractList = tracts
             trimToTracts = True
         else:
-            raise RuntimeError("No data to plot (if you want to plot empty tracts, include them as "
-                               "a blank-space separated list to the --tracts option.")
-    tractList.sort()
+            raise RuntimeError(
+                "No data to plot (if you want to plot empty tracts, include them as "
+                "a blank-space separated list to the --tracts option)."
+            )
+    tractList, invalidTracts = sanitizeTractList(skymap, tractList)
+    if len(invalidTracts) > 0:
+        logger.warning("Ignoring invalid tract ids: %s", invalidTracts)
+    if len(tractList) == 0:
+        raise RuntimeError("No valid tract ids found for plotting")
     logger.info("List of tracts overlapping data:  %s", tractList)
     tractLimitsDict = getTractLimitsDict(skymap, tractList)
 
@@ -300,12 +484,10 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         # limit ratio is greater than raDecScaleThresh, don't try to scale to
         # detector coords.
         radiusMm = camera.computeMaxFocalPlaneRadius()
-        fpRadiusPt = geom.Point2D(radiusMm, radiusMm)
-        focalPlaneToFieldAngle = camera.getTransformMap().getTransform(
-            cameraGeom.FOCAL_PLANE, cameraGeom.FIELD_ANGLE
-        )
+        fpRadiusPt = Point2D(radiusMm, radiusMm)
+        focalPlaneToFieldAngle = camera.getTransformMap().getTransform(FOCAL_PLANE, FIELD_ANGLE)
         fpRadiusDeg = np.rad2deg(focalPlaneToFieldAngle.applyForward(fpRadiusPt))[0]
-        detectorRadiusDeg = fpRadiusDeg/np.sqrt(len(camera))
+        detectorRadiusDeg = fpRadiusDeg / np.sqrt(len(camera))
 
         if trimToTracts:
             xLimMin, xLimMax, yLimMin, yLimMax = getMinMaxLimits(tractLimitsDict)
@@ -318,9 +500,10 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             yLimMax = maxVisitDec
         raDecScaleThresh = 1.5  # This is a best guess with current testing.
         if (
-                (xDelta0/yDelta0 > raDecScaleThresh or yDelta0/xDelta0 > raDecScaleThresh)
-                and max(xDelta0, yDelta0) > 70*detectorRadiusDeg
-                and yLimMin < 75.0 and yLimMax > -75.0
+            (xDelta0 / yDelta0 > raDecScaleThresh or yDelta0 / xDelta0 > raDecScaleThresh)
+            and max(xDelta0, yDelta0) > 70 * detectorRadiusDeg
+            and yLimMin < 75.0
+            and yLimMax > -75.0
         ):
             logger.info(
                 "Sky coverage is large (and not too close to a pole), so not scaling to detector coords."
@@ -335,81 +518,97 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
         minSepCcdId = None
         for i_v, visit in enumerate(visits):
             try:
-                visitSummary = butler.get("visitSummary", visit=visit)
+                visitSummary, _ = getVisitSummaryForVisit(
+                    butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+                )
             except Exception as e:
-                logger.warn("%s  Will try to get wcs from calexp.", e)
+                logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
                 visitSummary = None
             for ccdId in ccdIdList:
                 raCorners, decCorners = getDetRaDecCorners(
-                    ccdKey, ccdId, visit, visitSummary=visitSummary, butler=butler, doLogWarn=False)
+                    ccdKey,
+                    ccdId,
+                    visit,
+                    visitSummary=visitSummary,
+                    butler=butler,
+                    imageDatasetType=imageDatasetTypeUsed,
+                    doLogWarn=False,
+                )
                 if raCorners is not None and decCorners is not None:
                     detSphCorners = []
                     for ra, dec in zip(raCorners, decCorners):
-                        pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
-                                              geom.Angle(dec, geom.degrees))
+                        pt = SpherePoint(Angle(ra, degrees), Angle(dec, degrees))
                         detSphCorners.append(pt)
-                        ptSkyCoord = SkyCoord(ra*units.deg, dec*units.deg)
+                        ptSkyCoord = SkyCoord(ra * units.deg, dec * units.deg)
                         separation = (midSkyCoord.separation(ptSkyCoord)).degree
                         if separation < minDistToMidCoord:
                             minSepVisit = visit
                             minSepCcdId = ccdId
                             minDistToMidCoord = separation
-                    detConvexHull = sphgeom.ConvexPolygon(
-                        [coord.getVector() for coord in detSphCorners])
+                    detConvexHull = ConvexPolygon([coord.getVector() for coord in detSphCorners])
                     if detConvexHull.contains(midRa, midDec) and raToDecLimitRatio is None:
                         logger.info(
                             "visit/det overlapping plot coord mid point in RA/Dec: %d %d", visit, ccdId
                         )
-                        raToDecLimitRatio = (
-                            (max(raCorners) - min(raCorners))/(max(decCorners) - min(decCorners))
+                        raToDecLimitRatio = (max(raCorners) - min(raCorners)) / (
+                            max(decCorners) - min(decCorners)
                         )
                         det = camera[ccdId]
                         width = det.getBBox().getWidth()
                         height = det.getBBox().getHeight()
                         if raToDecLimitRatio > 1.0:
-                            raToDecLimitRatio /= max(height/width, width/height)
+                            raToDecLimitRatio /= max(height / width, width / height)
                         else:
                             if raToDecLimitRatio < 1.0:
-                                raToDecLimitRatio *= max(height/width, width/height)
+                                raToDecLimitRatio *= max(height / width, width / height)
                         break
             if raToDecLimitRatio is not None:
                 break
 
         if raToDecLimitRatio is None and minSepVisit is not None:
             try:
-                visitSummary = butler.get("visitSummary", visit=minSepVisit)
+                visitSummary, _ = getVisitSummaryForVisit(
+                    butler, minSepVisit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
+                )
             except Exception as e:
-                logger.warn("%s  Will try to get wcs from calexp.", e)
+                logger.warning("%s  Will try to get wcs from %s.", e, imageDatasetTypeUsed)
                 visitSummary = None
             raCorners, decCorners = getDetRaDecCorners(
-                ccdKey, minSepCcdId, minSepVisit, visitSummary=visitSummary, butler=butler, doLogWarn=False)
+                ccdKey,
+                minSepCcdId,
+                minSepVisit,
+                visitSummary=visitSummary,
+                butler=butler,
+                imageDatasetType=imageDatasetTypeUsed,
+                doLogWarn=False,
+            )
             for ra, dec in zip(raCorners, decCorners):
-                pt = geom.SpherePoint(geom.Angle(ra, geom.degrees),
-                                      geom.Angle(dec, geom.degrees))
+                pt = SpherePoint(Angle(ra, degrees), Angle(dec, degrees))
                 detSphCorners.append(pt)
-            detConvexHull = sphgeom.ConvexPolygon([coord.getVector() for coord in detSphCorners])
+            detConvexHull = ConvexPolygon([coord.getVector() for coord in detSphCorners])
             logger.info(
                 "visit/det closest to plot coord mid point in RA/Dec (none actually overlap it): %d %d",
-                minSepVisit, minSepCcdId
+                minSepVisit,
+                minSepCcdId,
             )
-            raToDecLimitRatio = (max(raCorners) - min(raCorners))/(max(decCorners) - min(decCorners))
+            raToDecLimitRatio = (max(raCorners) - min(raCorners)) / (max(decCorners) - min(decCorners))
             det = camera[minSepCcdId]
             width = det.getBBox().getWidth()
             height = det.getBBox().getHeight()
             if raToDecLimitRatio > 1.0:
-                raToDecLimitRatio /= max(height/width, width/height)
+                raToDecLimitRatio /= max(height / width, width / height)
             else:
                 if raToDecLimitRatio < 1.0:
-                    raToDecLimitRatio *= max(height/width, width/height)
+                    raToDecLimitRatio *= max(height / width, width / height)
 
-    if trimToTracts is True:
+    if trimToTracts:
         xlim, ylim = derivePlotLimits(tractLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
     else:
         visitLimitsDict = {"allVisits": {"ras": [minVisitRa, maxVisitRa], "decs": [minVisitDec, maxVisitDec]}}
         xlim, ylim = derivePlotLimits(visitLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
 
     if doUnscaledLimitRatio:
-        boxAspectRatio = abs((ylim[1] - ylim[0])/(xlim[1] - xlim[0]))
+        boxAspectRatio = abs((ylim[1] - ylim[0]) / (xlim[1] - xlim[0]))
     else:
         boxAspectRatio = 1.0
 
@@ -422,40 +621,69 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     else:
         tractOutlineList = tractList
     tractOutlineList.sort()
+    selectedPatchTracts = set(tracts) if tracts is not None else None
+    if showPatchSelectedTractsOnly and selectedPatchTracts is None:
+        logger.info(
+            "--showPatchSelectedTractsOnly was set without --tracts; showing patches for all plotted tracts."
+        )
     logger.info("List of tract outlines being plotted: %s", tractOutlineList)
     for i_t, tract in enumerate(tractOutlineList):
-        alpha = max(0.1, alpha0 - i_t*1.0/len(tractOutlineList))
+        alpha = max(0.1, alpha0 - i_t * 1.0 / len(tractOutlineList))
         tractInfo = skymap[tract]
         tCenter = tractInfo.ctr_coord
         tCenterRa = tCenter.getRa().asDegrees()
         tCenterDec = tCenter.getDec().asDegrees()
-        fracDeltaX = 0.02*abs((xlim[1] - xlim[0]))
-        fracDeltaY = 0.02*abs((ylim[1] - ylim[0]))
-        if (xlim[1] + fracDeltaX < tCenterRa < xlim[0] - fracDeltaX
-                and ylim[0] + fracDeltaY < tCenterDec < ylim[1] - fracDeltaY):
+        fracDeltaX = 0.02 * abs((xlim[1] - xlim[0]))
+        fracDeltaY = 0.02 * abs((ylim[1] - ylim[0]))
+        if (
+            xlim[1] + fracDeltaX < tCenterRa < xlim[0] - fracDeltaX
+            and ylim[0] + fracDeltaY < tCenterDec < ylim[1] - fracDeltaY
+        ):
             if len(tractOutlineList) > 1 or not showPatch:
                 if not showPatch:
                     plt.text(tCenterRa, tCenterDec, tract, fontsize=7, alpha=alpha, ha="center", va="center")
                 else:
-                    plt.text(tCenterRa, tCenterDec, tract, fontsize=7, alpha=1, color="white",
-                             path_effects=[pathEffects.withStroke(linewidth=3, foreground="black")],
-                             fontweight=500, ha="center", va="center", zorder=5)
+                    plt.text(
+                        tCenterRa,
+                        tCenterDec,
+                        tract,
+                        fontsize=7,
+                        alpha=1,
+                        color="white",
+                        path_effects=[pathEffects.withStroke(linewidth=3, foreground="black")],
+                        fontweight=500,
+                        ha="center",
+                        va="center",
+                        zorder=5,
+                    )
         ra, dec = bboxToRaDec(tractInfo.bbox, tractInfo.getWcs())
         plt.fill(ra, dec, fill=False, edgecolor="k", lw=1, linestyle="dashed", alpha=alpha)
         tractArtist = matplotlib.patches.Patch(fill=False, edgecolor="k", linestyle="dashed", alpha=alpha)
         tractHandleList.append(tractArtist)
         tractStrList.append(str(tract))
-        if showPatch:
+        if showPatch and (
+            not showPatchSelectedTractsOnly or selectedPatchTracts is None or tract in selectedPatchTracts
+        ):
             patchColor = "k"
             for patch in tractInfo:
                 ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
-                plt.fill(ra, dec, fill=False, edgecolor=patchColor, lw=0.5, linestyle=(0, (5, 6)),
-                         alpha=alpha)
-                if (xlim[1] + fracDeltaX < getValueAtPercentile(ra) < xlim[0] - fracDeltaX
-                        and ylim[0] + fracDeltaY < getValueAtPercentile(dec) < ylim[1] - fracDeltaY):
-                    plt.text(getValueAtPercentile(ra), getValueAtPercentile(dec),
-                             str(patch.sequential_index), fontsize=5, color=patchColor,
-                             ha="center", va="center", alpha=alpha)
+                plt.fill(
+                    ra, dec, fill=False, edgecolor=patchColor, lw=0.5, linestyle=(0, (5, 6)), alpha=alpha
+                )
+                if (
+                    xlim[1] + fracDeltaX < getValueAtPercentile(ra) < xlim[0] - fracDeltaX
+                    and ylim[0] + fracDeltaY < getValueAtPercentile(dec) < ylim[1] - fracDeltaY
+                ):
+                    plt.text(
+                        getValueAtPercentile(ra),
+                        getValueAtPercentile(dec),
+                        str(patch.sequential_index),
+                        fontsize=5,
+                        color=patchColor,
+                        ha="center",
+                        va="center",
+                        alpha=alpha,
+                    )
 
     # Add labels and save.
     ax = plt.gca()
@@ -470,34 +698,55 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
     ax.set_xlabel("RA (deg)", fontsize=9)
     ax.set_ylabel("Dec (deg)", fontsize=9)
 
-    visitScaleOffset = None
     if len(visitIncludeList) > maxVisitForLegend:
-        nz = matplotlib.colors.Normalize()
-        colorBarScale = finalVisitList
-        if max(finalVisitList) > 9999999:
-            visitScaleOffset = min(finalVisitList)
-            colorBarScale = [visit - visitScaleOffset for visit in finalVisitList]
-        nz.autoscale(colorBarScale)
+        nVisits = len(finalVisitList)
+        nz = matplotlib.colors.Normalize(vmin=0, vmax=len(visitIncludeList) - 1)
         cax, _ = matplotlib.colorbar.make_axes(plt.gca(), pad=0.03)
         cax.tick_params(labelsize=7)
-        cb = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=nz, alpha=alphaEdge,
-                                              format=lambda x, _: f"{x:.0f}")
+        cb = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=nz, alpha=alphaEdge)
+        nTicks = min(8, nVisits)
+        tickPositions = [finalVisitColorIndices[int(round(x))] for x in np.linspace(0, nVisits - 1, nTicks)]
+        cb.set_ticks(tickPositions)
+        cb.set_ticklabels([str(finalVisitList[int(round(x))]) for x in np.linspace(0, nVisits - 1, nTicks)])
         cb.ax.yaxis.get_offset_text().set_fontsize(7)
-        colorBarLabel = "visit number"
-        if visitScaleOffset is not None:
-            colorBarLabel += " - {:d}".format(visitScaleOffset)
-        cb.set_label(colorBarLabel, rotation=-90, labelpad=13, fontsize=9)
-        tractLegend = Legend(ax, tractHandleList, tractStrList, loc="upper right", fancybox=True,
-                             shadow=True, fontsize=5, title_fontsize=6, title="tracts")
+        cb.set_label("visit", rotation=-90, labelpad=13, fontsize=9)
+        tractLegend = Legend(
+            ax,
+            tractHandleList,
+            tractStrList,
+            loc="upper right",
+            fancybox=True,
+            shadow=True,
+            fontsize=5,
+            title_fontsize=6,
+            title="tracts",
+        )
         ax.add_artist(tractLegend)
     else:
         if len(visitIncludeList) > 0:
-            xBboxAnchor = min(1.25, max(1.03, boxAspectRatio*1.15))
-            ax.legend(loc="center left", bbox_to_anchor=(xBboxAnchor, 0.5), fancybox=True,
-                      shadow=True, fontsize=6, title_fontsize=6, title="visits")
+            xBboxAnchor = min(1.25, max(1.03, boxAspectRatio * 1.15))
+            ax.legend(
+                loc="center left",
+                bbox_to_anchor=(xBboxAnchor, 0.5),
+                fancybox=True,
+                shadow=True,
+                fontsize=6,
+                title_fontsize=6,
+                title="visits",
+            )
         # Create the second legend and add the artist manually.
-        tractLegend = Legend(ax, tractHandleList, tractStrList, loc="center left", bbox_to_anchor=(1.0, 0.5),
-                             fancybox=True, shadow=True, fontsize=6, title_fontsize=6, title="tracts")
+        tractLegend = Legend(
+            ax,
+            tractHandleList,
+            tractStrList,
+            loc="center left",
+            bbox_to_anchor=(1.0, 0.5),
+            fancybox=True,
+            shadow=True,
+            fontsize=6,
+            title_fontsize=6,
+            title="tracts",
+        )
         ax.add_artist(tractLegend)
 
     titleStr = repo + "\n" + collections[0]
@@ -506,38 +755,40 @@ def main(repo, collections, skymapName=None, tracts=None, visits=None, physicalF
             titleStr += "\n" + collection
     titleStr += "\nnVisit: {}".format(str(len(finalVisitList)))
     if minOverlapFraction is not None:
-        titleStr += " (minOvlpFrac = {:.2f})".format(minOverlapFraction)
+        titleStr += " (minOverlapFraction = {:.2f})".format(minOverlapFraction)
     if len(includedBands) > 0:
-        titleStr += "  bands: {}".format(str(includedBands).translate({ord(i): None for i in "[]\'"}))
+        titleStr += ", bands: {}".format(str(includedBands).translate({ord(i): None for i in "[]'"}))
     if len(includedPhysicalFilters) > 0:
         if len(includedPhysicalFilters[0]) > 9:
             titleStr += "\n"
-        titleStr += "  physical filters: {}".format(str(includedPhysicalFilters).translate(
-            {ord(i): None for i in "[]\'"}))
+        else:
+            titleStr += ","
+        titleStr += " physical filters: {}".format(
+            str(includedPhysicalFilters).translate({ord(i): None for i in "[]'"})
+        )
     ax.set_title("{}".format(titleStr), fontsize=8)
 
     fig = plt.gcf()
     if boxAspectRatio > 1.0:
-        minInches = max(4.0, 0.3*abs(xlim[1] - xlim[0]))
+        minInches = max(4.0, 0.3 * abs(xlim[1] - xlim[0]))
         xInches = minInches
-        yInches = min(120.0, boxAspectRatio*minInches)
+        yInches = min(120.0, boxAspectRatio * minInches)
         fig.set_size_inches(xInches, yInches)
     if boxAspectRatio < 1.0:
-        minInches = max(4.0, 0.3*abs(ylim[1] - ylim[0]))
-        xInches = min(120.0, minInches/boxAspectRatio)
+        minInches = max(4.0, 0.3 * abs(ylim[1] - ylim[0]))
+        xInches = min(120.0, minInches / boxAspectRatio)
         yInches = minInches
         fig.set_size_inches(xInches, yInches)
     if saveFile is not None:
         logger.info("Saving file in: %s", saveFile)
-        fig.savefig(saveFile, bbox_inches="tight", dpi=150)
+        fig.savefig(saveFile, bbox_inches="tight", dpi=dpi)
     else:
         fig.show()
 
 
 def makeWhereInStr(parameterName, parameterList, parameterType):
-    """Create the string to be used in the where clause for registry lookup.
-    """
-    typeStr = "\'" if parameterType is str else ""
+    """Create the string to be used in the where clause for registry lookup."""
+    typeStr = "'" if parameterType is str else ""
     whereInStr = parameterName + " IN (" + typeStr + str(parameterList[0]) + typeStr
     if len(parameterList) > 1:
         for param in parameterList[1:]:
@@ -545,6 +796,24 @@ def makeWhereInStr(parameterName, parameterList, parameterType):
     whereInStr += ")"
 
     return whereInStr
+
+
+def sanitizeTractList(skymap, tractList):
+    """Split tract ids into valid and invalid entries for the given skymap."""
+    validTracts = []
+    invalidTracts = []
+    for tract in tractList:
+        tractInt = int(tract)
+        try:
+            _ = skymap[tractInt]
+        except IndexError:
+            invalidTracts.append(tractInt)
+            continue
+        if tractInt not in validTracts:
+            validTracts.append(tractInt)
+    validTracts.sort()
+    invalidTracts.sort()
+    return validTracts, invalidTracts
 
 
 def getTractLimitsDict(skymap, tractList):
@@ -638,44 +907,44 @@ def derivePlotLimits(limitsDict, raToDecLimitRatio=1.0, buffFrac=0.0):
     yDelta0 = yLimMax - yLimMin
     if raToDecLimitRatio is None:
         padFrac = 0.05
-        xlim = xLimMax + padFrac*xDelta0, xLimMin - padFrac*xDelta0
-        ylim = yLimMin - padFrac*yDelta0, yLimMax + padFrac*yDelta0
+        xlim = xLimMax + padFrac * xDelta0, xLimMin - padFrac * xDelta0
+        ylim = yLimMin - padFrac * yDelta0, yLimMax + padFrac * yDelta0
         return xlim, ylim
 
     if raToDecLimitRatio == 1.0:
         if xDelta0 > yDelta0:
-            xLimMin -= buffFrac*yDelta0
-            xLimMax += buffFrac*yDelta0
+            xLimMin -= buffFrac * yDelta0
+            xLimMax += buffFrac * yDelta0
         else:
-            yLimMin -= buffFrac*yDelta0
-            yLimMax += buffFrac*yDelta0
+            yLimMin -= buffFrac * yDelta0
+            yLimMax += buffFrac * yDelta0
         xLimMin, xLimMax, yLimMin, yLimMax = setLimitsToEqualRatio(xLimMin, xLimMax, yLimMin, yLimMax)
     else:
-        xLimMin -= buffFrac*xDelta0
-        xLimMax += buffFrac*xDelta0
-        yLimMin -= buffFrac*yDelta0
-        yLimMax += buffFrac*yDelta0
+        xLimMin -= buffFrac * xDelta0
+        xLimMax += buffFrac * xDelta0
+        yLimMin -= buffFrac * yDelta0
+        yLimMax += buffFrac * yDelta0
         xLimMin, xLimMax, yLimMin, yLimMax = setLimitsToEqualRatio(xLimMin, xLimMax, yLimMin, yLimMax)
         xDelta = xLimMax - xLimMin
         yDelta = yLimMax - yLimMin
         if raToDecLimitRatio > 1.0:
             if yDelta0 > xDelta:
-                xMid = xLimMin + 0.5*(xDelta)
-                xLimMin = xMid - 0.5*yDelta*raToDecLimitRatio
-                xLimMax = xMid + 0.5*yDelta*raToDecLimitRatio
+                xMid = xLimMin + 0.5 * (xDelta)
+                xLimMin = xMid - 0.5 * yDelta * raToDecLimitRatio
+                xLimMax = xMid + 0.5 * yDelta * raToDecLimitRatio
             else:
-                yMid = yLimMin + 0.5*(yDelta)
-                yLimMin = yMid - 0.5*xDelta/raToDecLimitRatio
-                yLimMax = yMid + 0.5*xDelta/raToDecLimitRatio
+                yMid = yLimMin + 0.5 * (yDelta)
+                yLimMin = yMid - 0.5 * xDelta / raToDecLimitRatio
+                yLimMax = yMid + 0.5 * xDelta / raToDecLimitRatio
         else:
             if xDelta0 > yDelta0:
-                yMid = yLimMin + 0.5*(yDelta)
-                yLimMin = yMid - 0.5*xDelta/raToDecLimitRatio
-                yLimMax = yMid + 0.5*xDelta/raToDecLimitRatio
+                yMid = yLimMin + 0.5 * (yDelta)
+                yLimMin = yMid - 0.5 * xDelta / raToDecLimitRatio
+                yLimMax = yMid + 0.5 * xDelta / raToDecLimitRatio
             else:
-                xMid = xLimMin + 0.5*(xDelta)
-                xLimMin = xMid - 0.5*yDelta*raToDecLimitRatio
-                xLimMax = xMid + 0.5*yDelta*raToDecLimitRatio
+                xMid = xLimMin + 0.5 * (xDelta)
+                xLimMin = xMid - 0.5 * yDelta * raToDecLimitRatio
+                xLimMax = xMid + 0.5 * yDelta * raToDecLimitRatio
     xlim = xLimMax, xLimMin
     ylim = yLimMin, yLimMax
     return xlim, ylim
@@ -691,7 +960,7 @@ def setLimitsToEqualRatio(xMin, xMax, yMin, yMax):
     ----------
     xMin, xMax, yMin, yMax : `float`
         The min/max values of the x/y ranges for which to match in dynamic
-        range while perserving the central values.
+        range while preserving the central values.
 
     Returns
     -------
@@ -710,27 +979,43 @@ def setLimitsToEqualRatio(xMin, xMax, yMin, yMax):
     return xMin, xMax, yMin, yMax
 
 
-def getDetRaDecCorners(ccdKey, ccdId, visit, visitSummary=None, butler=None, doLogWarn=True):
-    """Compute the RA/Dec corners lists for a given detector in a visit.
-    """
+def getDetRaDecCorners(
+    ccdKey,
+    ccdId,
+    visit,
+    visitSummary=None,
+    butler=None,
+    imageDatasetType="calexp",
+    doLogWarn=True,
+    missingVisitSummaryRows=None,
+):
+    """Compute the RA/Dec corners lists for a given detector in a visit."""
     raCorners, decCorners = None, None
     if visitSummary is not None:
         row = visitSummary.find(ccdId)
         if row is None:
             if doLogWarn:
-                logger.warn("No row found for %d in visitSummary of visit %d. "
-                            "Skipping and continuing...", ccdId, visit)
+                if missingVisitSummaryRows is not None:
+                    missingVisitSummaryRows.setdefault(visit, set()).add(ccdId)
+                else:
+                    logger.warning(
+                        "No row found for %d in visit summary table for visit %d. Skipping and continuing...",
+                        ccdId,
+                        visit,
+                    )
         else:
             raCorners = list(row["raCorners"])
             decCorners = list(row["decCorners"])
     else:
+        if butler is None:
+            raise RuntimeError("A butler instance is required when visitSummary is not provided")
         try:
             dataId = {"visit": visit, ccdKey: ccdId}
-            wcs = butler.get("calexp.wcs", dataId)
-            bbox = butler.get("calexp.bbox", dataId)
+            wcs = butler.get(f"{imageDatasetType}.wcs", dataId)
+            bbox = butler.get(f"{imageDatasetType}.bbox", dataId)
             raCorners, decCorners = bboxToRaDec(bbox, wcs)
         except LookupError as e:
-            logger.warn("%s Skipping and continuing...", e)
+            logger.warning("%s Skipping and continuing...", e)
 
     return raCorners, decCorners
 
@@ -758,6 +1043,8 @@ def getBand(visitSummary=None, butler=None, visit=None):
         band = visitSummary[0]["band"]
         physicalFilter = visitSummary[0]["physical_filter"]
     else:
+        if butler is None:
+            raise RuntimeError("A butler instance is required when visitSummary is not provided")
         record = list(butler.registry.queryDimensionRecords("band", visit=visit))[0]
         band = record.name
         record = list(butler.registry.queryDimensionRecords("physical_filter", visit=visit))[0]
@@ -767,50 +1054,150 @@ def getBand(visitSummary=None, butler=None, visit=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("repo", type=str,
-                        help="URI or path to an existing data repository root or configuration file")
-    parser.add_argument("--collections", type=str, nargs="+",
-                        help="Blank-space separated list of collection names for butler instantiation",
-                        metavar=("COLLECTION1", "COLLECTION2"), required=True)
+    parser.add_argument(
+        "repo", type=str, help="URI or path to an existing data repository root or configuration file"
+    )
+    parser.add_argument(
+        "--collections",
+        type=str,
+        nargs="+",
+        help="Blank-space separated list of collection names for butler instantiation",
+        metavar=("COLLECTION1", "COLLECTION2"),
+        required=True,
+    )
     parser.add_argument("--skymapName", default=None, help="Name of the skymap for the collection")
-    parser.add_argument("--tracts", type=int, nargs="+", default=None,
-                        help=("Blank-space separated list of tract outlines to constrain search for "
-                              "visit overlap"), metavar=("TRACT1", "TRACT2"))
-    parser.add_argument("--visits", type=int, nargs="+", default=None,
-                        help="Blank-space separated list of visits to include",
-                        metavar=("VISIT1", "VISIT2"))
-    parser.add_argument("--physicalFilters", type=str, nargs="+", default=None,
-                        help=("Blank-space separated list of physical filter names to constrain search for "
-                              "visits"), metavar=("PHYSICAL_FILTER1", "PHYSICAL_FILTER2"))
-    parser.add_argument("--bands", type=str, nargs="+", default=None,
-                        help=("Blank-space separated list of canonical band names to constrin search for "
-                              "visits"), metavar=("BAND1", "BAND2"))
-    parser.add_argument("-c", "--ccds", nargs="+", type=int, default=None,
-                        help="Blank-space separated list of CCDs to show", metavar=("CCD1", "CCD2"))
-    parser.add_argument("-p", "--showPatch", action="store_true", default=False,
-                        help="Show the patch boundaries")
-    parser.add_argument("--saveFile", type=str, default="showVisitSkyMap.png",
-                        help="Filename to write the plot to")
+    parser.add_argument(
+        "--tracts",
+        type=int,
+        nargs="+",
+        default=None,
+        help=("Blank-space separated list of tract outlines to constrain search for visit overlap"),
+        metavar=("TRACT1", "TRACT2"),
+    )
+    parser.add_argument(
+        "--visits",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Blank-space separated list of visits to include",
+        metavar=("VISIT1", "VISIT2"),
+    )
+    parser.add_argument(
+        "--physicalFilters",
+        type=str,
+        nargs="+",
+        default=None,
+        help=("Blank-space separated list of physical filter names to constrain search for visits"),
+        metavar=("PHYSICAL_FILTER1", "PHYSICAL_FILTER2"),
+    )
+    parser.add_argument(
+        "--bands",
+        type=str,
+        nargs="+",
+        default=None,
+        help=("Blank-space separated list of canonical band names to constrain search for visits"),
+        metavar=("BAND1", "BAND2"),
+    )
+    parser.add_argument(
+        "-c",
+        "--ccds",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Blank-space separated list of CCDs to show",
+        metavar=("CCD1", "CCD2"),
+    )
+    parser.add_argument(
+        "-p", "--showPatch", action="store_true", default=False, help="Show the patch boundaries"
+    )
+    parser.add_argument(
+        "--showPatchSelectedTractsOnly",
+        action="store_true",
+        default=False,
+        help="When showing patches, only draw patch boundaries for the tracts passed to --tracts.",
+    )
+    parser.add_argument(
+        "--saveFile", type=str, default="showVisitSkyMap.png", help="Filename to write the plot to"
+    )
     parser.add_argument("--ccdKey", default="detector", help="Data ID name of the CCD key")
-    parser.add_argument("--showCcds", action="store_true", default=False,
-                        help="Show ccd ID numbers on output image")
-    parser.add_argument("--visitVetoFile", type=str, default=None,
-                        help="Full path to single-column file containing a list of visits to veto")
-    parser.add_argument("--minOverlapFraction", type=float, default=None,
-                        help="Minimum fraction of detectors that overlap any tract for visit to be included")
-    parser.add_argument("--trimToTracts", action="store_true", default=False,
-                        help="Set plot limits based on extent of visits (as opposed to tracts) plotted?")
-    parser.add_argument("--doUnscaledLimitRatio", action="store_true", default=False,
-                        help="Let axis limits get set by sky coordinate range without scaling to focal "
-                        "plane based projection (ignored if --forceScaledLimitRatio is passed).")
-    parser.add_argument("--forceScaledLimitRatio", action="store_true", default=False,
-                        help="Force the axis limit scaling to focal plane based projection (takes "
-                        "precedence over --doUnscaledLimitRatio.")
+    parser.add_argument(
+        "--showCcds", action="store_true", default=False, help="Show ccd ID numbers on output image"
+    )
+    parser.add_argument(
+        "--visitVetoFile",
+        type=str,
+        default=None,
+        help="Full path to single-column file containing a list of visits to veto",
+    )
+    parser.add_argument(
+        "--minOverlapFraction",
+        type=float,
+        default=None,
+        help="Minimum fraction of detectors that overlap any tract for visit to be included",
+    )
+    parser.add_argument(
+        "--trimToTracts",
+        action="store_true",
+        default=False,
+        help="Set plot limits based on extent of visits (as opposed to tracts) plotted?",
+    )
+    parser.add_argument(
+        "--doUnscaledLimitRatio",
+        action="store_true",
+        default=False,
+        help="Let axis limits get set by sky coordinate range without scaling to focal "
+        "plane based projection (ignored if --forceScaledLimitRatio is passed).",
+    )
+    parser.add_argument(
+        "--forceScaledLimitRatio",
+        action="store_true",
+        default=False,
+        help="Force the axis limit scaling to focal plane based projection (takes "
+        "precedence over --doUnscaledLimitRatio.",
+    )
+    parser.add_argument(
+        "--imageDatasetType",
+        type=str,
+        default=None,
+        help=(
+            "Image dataset type used for visit discovery and WCS/bbox fallback; "
+            "defaults to commonly used detector storage types."
+        ),
+    )
+    parser.add_argument(
+        "--visitSummaryDatasetType",
+        type=str,
+        default=None,
+        help=("Visit summary dataset type to use; defaults to commonly used visit summary types."),
+    )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=150,
+        help="DPI used when writing output via --saveFile.",
+    )
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO)
-    main(args.repo, args.collections, skymapName=args.skymapName, tracts=args.tracts, visits=args.visits,
-         physicalFilters=args.physicalFilters, bands=args.bands, ccds=args.ccds, ccdKey=args.ccdKey,
-         showPatch=args.showPatch, saveFile=args.saveFile, showCcds=args.showCcds,
-         visitVetoFile=args.visitVetoFile, minOverlapFraction=args.minOverlapFraction,
-         trimToTracts=args.trimToTracts, doUnscaledLimitRatio=args.doUnscaledLimitRatio,
-         forceScaledLimitRatio=args.forceScaledLimitRatio)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
+    main(
+        args.repo,
+        args.collections,
+        skymapName=args.skymapName,
+        tracts=args.tracts,
+        visits=args.visits,
+        physicalFilters=args.physicalFilters,
+        bands=args.bands,
+        ccds=args.ccds,
+        ccdKey=args.ccdKey,
+        showPatch=args.showPatch,
+        showPatchSelectedTractsOnly=args.showPatchSelectedTractsOnly,
+        saveFile=args.saveFile,
+        showCcds=args.showCcds,
+        visitVetoFile=args.visitVetoFile,
+        minOverlapFraction=args.minOverlapFraction,
+        trimToTracts=args.trimToTracts,
+        doUnscaledLimitRatio=args.doUnscaledLimitRatio,
+        forceScaledLimitRatio=args.forceScaledLimitRatio,
+        imageDatasetType=args.imageDatasetType,
+        visitSummaryDatasetType=args.visitSummaryDatasetType,
+        dpi=args.dpi,
+    )
