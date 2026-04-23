@@ -179,6 +179,13 @@ def main(
         tractStr = makeWhereInStr("tract", tracts, int)
         whereStr += tractStr
 
+    if visits is not None:
+        visitStr = makeWhereInStr("exposure", visits, int)
+        if len(whereStr) < 1:
+            whereStr += visitStr
+        else:
+            whereStr += " AND " + visitStr
+
     if physicalFilters is not None:
         physicalFilterStr = makeWhereInStr("physical_filter", physicalFilters, str)
         whereStr += " AND " + physicalFilterStr if len(whereStr) else " " + physicalFilterStr
