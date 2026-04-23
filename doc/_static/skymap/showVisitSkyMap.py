@@ -123,6 +123,7 @@ def main(
     collections,
     skymapName=None,
     tracts=None,
+    patches=None,
     visits=None,
     physicalFilters=None,
     bands=None,
@@ -178,6 +179,10 @@ def main(
     if tracts is not None:
         tractStr = makeWhereInStr("tract", tracts, int)
         whereStr += tractStr
+
+    if patches is not None:
+        patchStr = makeWhereInStr("patch", patches, int)
+        whereStr += " AND " + patchStr
 
     if visits is not None:
         visitStr = makeWhereInStr("exposure", visits, int)
@@ -1078,8 +1083,16 @@ if __name__ == "__main__":
         type=int,
         nargs="+",
         default=None,
-        help=("Blank-space separated list of tract outlines to constrain search for visit overlap"),
+        help=("Blank-space separated list of tracts to constrain search for visit overlap"),
         metavar=("TRACT1", "TRACT2"),
+    )
+    parser.add_argument(
+        "--patches",
+        type=int,
+        nargs="+",
+        default=None,
+        help=("Blank-space separated list of patches to constrain search for visit overlap"),
+        metavar=("PATCH1", "PATCH2"),
     )
     parser.add_argument(
         "--visits",
@@ -1190,6 +1203,7 @@ if __name__ == "__main__":
         args.collections,
         skymapName=args.skymapName,
         tracts=args.tracts,
+        patches=args.patches,
         visits=args.visits,
         physicalFilters=args.physicalFilters,
         bands=args.bands,
