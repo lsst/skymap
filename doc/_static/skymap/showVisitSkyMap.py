@@ -90,14 +90,13 @@ def queryImageDatasets(butler, whereStr, imageDatasetType=None):
             "calexp",
         ]
     )
-    lastDatasetType = None
     for datasetType in datasetTypes:
-        lastDatasetType = datasetType
         logger.info("Querying image dataset type: %s", datasetType)
         dataRefs = list(butler.registry.queryDatasets(datasetType, where=whereStr).expanded())
         if len(dataRefs) > 0:
             return datasetType, dataRefs
-    return lastDatasetType, []
+    logger.warning("No visit-level data found for any of the tested dataset types; unable to plot visits.")
+    return None, []
 
 
 def getVisitSummaryForVisit(butler, visit, visitSummaryDatasetType=None):
