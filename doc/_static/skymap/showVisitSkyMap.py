@@ -139,9 +139,12 @@ def main(
     forceScaledLimitRatio=False,
     imageDatasetType=None,
     visitSummaryDatasetType=None,
+    dpi=150,
 ):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
+    if dpi <= 0:
+        raise RuntimeError("--dpi must be > 0")
     logger.info("Instantiating butler for repo '%s' with collections = %s", repo, collections)
     butler = Butler.from_config(repo, collections=collections)
     cameraDataset = butler.find_dataset("camera")
@@ -778,7 +781,7 @@ def main(
         fig.set_size_inches(xInches, yInches)
     if saveFile is not None:
         logger.info("Saving file in: %s", saveFile)
-        fig.savefig(saveFile, bbox_inches="tight", dpi=150)
+        fig.savefig(saveFile, bbox_inches="tight", dpi=dpi)
     else:
         fig.show()
 
@@ -1167,6 +1170,12 @@ if __name__ == "__main__":
         default=None,
         help=("Visit summary dataset type to use; defaults to commonly used visit summary types."),
     )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=150,
+        help="DPI used when writing output via --saveFile.",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
     main(
@@ -1190,4 +1199,5 @@ if __name__ == "__main__":
         forceScaledLimitRatio=args.forceScaledLimitRatio,
         imageDatasetType=args.imageDatasetType,
         visitSummaryDatasetType=args.visitSummaryDatasetType,
+        dpi=args.dpi,
     )
