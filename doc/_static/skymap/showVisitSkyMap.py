@@ -1022,7 +1022,10 @@ def getDetRaDecCorners(
         if butler is None:
             raise RuntimeError("A butler instance is required when visitSummary is not provided")
         try:
-            dataId = {"visit": visit, ccdKey: ccdId}
+            if imageDatasetType == "raw":
+                dataId = {"exposure": visit, ccdKey: ccdId}
+            else:
+                dataId = {"visit": visit, ccdKey: ccdId}
             wcs = butler.get(f"{imageDatasetType}.wcs", dataId)
             bbox = butler.get(f"{imageDatasetType}.bbox", dataId)
             raCorners, decCorners = bboxToRaDec(bbox, wcs)
