@@ -308,6 +308,15 @@ def main(
                                     if np.isfinite(ra) and np.isfinite(dec)
                                 ]
                                 if len(finiteCornerPairs) < 3:
+                                    logger.debug(
+                                        "visit %d det %d (tract-overlap path): only %d finite "
+                                        "corner(s); raw ra=%s dec=%s",
+                                        visit,
+                                        ccdId,
+                                        len(finiteCornerPairs),
+                                        raCorners,
+                                        decCorners,
+                                    )
                                     continue
                                 detSphCorners = []
                                 for ra, dec in finiteCornerPairs:
@@ -317,7 +326,16 @@ def main(
                                     detConvexHull = ConvexPolygon.convexHull(
                                         [coord.getVector() for coord in detSphCorners]
                                     )
-                                except ValueError:
+                                except ValueError as e:
+                                    logger.debug(
+                                        "visit %d det %d (tract-overlap path): hull ValueError (%s); "
+                                        "corners ra=%s dec=%s",
+                                        visit,
+                                        ccdId,
+                                        e,
+                                        raCorners,
+                                        decCorners,
+                                    )
                                     continue
                                 if tractConvexHull.contains(detConvexHull):
                                     ccdOverlapList.append(ccdId)
@@ -565,6 +583,14 @@ def main(
                         if np.isfinite(ra) and np.isfinite(dec)
                     ]
                     if len(finiteCornerPairs) < 3:
+                        logger.debug(
+                            "visit %d det %d (midpoint path): only %d finite corner(s); raw ra=%s dec=%s",
+                            visit,
+                            ccdId,
+                            len(finiteCornerPairs),
+                            raCorners,
+                            decCorners,
+                        )
                         continue
                     detSphCorners = []
                     for ra, dec in finiteCornerPairs:
@@ -578,7 +604,15 @@ def main(
                             minDistToMidCoord = separation
                     try:
                         detConvexHull = ConvexPolygon([coord.getVector() for coord in detSphCorners])
-                    except ValueError:
+                    except ValueError as e:
+                        logger.debug(
+                            "visit %d det %d (midpoint path): hull ValueError (%s); corners ra=%s dec=%s",
+                            visit,
+                            ccdId,
+                            e,
+                            raCorners,
+                            decCorners,
+                        )
                         continue
                     if detConvexHull.contains(midRa, midDec) and raToDecLimitRatio is None:
                         logger.info(
@@ -1248,8 +1282,14 @@ if __name__ == "__main__":
         default=20,
         help="Maximum number of visits to include in the legend before switching to a colorbar.",
     )
+    parser.add_argument(
+        "--logLevel",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level (default: INFO).",
+    )
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
+    logging.basicConfig(level=getattr(logging, args.logLevel), format="%(levelname)s:%(name)s: %(message)s")
     main(
         args.repo,
         args.collections,
