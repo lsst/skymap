@@ -23,6 +23,7 @@
 
 import argparse
 import logging
+import os
 
 import matplotlib
 import matplotlib.patheffects as pathEffects
@@ -134,6 +135,7 @@ def main(
     saveFile=None,
     showCcds=False,
     showCcdsAll=False,
+    plotFailsOnly=False,
     visitVetoFile=None,
     minOverlapFraction=None,
     trimToTracts=False,
@@ -219,6 +221,47 @@ def main(
     )
     logger.info("Using image dataset type: %s", imageDatasetTypeUsed)
 
+    failedDataIds = set()
+    if plotFailsOnly:
+        processedDataIds = set((ref.dataId["visit"], ref.dataId["detector"]) for ref in imageDataRefs)
+        selectedTracts = set(tracts) if tracts is not None else None
+        logger.info("Querying raw datasets to find failed detectors...")
+        rawDataRefs = list(butler.registry.queryDatasets("raw", where=whereStr).expanded())
+        logger.info("Found %d raw datasets", len(rawDataRefs))
+        for ref in rawDataRefs:
+            exposure = ref.dataId["exposure"]
+            detector = ref.dataId["detector"]
+            if (exposure, detector) not in processedDataIds:
+                if selectedTracts is not None:
+                    raCorners, decCorners = getDetRaDecCorners(
+                        ccdKey,
+                        detector,
+                        exposure,
+                        visitSummary=None,
+                        butler=butler,
+                        imageDatasetType="raw",
+                        doLogWarn=False,
+                    )
+                    if raCorners is None or decCorners is None:
+                        continue
+                    finiteCornerPairs = [
+                        (ra, dec)
+                        for ra, dec in zip(raCorners, decCorners)
+                        if np.isfinite(ra) and np.isfinite(dec)
+                    ]
+                    if len(finiteCornerPairs) == 0:
+                        continue
+                    rawRas = [ra for ra, _ in finiteCornerPairs]
+                    rawDecs = [dec for _, dec in finiteCornerPairs]
+                    rawTracts = set(skymap.findTractIdArray(rawRas, rawDecs, degrees=True))
+                    if selectedTracts.isdisjoint(rawTracts):
+                        continue
+                failedDataIds.add((exposure, detector))
+        logger.info(
+            "Found %d failed (raw but unprocessed) visit-detector pairs",
+            len(failedDataIds),
+        )
+
     visitSummaryDatasetTypeUsed = visitSummaryDatasetType
 
     visitVetoList = []
@@ -229,10 +272,15 @@ def main(
 
     if visits is None:
         visits = []
-        for dataRef in imageDataRefs:
-            visit = dataRef.dataId.visit.id
-            if visit not in visits and visit not in visitVetoList:
-                visits.append(visit)
+        if plotFailsOnly:
+            for failVisit, _ in failedDataIds:
+                if failVisit not in visits and failVisit not in visitVetoList:
+                    visits.append(failVisit)
+        else:
+            for dataRef in imageDataRefs:
+                visit = dataRef.dataId.visit.id
+                if visit not in visits and visit not in visitVetoList:
+                    visits.append(visit)
         visits.sort()
         logger.info("List of visits (N=%d) satisfying where and veto clauses: %s", len(visits), visits)
     else:
@@ -392,13 +440,15 @@ def main(
             includedPhysicalFilters.append(physicalFilter)
 
         for ccdId in ccdIdList:
+            if plotFailsOnly and (visit, ccdId) not in failedDataIds:
+                continue
             raCorners, decCorners = getDetRaDecCorners(
                 ccdKey,
                 ccdId,
                 visit,
-                visitSummary=visitSummary,
+                visitSummary=None if plotFailsOnly else visitSummary,
                 butler=butler,
-                imageDatasetType=imageDatasetTypeUsed,
+                imageDatasetType="raw" if plotFailsOnly else imageDatasetTypeUsed,
                 missingVisitSummaryRows=missingVisitSummaryRows,
             )
             if raCorners is not None and decCorners is not None:
@@ -469,6 +519,9 @@ def main(
     )
 
     raToDecLimitRatio = None
+    midRa = None
+    midDec = None
+    midSkyCoord = None
     if len(ras) > 0:
         finiteCoordPairs = [(ra, dec) for ra, dec in zip(ras, decs) if np.isfinite(ra) and np.isfinite(dec)]
         droppedCoordCount = len(ras) - len(finiteCoordPairs)
@@ -572,7 +625,7 @@ def main(
             )
             doUnscaledLimitRatio = True
 
-    if not doUnscaledLimitRatio:
+    if not doUnscaledLimitRatio and midSkyCoord is not None:
         # Find a detector that contains the mid point in RA/Dec (or the closest
         # one) to set the plot aspect ratio.
         minDistToMidCoord = 1e12
@@ -709,6 +762,17 @@ def main(
                 else:
                     if raToDecLimitRatio < 1.0:
                         raToDecLimitRatio *= max(height / width, width / height)
+
+    elif not doUnscaledLimitRatio:
+        logger.info(
+            "Skipping midpoint-based detector aspect-ratio scaling: "
+            "no detector-derived midpoint is available."
+        )
+
+    if plotFailsOnly and not doUnscaledLimitRatio and raToDecLimitRatio is None:
+        # In fail-only mode we can lack midpoint detector context; default to
+        # 1:1 sky-coordinate limits for predictable geometry.
+        raToDecLimitRatio = 1.0
 
     if tractLimitsDict is not None:
         xlim, ylim = derivePlotLimits(tractLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
@@ -865,16 +929,18 @@ def main(
         ax.add_artist(tractLegend)
     else:
         if len(visitIncludeList) > 0:
-            xBboxAnchor = min(1.25, max(1.03, boxAspectRatio * 1.15))
-            ax.legend(
-                loc="center left",
-                bbox_to_anchor=(xBboxAnchor, 0.5),
-                fancybox=True,
-                shadow=True,
-                fontsize=6,
-                title_fontsize=6,
-                title="visits",
-            )
+            handles, labels = ax.get_legend_handles_labels()
+            if len(handles) > 0:
+                xBboxAnchor = min(1.25, max(1.03, boxAspectRatio * 1.15))
+                ax.legend(
+                    loc="center left",
+                    bbox_to_anchor=(xBboxAnchor, 0.5),
+                    fancybox=True,
+                    shadow=True,
+                    fontsize=6,
+                    title_fontsize=6,
+                    title="visits",
+                )
         # Create the second legend and add the artist manually.
         tractLegend = Legend(
             ax,
@@ -894,7 +960,10 @@ def main(
     if len(collections) > 1:
         for collection in collections[1:]:
             titleStr += "\n" + collection
-    titleStr += "\nnVisit: {}".format(str(len(finalVisitList)))
+    if plotFailsOnly:
+        titleStr += "\nFailed calibration: N={}".format(len(failedDataIds))
+    else:
+        titleStr += "\nnVisit: {}".format(str(len(finalVisitList)))
     if minOverlapFraction is not None:
         titleStr += " (minOverlapFraction = {:.2f})".format(minOverlapFraction)
     if len(includedBands) > 0:
@@ -921,6 +990,9 @@ def main(
         yInches = minInches
         fig.set_size_inches(xInches, yInches)
     if saveFile is not None:
+        if plotFailsOnly and "fail" not in saveFile:
+            fileRoot, fileExt = os.path.splitext(saveFile)
+            saveFile = f"{fileRoot}_failed{fileExt}" if fileExt else f"{saveFile}_failed"
         logger.info("Saving file in: %s", saveFile)
         fig.savefig(saveFile, bbox_inches="tight", dpi=dpi)
     else:
@@ -1153,13 +1225,37 @@ def getDetRaDecCorners(
         try:
             if imageDatasetType == "raw":
                 dataId = {"exposure": visit, ccdKey: ccdId}
+                # Raw exposures may not have a bbox component.
+                exposure = butler.get(imageDatasetType, dataId)
+                wcs = exposure.getWcs()
+                bbox = exposure.getBBox()
             else:
                 dataId = {"visit": visit, ccdKey: ccdId}
-            wcs = butler.get(f"{imageDatasetType}.wcs", dataId)
-            bbox = butler.get(f"{imageDatasetType}.bbox", dataId)
+                try:
+                    wcs = butler.get(f"{imageDatasetType}.wcs", dataId)
+                    bbox = butler.get(f"{imageDatasetType}.bbox", dataId)
+                except LookupError:
+                    # Some dataset types are only available as full exposures.
+                    exposure = butler.get(imageDatasetType, dataId)
+                    wcs = exposure.getWcs()
+                    bbox = exposure.getBBox()
+            if wcs is None or bbox is None:
+                if doLogWarn:
+                    logger.warning(
+                        "WCS or BBox is None for datasetType=%s visit=%s %s=%s. Skipping and continuing...",
+                        imageDatasetType,
+                        visit,
+                        ccdKey,
+                        ccdId,
+                    )
+                return None, None
             raCorners, decCorners = bboxToRaDec(bbox, wcs)
         except LookupError as e:
-            logger.warning("%s Skipping and continuing...", e)
+            if doLogWarn:
+                logger.warning("%s Skipping and continuing...", e)
+        except Exception as e:
+            if doLogWarn:
+                logger.warning("%s Skipping and continuing...", e)
 
     return raCorners, decCorners
 
@@ -1286,6 +1382,16 @@ if __name__ == "__main__":
         "Takes precedence over --showCcds when both are set.",
     )
     parser.add_argument(
+        "--plotFailsOnly",
+        action="store_true",
+        default=False,
+        help=(
+            "Plot only detector outlines for visits that have raw data but no "
+            "processed image (i.e. failed calibration). Outlines are drawn "
+            "from the raw WCS. Output filename is suffixed with '_failed' automatically."
+        ),
+    )
+    parser.add_argument(
         "--visitVetoFile",
         type=str,
         default=None,
@@ -1380,6 +1486,7 @@ if __name__ == "__main__":
         saveFile=args.saveFile,
         showCcds=args.showCcds,
         showCcdsAll=args.showCcdsAll,
+        plotFailsOnly=args.plotFailsOnly,
         visitVetoFile=args.visitVetoFile,
         minOverlapFraction=args.minOverlapFraction,
         trimToTracts=args.trimToTracts,
