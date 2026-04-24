@@ -169,6 +169,10 @@ def main(
             skymapName = "latiss_v1"
         elif instrument == "DECam":
             skymapName = "decam_rings_v1"
+        elif instrument == "LSSTComCam":
+            skymapName = "lsst_cells_v1"
+        elif instrument == "LSSTCam":
+            skymapName = "lsst_cells_v2"
         else:
             raise RuntimeError(
                 f"Unknown skymapName for instrument: {instrument}. Must specify --skymapName on command line."
