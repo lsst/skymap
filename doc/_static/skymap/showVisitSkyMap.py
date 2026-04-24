@@ -1573,6 +1573,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.logLevel), format="%(levelname)s:%(name)s: %(message)s")
+    logging.getLogger("numexpr.utils").setLevel(logging.WARNING)
     main(
         args.repo,
         args.collections,
