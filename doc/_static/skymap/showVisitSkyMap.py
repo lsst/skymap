@@ -141,11 +141,14 @@ def main(
     imageDatasetType=None,
     visitSummaryDatasetType=None,
     dpi=150,
+    maxVisitForLegend=20,
 ):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
     if dpi <= 0:
         raise RuntimeError("--dpi must be > 0")
+    if maxVisitForLegend < 0:
+        raise RuntimeError("--maxVisitForLegend must be >= 0")
     logger.info("Instantiating butler for repo '%s' with collections = %s", repo, collections)
     butler = Butler.from_config(repo, collections=collections)
     cameraDataset = butler.find_dataset("camera")
@@ -330,7 +333,6 @@ def main(
     bboxesPlotted = []
     cmap = get_cmap(len(visitIncludeList))
     alphaEdge = 0.7
-    maxVisitForLegend = 20
     finalVisitList = []
     finalVisitColorIndices = []
     includedBands = []
@@ -1199,6 +1201,12 @@ if __name__ == "__main__":
         default=150,
         help="DPI used when writing output via --saveFile.",
     )
+    parser.add_argument(
+        "--maxVisitForLegend",
+        type=int,
+        default=20,
+        help="Maximum number of visits to include in the legend before switching to a colorbar.",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
     main(
@@ -1224,4 +1232,5 @@ if __name__ == "__main__":
         imageDatasetType=args.imageDatasetType,
         visitSummaryDatasetType=args.visitSummaryDatasetType,
         dpi=args.dpi,
+        maxVisitForLegend=args.maxVisitForLegend,
     )
