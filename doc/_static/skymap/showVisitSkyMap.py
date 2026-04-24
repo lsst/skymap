@@ -37,7 +37,34 @@ from lsst.geom import Angle, Box2D, Point2D, SpherePoint, degrees
 from lsst.sphgeom import ConvexPolygon
 from matplotlib.legend import Legend
 
+try:
+    from lsst.utils.plotting import publication_plots, set_rubin_plotstyle
+except ImportError:
+    publication_plots = None
+    set_rubin_plotstyle = None
+
 logger = logging.getLogger("lsst.skymap.bin.showVisitSkyMap")
+
+DEFAULT_BAND_COLOR_DICT = {
+    "u": "#48A8D4",
+    "g": "#31DE1F",
+    "r": "#B52626",
+    "i": "#2915A4",
+    "z": "#AD03EA",
+    "y": "#2D0201",
+}
+DEFAULT_BAND_LINESTYLE_DICT = {
+    "u": "solid",
+    "g": "solid",
+    "r": "solid",
+    "i": "solid",
+    "z": "solid",
+    "y": "solid",
+}
+
+BAND_COLOR_DICT = {}
+BAND_LINESTYLE_DICT = {}
+USE_RUBIN_BAND_STYLE = False
 
 
 def bboxToRaDec(bbox, wcs):
@@ -78,6 +105,30 @@ def get_cmap(n, name="gist_rainbow"):
     colors are visually distinct.
     """
     return matplotlib.colormaps[name].resampled(n)
+
+
+def getBandPlotStyle(band, defaultColor):
+    """Get per-band color/linestyle, falling back to per-visit defaults."""
+    if not USE_RUBIN_BAND_STYLE:
+        return defaultColor, "solid"
+    color = BAND_COLOR_DICT.get(band, defaultColor)
+    linestyle = BAND_LINESTYLE_DICT.get(band, "solid")
+    return color, linestyle
+
+
+def configureBandStyle(useRubinPlotStyle=False):
+    """Configure global band plotting style dictionaries."""
+    global BAND_COLOR_DICT, BAND_LINESTYLE_DICT, USE_RUBIN_BAND_STYLE
+    if useRubinPlotStyle and publication_plots is not None and set_rubin_plotstyle is not None:
+        bandDicts = publication_plots.get_band_dicts()
+        BAND_COLOR_DICT = bandDicts.get("colors", DEFAULT_BAND_COLOR_DICT)
+        BAND_LINESTYLE_DICT = bandDicts.get("line_styles", DEFAULT_BAND_LINESTYLE_DICT)
+        USE_RUBIN_BAND_STYLE = True
+        set_rubin_plotstyle()
+    else:
+        BAND_COLOR_DICT = {}
+        BAND_LINESTYLE_DICT = {}
+        USE_RUBIN_BAND_STYLE = False
 
 
 def queryImageDatasets(butler, whereStr, imageDatasetType=None):
@@ -146,6 +197,7 @@ def main(
     visitSummaryDatasetType=None,
     dpi=150,
     maxVisitForLegend=20,
+    useRubinPlotStyle=False,
 ):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
@@ -153,6 +205,7 @@ def main(
         raise RuntimeError("--dpi must be > 0")
     if maxVisitForLegend < 0:
         raise RuntimeError("--maxVisitForLegend must be >= 0")
+    configureBandStyle(useRubinPlotStyle=useRubinPlotStyle)
     logger.info("Instantiating butler for repo '%s' with collections = %s", repo, collections)
     butler = Butler.from_config(repo, collections=collections)
     cameraDataset = butler.find_dataset("camera")
@@ -423,8 +476,7 @@ def main(
     for i_v, visit in enumerate(visitIncludeList):
         print("Working on visit %d [%d of %d]" % (visit, i_v + 1, len(visitIncludeList)), end="\r")
         inLegend = False
-        color = cmap(i_v)
-        fillKwargs = {"fill": False, "alpha": alphaEdge, "facecolor": None, "edgecolor": color, "lw": 0.6}
+        defaultColor = cmap(i_v)
         try:
             visitSummary, _ = getVisitSummaryForVisit(
                 butler, visit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
@@ -438,6 +490,16 @@ def main(
             includedBands.append(band)
         if physicalFilter not in includedPhysicalFilters:
             includedPhysicalFilters.append(physicalFilter)
+
+        color, linestyle = getBandPlotStyle(band, defaultColor)
+        fillKwargs = {
+            "fill": False,
+            "alpha": alphaEdge,
+            "facecolor": None,
+            "edgecolor": color,
+            "lw": 0.6,
+            "ls": linestyle,
+        }
 
         for ccdId in ccdIdList:
             if plotFailsOnly and (visit, ccdId) not in failedDataIds:
@@ -1463,6 +1525,12 @@ if __name__ == "__main__":
         help="Maximum number of visits to include in the legend before switching to a colorbar.",
     )
     parser.add_argument(
+        "--useRubinPlotStyle",
+        action="store_true",
+        default=False,
+        help=("Use Rubin publication plotting style and per-band colors/linestyles for detector outlines."),
+    )
+    parser.add_argument(
         "--logLevel",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -1497,4 +1565,5 @@ if __name__ == "__main__":
         visitSummaryDatasetType=args.visitSummaryDatasetType,
         dpi=args.dpi,
         maxVisitForLegend=args.maxVisitForLegend,
+        useRubinPlotStyle=args.useRubinPlotStyle,
     )
