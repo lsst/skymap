@@ -302,13 +302,23 @@ def main(
                                 doLogWarn=False,
                             )
                             if raCorners is not None and decCorners is not None:
+                                finiteCornerPairs = [
+                                    (ra, dec)
+                                    for ra, dec in zip(raCorners, decCorners)
+                                    if np.isfinite(ra) and np.isfinite(dec)
+                                ]
+                                if len(finiteCornerPairs) < 3:
+                                    continue
                                 detSphCorners = []
-                                for ra, dec in zip(raCorners, decCorners):
+                                for ra, dec in finiteCornerPairs:
                                     pt = SpherePoint(Angle(ra, degrees), Angle(dec, degrees))
                                     detSphCorners.append(pt)
-                                detConvexHull = ConvexPolygon.convexHull(
-                                    [coord.getVector() for coord in detSphCorners]
-                                )
+                                try:
+                                    detConvexHull = ConvexPolygon.convexHull(
+                                        [coord.getVector() for coord in detSphCorners]
+                                    )
+                                except ValueError:
+                                    continue
                                 if tractConvexHull.contains(detConvexHull):
                                     ccdOverlapList.append(ccdId)
 
@@ -416,7 +426,7 @@ def main(
         if visit in missingVisitSummaryRows:
             missingDetectors = sorted(missingVisitSummaryRows[visit])
             logger.warning(
-                "visit summary table for visit %d missing detector rows: %s",
+                "visit summary table for visit %d missing detectors: %s",
                 visit,
                 missingDetectors,
             )
@@ -549,8 +559,15 @@ def main(
                     doLogWarn=False,
                 )
                 if raCorners is not None and decCorners is not None:
+                    finiteCornerPairs = [
+                        (ra, dec)
+                        for ra, dec in zip(raCorners, decCorners)
+                        if np.isfinite(ra) and np.isfinite(dec)
+                    ]
+                    if len(finiteCornerPairs) < 3:
+                        continue
                     detSphCorners = []
-                    for ra, dec in zip(raCorners, decCorners):
+                    for ra, dec in finiteCornerPairs:
                         pt = SpherePoint(Angle(ra, degrees), Angle(dec, degrees))
                         detSphCorners.append(pt)
                         ptSkyCoord = SkyCoord(ra * units.deg, dec * units.deg)
@@ -559,7 +576,10 @@ def main(
                             minSepVisit = visit
                             minSepCcdId = ccdId
                             minDistToMidCoord = separation
-                    detConvexHull = ConvexPolygon([coord.getVector() for coord in detSphCorners])
+                    try:
+                        detConvexHull = ConvexPolygon([coord.getVector() for coord in detSphCorners])
+                    except ValueError:
+                        continue
                     if detConvexHull.contains(midRa, midDec) and raToDecLimitRatio is None:
                         logger.info(
                             "visit/det overlapping plot coord mid point in RA/Dec: %d %d", visit, ccdId
@@ -580,6 +600,7 @@ def main(
                 break
 
         if raToDecLimitRatio is None and minSepVisit is not None:
+            canComputeNearestDetRatio = True
             try:
                 visitSummary, _ = getVisitSummaryForVisit(
                     butler, minSepVisit, visitSummaryDatasetType=visitSummaryDatasetTypeUsed
@@ -596,24 +617,44 @@ def main(
                 imageDatasetType=imageDatasetTypeUsed,
                 doLogWarn=False,
             )
-            for ra, dec in zip(raCorners, decCorners):
-                pt = SpherePoint(Angle(ra, degrees), Angle(dec, degrees))
-                detSphCorners.append(pt)
-            detConvexHull = ConvexPolygon([coord.getVector() for coord in detSphCorners])
-            logger.info(
-                "visit/det closest to plot coord mid point in RA/Dec (none actually overlap it): %d %d",
-                minSepVisit,
-                minSepCcdId,
-            )
-            raToDecLimitRatio = (max(raCorners) - min(raCorners)) / (max(decCorners) - min(decCorners))
-            det = camera[minSepCcdId]
-            width = det.getBBox().getWidth()
-            height = det.getBBox().getHeight()
-            if raToDecLimitRatio > 1.0:
-                raToDecLimitRatio /= max(height / width, width / height)
+            if raCorners is None or decCorners is None:
+                logger.warning(
+                    "Could not determine detector corners for visit/det nearest plot midpoint: %d %d",
+                    minSepVisit,
+                    minSepCcdId,
+                )
+                canComputeNearestDetRatio = False
             else:
-                if raToDecLimitRatio < 1.0:
-                    raToDecLimitRatio *= max(height / width, width / height)
+                finiteCornerPairs = [
+                    (ra, dec)
+                    for ra, dec in zip(raCorners, decCorners)
+                    if np.isfinite(ra) and np.isfinite(dec)
+                ]
+                if len(finiteCornerPairs) < 3:
+                    logger.warning(
+                        "Insufficient finite detector corners for visit/det nearest plot midpoint: %d %d",
+                        minSepVisit,
+                        minSepCcdId,
+                    )
+                    canComputeNearestDetRatio = False
+                else:
+                    raCorners = [ra for ra, _ in finiteCornerPairs]
+                    decCorners = [dec for _, dec in finiteCornerPairs]
+            if canComputeNearestDetRatio:
+                logger.info(
+                    "visit/det closest to plot coord mid point in RA/Dec (none actually overlap it): %d %d",
+                    minSepVisit,
+                    minSepCcdId,
+                )
+                raToDecLimitRatio = (max(raCorners) - min(raCorners)) / (max(decCorners) - min(decCorners))
+                det = camera[minSepCcdId]
+                width = det.getBBox().getWidth()
+                height = det.getBBox().getHeight()
+                if raToDecLimitRatio > 1.0:
+                    raToDecLimitRatio /= max(height / width, width / height)
+                else:
+                    if raToDecLimitRatio < 1.0:
+                        raToDecLimitRatio *= max(height / width, width / height)
 
     if trimToTracts:
         xlim, ylim = derivePlotLimits(tractLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
