@@ -141,11 +141,14 @@ def main(
     imageDatasetType=None,
     visitSummaryDatasetType=None,
     dpi=150,
+    maxVisitsForLegend=20,
 ):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
     if dpi <= 0:
         raise RuntimeError("--dpi must be > 0")
+    if maxVisitsForLegend < 0:
+        raise RuntimeError("--maxVisitsForLegend must be >= 0")
     logger.info("Instantiating butler for repo '%s' with collections = %s", repo, collections)
     butler = Butler.from_config(repo, collections=collections)
     cameraDataset = butler.find_dataset("camera")
@@ -330,7 +333,6 @@ def main(
     bboxesPlotted = []
     cmap = get_cmap(len(visitIncludeList))
     alphaEdge = 0.7
-    maxVisitForLegend = 20
     finalVisitList = []
     finalVisitColorIndices = []
     includedBands = []
@@ -376,7 +378,7 @@ def main(
 
                 ras += raCorners
                 decs += decCorners
-                if not inLegend and len(visitIncludeList) <= maxVisitForLegend:
+                if not inLegend and len(visitIncludeList) <= maxVisitsForLegend:
                     plt.fill(raCorners, decCorners, label=str(visit), **fillKwargs)
                     inLegend = True
                 else:
@@ -710,7 +712,7 @@ def main(
     ax.set_xlabel("RA (deg)", fontsize=9)
     ax.set_ylabel("Dec (deg)", fontsize=9)
 
-    if len(visitIncludeList) > maxVisitForLegend:
+    if len(visitIncludeList) > maxVisitsForLegend:
         nVisits = len(finalVisitList)
         nz = matplotlib.colors.Normalize(vmin=0, vmax=len(visitIncludeList) - 1)
         cax, _ = matplotlib.colorbar.make_axes(plt.gca(), pad=0.03)
@@ -1199,6 +1201,12 @@ if __name__ == "__main__":
         default=150,
         help="DPI used when writing output via --saveFile.",
     )
+    parser.add_argument(
+        "--maxVisitsForLegend",
+        type=int,
+        default=20,
+        help="Maximum number of visits to include in the legend before switching to a colorbar.",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
     main(
@@ -1224,4 +1232,5 @@ if __name__ == "__main__":
         imageDatasetType=args.imageDatasetType,
         visitSummaryDatasetType=args.visitSummaryDatasetType,
         dpi=args.dpi,
+        maxVisitsForLegend=args.maxVisitsForLegend,
     )
