@@ -187,6 +187,7 @@ def main(
     showCcds=False,
     showCcdsAll=False,
     plotFailsOnly=False,
+    showRawOutlines=False,
     visitVetoFile=None,
     minOverlapFraction=None,
     trimToTracts=False,
@@ -504,6 +505,31 @@ def main(
         for ccdId in ccdIdList:
             if plotFailsOnly and (visit, ccdId) not in failedDataIds:
                 continue
+            if showRawOutlines and not plotFailsOnly:
+                rawRaCorners, rawDecCorners = getDetRaDecCorners(
+                    ccdKey,
+                    ccdId,
+                    visit,
+                    visitSummary=None,
+                    butler=butler,
+                    imageDatasetType="raw",
+                    doLogWarn=False,
+                )
+                if rawRaCorners is not None and rawDecCorners is not None:
+                    rawCornerPairs = list(zip(rawRaCorners, rawDecCorners))
+                    finiteRawCornerPairs = [
+                        (ra, dec) for ra, dec in rawCornerPairs if np.isfinite(ra) and np.isfinite(dec)
+                    ]
+                    if len(finiteRawCornerPairs) == len(rawCornerPairs):
+                        plt.fill(
+                            rawRaCorners,
+                            rawDecCorners,
+                            fill=False,
+                            alpha=alphaEdge,
+                            edgecolor=color,
+                            ls=":",
+                            lw=0.8,
+                        )
             raCorners, decCorners = getDetRaDecCorners(
                 ccdKey,
                 ccdId,
@@ -1454,6 +1480,15 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--showRawOutlines",
+        action="store_true",
+        default=False,
+        help=(
+            "Overlay raw detector footprints as dotted outlines the plot. "
+            "Ignored when --plotFailsOnly is set."
+        ),
+    )
+    parser.add_argument(
         "--visitVetoFile",
         type=str,
         default=None,
@@ -1555,6 +1590,7 @@ if __name__ == "__main__":
         showCcds=args.showCcds,
         showCcdsAll=args.showCcdsAll,
         plotFailsOnly=args.plotFailsOnly,
+        showRawOutlines=args.showRawOutlines,
         visitVetoFile=args.visitVetoFile,
         minOverlapFraction=args.minOverlapFraction,
         trimToTracts=args.trimToTracts,
