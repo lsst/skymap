@@ -133,6 +133,7 @@ def main(
     showPatchSelectedTractsOnly=False,
     saveFile=None,
     showCcds=False,
+    showCcdsAll=False,
     visitVetoFile=None,
     minOverlapFraction=None,
     trimToTracts=False,
@@ -422,7 +423,7 @@ def main(
                     finalVisitList.append(visit)
                     finalVisitColorIndices.append(i_v)
                 # Collect bboxes and CCD label info for later
-                if showCcds:
+                if showCcds or showCcdsAll:
                     ccdCenterRa = getValueAtPercentile(raCorners)
                     ccdCenterDec = getValueAtPercentile(decCorners)
                     overlapFrac = 0.2
@@ -730,8 +731,7 @@ def main(
             min(xlim) + ccdBufRa < ccdLabel["ra"] < max(xlim) - ccdBufRa
             and min(ylim) + ccdBufDec < ccdLabel["dec"] < max(ylim) - ccdBufDec
         ):
-            overlaps = [ccdLabel["bbox"].overlaps(otherBbox) for otherBbox in ccdBBoxesPlotted]
-            if not any(overlaps):
+            if showCcdsAll:
                 plt.text(
                     ccdLabel["ra"],
                     ccdLabel["dec"],
@@ -741,7 +741,19 @@ def main(
                     va="center",
                     color="darkblue",
                 )
-                ccdBBoxesPlotted.append(ccdLabel["bbox"])
+            else:
+                overlaps = [ccdLabel["bbox"].overlaps(otherBbox) for otherBbox in ccdBBoxesPlotted]
+                if not any(overlaps):
+                    plt.text(
+                        ccdLabel["ra"],
+                        ccdLabel["dec"],
+                        str(ccdLabel["ccdId"]),
+                        fontsize=6,
+                        ha="center",
+                        va="center",
+                        color="darkblue",
+                    )
+                    ccdBBoxesPlotted.append(ccdLabel["bbox"])
 
     # Draw the skymap.
     alpha0 = 1.0
@@ -1261,7 +1273,17 @@ if __name__ == "__main__":
     )
     parser.add_argument("--ccdKey", default="detector", help="Data ID name of the CCD key")
     parser.add_argument(
-        "--showCcds", action="store_true", default=False, help="Show ccd ID numbers on output image"
+        "--showCcds",
+        action="store_true",
+        default=False,
+        help="Show ccd ID numbers on output image, suppressing overlapping labels.",
+    )
+    parser.add_argument(
+        "--showCcdsAll",
+        action="store_true",
+        default=False,
+        help="Show all ccd ID numbers on output image (without suppressing overlaps). "
+        "Takes precedence over --showCcds when both are set.",
     )
     parser.add_argument(
         "--visitVetoFile",
@@ -1357,6 +1379,7 @@ if __name__ == "__main__":
         showPatchSelectedTractsOnly=args.showPatchSelectedTractsOnly,
         saveFile=args.saveFile,
         showCcds=args.showCcds,
+        showCcdsAll=args.showCcdsAll,
         visitVetoFile=args.visitVetoFile,
         minOverlapFraction=args.minOverlapFraction,
         trimToTracts=args.trimToTracts,
