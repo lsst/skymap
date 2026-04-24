@@ -136,6 +136,7 @@ def main(
     visitVetoFile=None,
     minOverlapFraction=None,
     trimToTracts=False,
+    trimToOverlappingTracts=False,
     doUnscaledLimitRatio=False,
     forceScaledLimitRatio=False,
     imageDatasetType=None,
@@ -362,7 +363,8 @@ def main(
 
     # Draw the CCDs.
     ras, decs = [], []
-    bboxesPlotted = []
+    ccdBBoxesPlotted = []  # Bounding boxes for CCDs that were actually drawn
+    ccdLabelsToPlot = []  # Store CCD label info to plot after limits finalized
     cmap = get_cmap(len(visitIncludeList))
     alphaEdge = 0.7
     finalVisitList = []
@@ -419,8 +421,10 @@ def main(
                 if visit not in finalVisitList:
                     finalVisitList.append(visit)
                     finalVisitColorIndices.append(i_v)
-                # add CCD serial numbers
+                # Collect bboxes and CCD label info for later
                 if showCcds:
+                    ccdCenterRa = getValueAtPercentile(raCorners)
+                    ccdCenterDec = getValueAtPercentile(decCorners)
                     overlapFrac = 0.2
                     deltaRa = max(raCorners) - min(raCorners)
                     deltaDec = max(decCorners) - min(decCorners)
@@ -430,20 +434,15 @@ def main(
                     maxPoint = Point2D(
                         max(raCorners) - overlapFrac * deltaRa, max(decCorners) - overlapFrac * deltaDec
                     )
-                    # Use doubles in Box2D to check overlap
                     bboxDouble = Box2D(minPoint, maxPoint)
-                    overlaps = [not bboxDouble.overlaps(otherBbox) for otherBbox in bboxesPlotted]
-                    if all(overlaps):
-                        plt.text(
-                            getValueAtPercentile(raCorners),
-                            getValueAtPercentile(decCorners),
-                            str(ccdId),
-                            fontsize=6,
-                            ha="center",
-                            va="center",
-                            color="darkblue",
-                        )
-                        bboxesPlotted.append(bboxDouble)
+                    ccdLabelsToPlot.append(
+                        {
+                            "ra": ccdCenterRa,
+                            "dec": ccdCenterDec,
+                            "ccdId": ccdId,
+                            "bbox": bboxDouble,
+                        }
+                    )
 
         if visit in missingVisitSummaryRows:
             missingDetectors = sorted(missingVisitSummaryRows[visit])
@@ -520,7 +519,23 @@ def main(
     if len(tractList) == 0:
         raise RuntimeError("No valid tract ids found for plotting")
     logger.info("List of tracts overlapping data:  %s", tractList)
-    tractLimitsDict = getTractLimitsDict(skymap, tractList)
+
+    # Determine which tracts to use for plot axis limits.
+    # trimToOverlappingTracts always uses all tracts overlapping the visits;
+    # trimToTracts uses user tracts when available, else falls back
+    # to overlapping tracts; otherwise plot limits come from visit footprints.
+    if trimToOverlappingTracts:
+        tractLimitsForPlotting = tractList
+    elif trimToTracts:
+        tractLimitsForPlotting = tracts if tracts is not None else tractList
+    else:
+        tractLimitsForPlotting = None  # use visit footprints for plot limits
+
+    # Compute the tract limits dict only if needed for plot limits.
+    if tractLimitsForPlotting is not None:
+        tractLimitsDict = getTractLimitsDict(skymap, tractLimitsForPlotting)
+    else:
+        tractLimitsDict = None
 
     if forceScaledLimitRatio:
         doUnscaledLimitRatio = False
@@ -535,7 +550,7 @@ def main(
         fpRadiusDeg = np.rad2deg(focalPlaneToFieldAngle.applyForward(fpRadiusPt))[0]
         detectorRadiusDeg = fpRadiusDeg / np.sqrt(len(camera))
 
-        if trimToTracts:
+        if tractLimitsDict is not None:
             xLimMin, xLimMax, yLimMin, yLimMax = getMinMaxLimits(tractLimitsDict)
             xDelta0 = xLimMax - xLimMin
             yDelta0 = yLimMax - yLimMin
@@ -694,7 +709,7 @@ def main(
                     if raToDecLimitRatio < 1.0:
                         raToDecLimitRatio *= max(height / width, width / height)
 
-    if trimToTracts:
+    if tractLimitsDict is not None:
         xlim, ylim = derivePlotLimits(tractLimitsDict, raToDecLimitRatio=raToDecLimitRatio, buffFrac=0.04)
     else:
         visitLimitsDict = {"allVisits": {"ras": [minVisitRa, maxVisitRa], "decs": [minVisitDec, maxVisitDec]}}
@@ -704,6 +719,29 @@ def main(
         boxAspectRatio = abs((ylim[1] - ylim[0]) / (xlim[1] - xlim[0]))
     else:
         boxAspectRatio = 1.0
+
+    # Plot deferred CCD labels after plot limits are finalized.
+    ccdLabelEdgeBuffer = 0.03  # fraction of plot width/height to use as inset
+    ccdBufRa = ccdLabelEdgeBuffer * abs(xlim[1] - xlim[0])
+    ccdBufDec = ccdLabelEdgeBuffer * abs(ylim[1] - ylim[0])
+    for ccdLabel in ccdLabelsToPlot:
+        # Keep center inside buffered bounds (RA xlim may be inverted).
+        if (
+            min(xlim) + ccdBufRa < ccdLabel["ra"] < max(xlim) - ccdBufRa
+            and min(ylim) + ccdBufDec < ccdLabel["dec"] < max(ylim) - ccdBufDec
+        ):
+            overlaps = [ccdLabel["bbox"].overlaps(otherBbox) for otherBbox in ccdBBoxesPlotted]
+            if not any(overlaps):
+                plt.text(
+                    ccdLabel["ra"],
+                    ccdLabel["dec"],
+                    str(ccdLabel["ccdId"]),
+                    fontsize=6,
+                    ha="center",
+                    va="center",
+                    color="darkblue",
+                )
+                ccdBBoxesPlotted.append(ccdLabel["bbox"])
 
     # Draw the skymap.
     alpha0 = 1.0
@@ -1243,7 +1281,19 @@ if __name__ == "__main__":
         "--trimToTracts",
         action="store_true",
         default=False,
-        help="Set plot limits based on extent of visits (as opposed to tracts) plotted?",
+        help=(
+            "Set plot limits based on the extent of the tracts specified via --tracts "
+            "(or all overlapping tracts if --tracts is not given), rather than the visit footprints."
+        ),
+    )
+    parser.add_argument(
+        "--trimToOverlappingTracts",
+        action="store_true",
+        default=False,
+        help=(
+            "Set plot limits based on the extent of all tracts overlapping the plotted visits, "
+            "regardless of --tracts. Takes precedence over --trimToTracts when both are set."
+        ),
     )
     parser.add_argument(
         "--doUnscaledLimitRatio",
@@ -1312,6 +1362,7 @@ if __name__ == "__main__":
         visitVetoFile=args.visitVetoFile,
         minOverlapFraction=args.minOverlapFraction,
         trimToTracts=args.trimToTracts,
+        trimToOverlappingTracts=args.trimToOverlappingTracts,
         doUnscaledLimitRatio=args.doUnscaledLimitRatio,
         forceScaledLimitRatio=args.forceScaledLimitRatio,
         imageDatasetType=args.imageDatasetType,
