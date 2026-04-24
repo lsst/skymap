@@ -180,25 +180,25 @@ def main(
     physicalFilters=None,
     bands=None,
     ccds=None,
-    ccdKey="detector",
+    visitVetoFile=None,
+    minOverlapFraction=None,
     showPatch=False,
     showPatchSelectedTractsOnly=False,
-    saveFile=None,
     showCcds=False,
     showCcdsAll=False,
     plotFailsOnly=False,
     showRawOutlines=False,
-    visitVetoFile=None,
-    minOverlapFraction=None,
     trimToTracts=False,
     trimToOverlappingTracts=False,
     doUnscaledLimitRatio=False,
     forceScaledLimitRatio=False,
-    imageDatasetType=None,
-    visitSummaryDatasetType=None,
-    dpi=150,
     maxVisitForLegend=20,
     useRubinPlotStyle=False,
+    saveFile=None,
+    dpi=150,
+    ccdKey="detector",
+    imageDatasetType=None,
+    visitSummaryDatasetType=None,
 ):
     if minOverlapFraction is not None and tracts is None:
         raise RuntimeError("Must specify --tracts if --minOverlapFraction is set")
@@ -653,7 +653,7 @@ def main(
         else:
             raise RuntimeError(
                 "No data to plot (if you want to plot empty tracts, include them as "
-                "a blank-space separated list to the --tracts option)."
+                "a whitespace-separated list to the --tracts option)."
             )
     tractList, invalidTracts = sanitizeTractList(skymap, tractList)
     if len(invalidTracts) > 0:
@@ -1382,94 +1382,123 @@ def getBand(visitSummary=None, butler=None, visit=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "repo", type=str, help="URI or path to an existing data repository root or configuration file"
+    butlerGroup = parser.add_argument_group("Repository and Collections")
+    selectionGroup = parser.add_argument_group("Selection Filters")
+    plotGroup = parser.add_argument_group("Plot Content and Layout")
+    dataGroup = parser.add_argument_group("Dataset Lookup")
+    runtimeGroup = parser.add_argument_group("Runtime and Logging")
+
+    # Repository and Collections
+    butlerGroup.add_argument(
+        "repo",
+        type=str,
+        help="URI or path to an existing data repository root or configuration file.",
     )
-    parser.add_argument(
+    butlerGroup.add_argument(
         "--collections",
         type=str,
         nargs="+",
-        help="Blank-space separated list of collection names for butler instantiation",
+        help="Whitespace-separated list of collection names for Butler instantiation.",
         metavar=("COLLECTION1", "COLLECTION2"),
         required=True,
     )
-    parser.add_argument("--skymapName", default=None, help="Name of the skymap for the collection")
-    parser.add_argument(
+    butlerGroup.add_argument(
+        "--skymapName",
+        default=None,
+        help="Name of the skymap for the collection.",
+    )
+
+    # Selection Filters
+    selectionGroup.add_argument(
         "--tracts",
         type=int,
         nargs="+",
         default=None,
-        help=("Blank-space separated list of tracts to constrain search for visit overlap"),
+        help="Whitespace-separated list of tracts to constrain search for visit overlap.",
         metavar=("TRACT1", "TRACT2"),
     )
-    parser.add_argument(
+    selectionGroup.add_argument(
         "--patches",
         type=int,
         nargs="+",
         default=None,
-        help=("Blank-space separated list of patches to constrain search for visit overlap"),
+        help="Whitespace-separated list of patches to constrain search for visit overlap.",
         metavar=("PATCH1", "PATCH2"),
     )
-    parser.add_argument(
+    selectionGroup.add_argument(
         "--visits",
         type=int,
         nargs="+",
         default=None,
-        help="Blank-space separated list of visits to include",
+        help="Whitespace-separated list of visits to include.",
         metavar=("VISIT1", "VISIT2"),
     )
-    parser.add_argument(
+    selectionGroup.add_argument(
         "--physicalFilters",
         type=str,
         nargs="+",
         default=None,
-        help=("Blank-space separated list of physical filter names to constrain search for visits"),
+        help="Whitespace-separated list of physical filter names to constrain search for visits.",
         metavar=("PHYSICAL_FILTER1", "PHYSICAL_FILTER2"),
     )
-    parser.add_argument(
+    selectionGroup.add_argument(
         "--bands",
         type=str,
         nargs="+",
         default=None,
-        help=("Blank-space separated list of canonical band names to constrain search for visits"),
+        help="Whitespace-separated list of canonical band names to constrain search for visits.",
         metavar=("BAND1", "BAND2"),
     )
-    parser.add_argument(
+    selectionGroup.add_argument(
         "-c",
         "--ccds",
         nargs="+",
         type=int,
         default=None,
-        help="Blank-space separated list of CCDs to show",
+        help="Whitespace-separated list of CCDs to show.",
         metavar=("CCD1", "CCD2"),
     )
-    parser.add_argument(
-        "-p", "--showPatch", action="store_true", default=False, help="Show the patch boundaries"
+    selectionGroup.add_argument(
+        "--visitVetoFile",
+        type=str,
+        default=None,
+        help="Full path to a single-column file containing a list of visits to veto.",
     )
-    parser.add_argument(
+    selectionGroup.add_argument(
+        "--minOverlapFraction",
+        type=float,
+        default=None,
+        help="Minimum fraction of detectors that overlap any tract for a visit to be included.",
+    )
+
+    # Plot Content and Layout
+    plotGroup.add_argument(
+        "-p",
+        "--showPatch",
+        action="store_true",
+        default=False,
+        help="Show the patch boundaries.",
+    )
+    plotGroup.add_argument(
         "--showPatchSelectedTractsOnly",
         action="store_true",
         default=False,
         help="When showing patches, only draw patch boundaries for the tracts passed to --tracts.",
     )
-    parser.add_argument(
-        "--saveFile", type=str, default="showVisitSkyMap.png", help="Filename to write the plot to"
-    )
-    parser.add_argument("--ccdKey", default="detector", help="Data ID name of the CCD key")
-    parser.add_argument(
+    plotGroup.add_argument(
         "--showCcds",
         action="store_true",
         default=False,
-        help="Show ccd ID numbers on output image, suppressing overlapping labels.",
+        help="Show CCD ID numbers on the output image, suppressing overlapping labels.",
     )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--showCcdsAll",
         action="store_true",
         default=False,
         help="Show all ccd ID numbers on output image (without suppressing overlaps). "
         "Takes precedence over --showCcds when both are set.",
     )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--plotFailsOnly",
         action="store_true",
         default=False,
@@ -1479,28 +1508,16 @@ if __name__ == "__main__":
             "from the raw WCS. Output filename is suffixed with '_failed' automatically."
         ),
     )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--showRawOutlines",
         action="store_true",
         default=False,
         help=(
-            "Overlay raw detector footprints as dotted outlines the plot. "
+            "Overlay raw detector footprints as dotted outlines on the plot. "
             "Ignored when --plotFailsOnly is set."
         ),
     )
-    parser.add_argument(
-        "--visitVetoFile",
-        type=str,
-        default=None,
-        help="Full path to single-column file containing a list of visits to veto",
-    )
-    parser.add_argument(
-        "--minOverlapFraction",
-        type=float,
-        default=None,
-        help="Minimum fraction of detectors that overlap any tract for visit to be included",
-    )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--trimToTracts",
         action="store_true",
         default=False,
@@ -1509,7 +1526,7 @@ if __name__ == "__main__":
             "(or all overlapping tracts if --tracts is not given), rather than the visit footprints."
         ),
     )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--trimToOverlappingTracts",
         action="store_true",
         default=False,
@@ -1518,21 +1535,52 @@ if __name__ == "__main__":
             "regardless of --tracts. Takes precedence over --trimToTracts when both are set."
         ),
     )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--doUnscaledLimitRatio",
         action="store_true",
         default=False,
         help="Let axis limits get set by sky coordinate range without scaling to focal "
         "plane based projection (ignored if --forceScaledLimitRatio is passed).",
     )
-    parser.add_argument(
+    plotGroup.add_argument(
         "--forceScaledLimitRatio",
         action="store_true",
         default=False,
         help="Force the axis limit scaling to focal plane based projection (takes "
         "precedence over --doUnscaledLimitRatio.",
     )
-    parser.add_argument(
+    plotGroup.add_argument(
+        "--maxVisitForLegend",
+        type=int,
+        default=20,
+        help="Maximum number of visits to include in the legend before switching to a colorbar.",
+    )
+    plotGroup.add_argument(
+        "--useRubinPlotStyle",
+        action="store_true",
+        default=False,
+        help="Use Rubin publication plotting style and per-band colors/linestyles for detector outlines.",
+    )
+    plotGroup.add_argument(
+        "--saveFile",
+        type=str,
+        default="showVisitSkyMap.png",
+        help="Filename to write the plot to.",
+    )
+    plotGroup.add_argument(
+        "--dpi",
+        type=int,
+        default=150,
+        help="DPI used when writing output via --saveFile.",
+    )
+
+    # Dataset Lookup
+    dataGroup.add_argument(
+        "--ccdKey",
+        default="detector",
+        help="Data ID key name for the CCD (default: 'detector').",
+    )
+    dataGroup.add_argument(
         "--imageDatasetType",
         type=str,
         default=None,
@@ -1541,36 +1589,21 @@ if __name__ == "__main__":
             "defaults to commonly used detector storage types."
         ),
     )
-    parser.add_argument(
+    dataGroup.add_argument(
         "--visitSummaryDatasetType",
         type=str,
         default=None,
-        help=("Visit summary dataset type to use; defaults to commonly used visit summary types."),
+        help="Visit summary dataset type to use; defaults to commonly used visit summary types.",
     )
-    parser.add_argument(
-        "--dpi",
-        type=int,
-        default=150,
-        help="DPI used when writing output via --saveFile.",
-    )
-    parser.add_argument(
-        "--maxVisitForLegend",
-        type=int,
-        default=20,
-        help="Maximum number of visits to include in the legend before switching to a colorbar.",
-    )
-    parser.add_argument(
-        "--useRubinPlotStyle",
-        action="store_true",
-        default=False,
-        help=("Use Rubin publication plotting style and per-band colors/linestyles for detector outlines."),
-    )
-    parser.add_argument(
+
+    # Runtime and Logging
+    runtimeGroup.add_argument(
         "--logLevel",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Logging level (default: INFO).",
     )
+
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.logLevel), format="%(levelname)s:%(name)s: %(message)s")
     logging.getLogger("numexpr.utils").setLevel(logging.WARNING)
@@ -1584,23 +1617,23 @@ if __name__ == "__main__":
         physicalFilters=args.physicalFilters,
         bands=args.bands,
         ccds=args.ccds,
-        ccdKey=args.ccdKey,
+        visitVetoFile=args.visitVetoFile,
+        minOverlapFraction=args.minOverlapFraction,
         showPatch=args.showPatch,
         showPatchSelectedTractsOnly=args.showPatchSelectedTractsOnly,
-        saveFile=args.saveFile,
         showCcds=args.showCcds,
         showCcdsAll=args.showCcdsAll,
         plotFailsOnly=args.plotFailsOnly,
         showRawOutlines=args.showRawOutlines,
-        visitVetoFile=args.visitVetoFile,
-        minOverlapFraction=args.minOverlapFraction,
         trimToTracts=args.trimToTracts,
         trimToOverlappingTracts=args.trimToOverlappingTracts,
         doUnscaledLimitRatio=args.doUnscaledLimitRatio,
         forceScaledLimitRatio=args.forceScaledLimitRatio,
-        imageDatasetType=args.imageDatasetType,
-        visitSummaryDatasetType=args.visitSummaryDatasetType,
-        dpi=args.dpi,
         maxVisitForLegend=args.maxVisitForLegend,
         useRubinPlotStyle=args.useRubinPlotStyle,
+        saveFile=args.saveFile,
+        dpi=args.dpi,
+        ccdKey=args.ccdKey,
+        imageDatasetType=args.imageDatasetType,
+        visitSummaryDatasetType=args.visitSummaryDatasetType,
     )
