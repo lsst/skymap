@@ -798,9 +798,7 @@ def main(
             patchColor = "k"
             for patch in tractInfo:
                 ra, dec = bboxToRaDec(patch.getInnerBBox(), tractInfo.getWcs())
-                plt.fill(
-                    ra, dec, fill=False, edgecolor=patchColor, lw=0.5, linestyle=(0, (5, 6)), alpha=alpha
-                )
+                plt.fill(ra, dec, fill=False, edgecolor=patchColor, lw=0.5, linestyle="dotted", alpha=alpha)
                 if (
                     xlim[1] + fracDeltaX < getValueAtPercentile(ra) < xlim[0] - fracDeltaX
                     and ylim[0] + fracDeltaY < getValueAtPercentile(dec) < ylim[1] - fracDeltaY
