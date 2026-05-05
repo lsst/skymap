@@ -935,7 +935,7 @@ def main(
     tractOutlineList.sort()
     selectedPatchTracts = set(tracts) if tracts is not None else None
     if showPatchSelectedTractsOnly and selectedPatchTracts is None:
-        logger.info(
+        logger.warning(
             "--showPatchSelectedTractsOnly was set without --tracts; showing patches for all plotted tracts."
         )
     logger.info("List of tract outlines being plotted: %s", tractOutlineList)
