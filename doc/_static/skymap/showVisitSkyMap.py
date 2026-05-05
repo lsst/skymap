@@ -1108,9 +1108,13 @@ def main(
         yInches = minInches
         fig.set_size_inches(xInches, yInches)
     if saveFile is not None:
+        fileRoot, fileExt = os.path.splitext(saveFile)
         if plotFailsOnly and "fail" not in saveFile:
-            fileRoot, fileExt = os.path.splitext(saveFile)
-            saveFile = f"{fileRoot}_failed{fileExt}" if fileExt else f"{saveFile}_failed"
+            saveFile = f"{fileRoot}_failed{fileExt}"
+        if fileExt == "":
+            defaultSaveFormat = matplotlib.rcParams.get("savefig.format", "png")
+            saveFile = f"{saveFile}.{defaultSaveFormat}"
+        saveFile = os.path.normpath(saveFile)
         logger.info("Saving file in: %s", saveFile)
         fig.savefig(saveFile, bbox_inches="tight", dpi=dpi)
     else:
