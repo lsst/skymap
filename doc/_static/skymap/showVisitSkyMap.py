@@ -1425,6 +1425,7 @@ if __name__ == "__main__":
     butlerGroup = parser.add_argument_group("Repository and Collections")
     selectionGroup = parser.add_argument_group("Selection Filters")
     plotGroup = parser.add_argument_group("Plot Content and Layout")
+    outputGroup = parser.add_argument_group("File Output")
     dataGroup = parser.add_argument_group("Dataset Lookup")
     runtimeGroup = parser.add_argument_group("Runtime and Logging")
 
@@ -1621,13 +1622,15 @@ if __name__ == "__main__":
         default=False,
         help="Use Rubin publication plotting style and per-band colors/linestyles for detector outlines.",
     )
-    plotGroup.add_argument(
+
+    # File Output
+    outputGroup.add_argument(
         "--saveFile",
         type=str,
         default="showVisitSkyMap.png",
         help="Filename to write the plot to.",
     )
-    plotGroup.add_argument(
+    outputGroup.add_argument(
         "--dpi",
         type=int,
         default=150,
