@@ -174,6 +174,7 @@ def main(
     repo,
     collections,
     skymapName=None,
+    radec=None,
     tracts=None,
     patches=None,
     visits=None,
@@ -247,7 +248,7 @@ def main(
 
     if patches is not None:
         patchStr = makeWhereInStr("patch", patches, int)
-        whereStr += " AND " + patchStr
+        whereStr += " AND " + patchStr if len(whereStr) else patchStr
 
     if visits is not None:
         visitStr = makeWhereInStr("exposure", visits, int)
@@ -258,11 +259,16 @@ def main(
 
     if physicalFilters is not None:
         physicalFilterStr = makeWhereInStr("physical_filter", physicalFilters, str)
-        whereStr += " AND " + physicalFilterStr if len(whereStr) else " " + physicalFilterStr
+        whereStr += " AND " + physicalFilterStr if len(whereStr) else physicalFilterStr
 
     if bands is not None:
         bandStr = makeWhereInStr("band", bands, str)
-        whereStr += " AND " + bandStr if len(whereStr) else " " + bandStr
+        whereStr += " AND " + bandStr if len(whereStr) else bandStr
+
+    if radec is not None:
+        ra, dec = radec
+        radecStr = f"visit.region OVERLAPS POINT({ra:.8f}, {dec:.8f})"
+        whereStr += " AND " + radecStr if len(whereStr) else radecStr
 
     if len(whereStr) > 1:
         whereStr = f"instrument='{instrument}' AND skymap='{skymapName}' AND {whereStr}"
@@ -651,10 +657,21 @@ def main(
             tractList = tracts
             trimToTracts = True
         else:
-            raise RuntimeError(
-                "No data to plot (if you want to plot empty tracts, include them as "
-                "a whitespace-separated list to the --tracts option)."
-            )
+            if radec is not None:
+                logger.info(
+                    "No detectors found; centering on provided RA/Dec (%.5f, %.5f).",
+                    radec[0],
+                    radec[1],
+                )
+                radecSphPoint = SpherePoint(Angle(radec[0], degrees), Angle(radec[1], degrees))
+                tractId = skymap.findTract(radecSphPoint).getId()
+                tractList = [tractId]
+                trimToTracts = True
+            else:
+                raise RuntimeError(
+                    "No data to plot (if you want to plot empty tracts, include them as "
+                    "a whitespace-separated list to the --tracts option)."
+                )
     tractList, invalidTracts = sanitizeTractList(skymap, tractList)
     if len(invalidTracts) > 0:
         logger.warning("Ignoring invalid tract ids: %s", invalidTracts)
@@ -977,6 +994,19 @@ def main(
                         va="center",
                         alpha=alpha,
                     )
+
+    # Plot the RA/Dec marker if provided.
+    if radec is not None:
+        plt.plot(
+            radec[0],
+            radec[1],
+            marker="*",
+            markersize=12,
+            color="red",
+            markeredgecolor="black",
+            markeredgewidth=0.8,
+            zorder=10,
+        )
 
     # Add labels and save.
     ax = plt.gca()
@@ -1410,6 +1440,17 @@ if __name__ == "__main__":
 
     # Selection Filters
     selectionGroup.add_argument(
+        "--radec",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("RA", "DEC"),
+        help=(
+            "RA and Dec (in degrees) of a coordinate to mark on the plot with a star marker; "
+            "also limits dataset queries to visits whose sky region overlaps this point."
+        ),
+    )
+    selectionGroup.add_argument(
         "--tracts",
         type=int,
         nargs="+",
@@ -1611,6 +1652,7 @@ if __name__ == "__main__":
         args.repo,
         args.collections,
         skymapName=args.skymapName,
+        radec=args.radec,
         tracts=args.tracts,
         patches=args.patches,
         visits=args.visits,
