@@ -181,6 +181,7 @@ def main(
     physicalFilters=None,
     bands=None,
     ccds=None,
+    maxVisits=None,
     visitVetoFile=None,
     minOverlapFraction=None,
     showPatch=False,
@@ -207,6 +208,8 @@ def main(
         raise RuntimeError("--dpi must be > 0")
     if maxVisitsForLegend < 0:
         raise RuntimeError("--maxVisitsForLegend must be >= 0")
+    if maxVisits is not None and maxVisits < 0:
+        raise RuntimeError("--maxVisits must be >= 0")
     configureBandStyle(useRubinPlotStyle=useRubinPlotStyle)
     logger.info("Instantiating butler for repo '%s' with collections = %s", repo, collections)
     butler = Butler.from_config(repo, collections=collections)
@@ -342,7 +345,10 @@ def main(
                 if visit not in visits and visit not in visitVetoList:
                     visits.append(visit)
         visits.sort()
-        logger.info("List of visits (N=%d) satisfying where and veto clauses: %s", len(visits), visits)
+        if maxVisits is not None and len(visits) > maxVisits:
+            logger.info("Trimming visits from N=%d to N=%d due to --maxVisits", len(visits), maxVisits)
+            visits = visits[:maxVisits]
+        logger.info("List of visits (N=%d) satisfying selection filters: %s", len(visits), visits)
     else:
         if len(visitVetoList) > 1:
             visitListTemp = visits.copy()
@@ -1504,6 +1510,15 @@ if __name__ == "__main__":
         metavar=("CCD1", "CCD2"),
     )
     selectionGroup.add_argument(
+        "--maxVisits",
+        type=int,
+        default=None,
+        help=(
+            "Maximum number of unique visits to include when --visits is not provided; "
+            "use 0 to skip visit plotting and show tract-only output."
+        ),
+    )
+    selectionGroup.add_argument(
         "--visitVetoFile",
         type=str,
         default=None,
@@ -1663,6 +1678,7 @@ if __name__ == "__main__":
         physicalFilters=args.physicalFilters,
         bands=args.bands,
         ccds=args.ccds,
+        maxVisits=args.maxVisits,
         visitVetoFile=args.visitVetoFile,
         minOverlapFraction=args.minOverlapFraction,
         showPatch=args.showPatch,
