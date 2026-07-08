@@ -169,6 +169,28 @@ class HscRingsTestCase(lsst.utils.tests.TestCase):
 
         np.testing.assert_array_equal(indexes2, indexes)
 
+    def testFindTractIdPatchIdArray(self):
+        """Test findTractIdPatchIdArray."""
+        np.random.seed(12345)
+
+        ras = np.random.uniform(low=0.0, high=360.0, size=1000)
+        decs = np.random.uniform(low=-90.0, high=90.0, size=1000)
+
+        coords = [lsst.geom.SpherePoint(ra*lsst.geom.degrees, dec*lsst.geom.degrees)
+                  for ra, dec in zip(ras, decs)]
+
+        tractIds = [self.skymap.findTract(coord).getId() for coord in coords]
+        patchIds = np.zeros(len(tractIds), dtype=np.int32)
+        for i, tractId in enumerate(tractIds):
+            tract = self.skymap[tractId]
+            patch = tract.findPatch(coords[i])
+            patchIds[i] = patch.sequential_index
+
+        tractIds2, patchIds2 = self.skymap.findTractIdPatchIdArray(ras, decs, degrees=True)
+
+        np.testing.assert_array_equal(tractIds2, tractIds)
+        np.testing.assert_array_equal(patchIds2, patchIds)
+
     def getFirstTractLastRingCoord(self):
         """Return the coordinates of the first tract in the last ring
 

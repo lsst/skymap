@@ -1,3 +1,4 @@
+import numpy as np
 import unittest
 
 import lsst.utils.tests
@@ -64,6 +65,41 @@ class DiscreteTestCase(skyMapTestCase.SkyMapTestCase):
             config.decList[5] = dec
             skyMap = self.getSkyMap(config=config)
             self.assertNotEqual(skyMap, defaultSkyMap)
+
+    def testFindTractIdPatchIdArray(self):
+        np.random.seed(12345)
+
+        skymap = self.getSkyMap()
+
+        ras = np.random.uniform(low=0.0, high=360.0, size=1000)
+        decs = np.random.uniform(low=-90.0, high=90.0, size=1000)
+
+        # Make sure we have points that are just off a tract.
+        wcs = skymap[0].wcs
+        ras2, decs2 = wcs.pixelToSkyArray([-0.5, 10.0], [10.0, -0.5], degrees=True)
+        ras = np.concatenate((ras, ras2))
+        decs = np.concatenate((decs, decs2))
+
+        coords = [lsst.geom.SpherePoint(ra*lsst.geom.degrees, dec*lsst.geom.degrees)
+                  for ra, dec in zip(ras, decs)]
+
+        tractIds = [skymap.findTract(coord).getId() for coord in coords]
+        patchIds = np.zeros(len(tractIds), dtype=np.int32)
+        for i, tractId in enumerate(tractIds):
+            tract = skymap[tractId]
+            try:
+                patch = tract.findPatch(coords[i])
+                index = patch.sequential_index
+            except LookupError:
+                # Not in a tract at all.
+                tractIds[i] = -1
+                index = -1
+            patchIds[i] = index
+
+        tractIds2, patchIds2 = skymap.findTractIdPatchIdArray(ras, decs, degrees=True)
+
+        np.testing.assert_array_equal(tractIds2, tractIds)
+        np.testing.assert_array_equal(patchIds2, patchIds)
 
 
 class MemoryTester(lsst.utils.tests.MemoryTestCase):
