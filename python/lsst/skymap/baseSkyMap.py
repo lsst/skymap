@@ -296,6 +296,71 @@ class BaseSkyMap:
                 retList.append((tractInfo, patchList))
         return retList
 
+    def findTractIdPatchIdArray(self, ra, dec, degrees=False):
+        """Find array of tract IDs and patch IDs with vectorized operations
+        (where supported).
+
+        If a given sky map does not support vectorized operations, then
+        loops will be called.
+
+        Parameters
+        ----------
+        ra : `numpy.ndarray`
+            Array of Right Ascension.  Units are radians unless
+            degrees=True.
+        dec : `numpy.ndarray`
+            Array of Declination.  Units are radians unless
+            degrees=True.
+        degrees : `bool`, optional
+            Input ra, dec arrays are degrees if `True`.
+
+        Returns
+        -------
+        tractId : `numpy.ndarray`
+            Array of tract IDs.
+        patchId : `numpy.ndarray`
+            Array of sequential patch IDs.  -1 if there is no appropriate
+            patch.
+
+        Notes
+        -----
+        - If coord is equidistant between multiple sky tract centers then one
+          is arbitrarily chosen.
+
+        .. warning::
+
+           If tracts do not cover the whole sky then the returned tract may not
+           include the given ra/dec.
+        """
+        from scipy.ndimage import value_indices
+
+        _ra = np.atleast_1d(ra)
+        _dec = np.atleast_1d(dec)
+
+        # This will be vectorized if possible.
+        tractIds = self.findTractIdArray(_ra.ravel(), _dec.ravel(), degrees=degrees)
+
+        # This will be vectorized within each patch.
+        patchIds = np.zeros(len(tractIds), dtype=np.int32) - 1
+
+        inds = value_indices(tractIds)
+        for tractId, (indices,) in inds.items():
+            tract = self[tractId]
+            wcs = tract.wcs
+            x, y = wcs.skyToPixelArray(_ra[indices], _dec[indices], degrees=degrees)
+            xInd = np.floor(x).astype(np.int64) // tract.patch_inner_dimensions[0]
+            yInd = np.floor(y).astype(np.int64) // tract.patch_inner_dimensions[1]
+            nx, ny = tract.num_patches
+            patchIds[indices] = nx * yInd + xInd
+
+            # Check for overflows
+            bad = (xInd < 0) | (xInd >= nx) | (yInd < 0) | (yInd >= ny)
+            if bad.sum() > 0:
+                tractIds[indices[bad]] = -1
+                patchIds[indices[bad]] = -1
+
+        return (tractIds, patchIds)
+
     def __getitem__(self, ind):
         return self._tractInfoList[ind]
 
