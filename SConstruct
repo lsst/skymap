@@ -1,3 +1,3 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConstruct("skymap")
+scripts.BasicSConstruct("skymap", noCfgFile=True, disableCc=True)
